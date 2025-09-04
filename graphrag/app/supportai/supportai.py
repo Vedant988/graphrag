@@ -231,6 +231,52 @@ def create_ingest(
                 output_json_path = jobs[0]["output_json_path"]
                 ingest_config.data_source_config["data_path"] = output_json_path
                 ingest_config.file_format = "json"
+
+                # --- Begin: S3 markdown extraction and TigerGraph loading ---
+                s3_client = boto3.client('s3')
+                bucket_name = output_bucket
+                # Use the folder containing the output
+                prefix = output_json_path.rsplit('/', 1)[0] + '/'
+                processed_files = []
+
+                paginator = s3_client.get_paginator('list_objects_v2')
+                pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+
+                for page in pages:
+                    if 'Contents' not in page:
+                        continue
+                    for obj in page['Contents']:
+                        key = obj['Key']
+                        if key.endswith('/0/standard_output/0/result.md'):
+                            path_parts = key.split('/')
+                            if len(path_parts) >= 7:
+                                pdf_name = path_parts[3]
+                                file_uuid = path_parts[4] if len(
+                                    path_parts) <= 9 else "/".join(path_parts[4:-4])
+                                response = s3_client.get_object(
+                                    Bucket=bucket_name, Key=key)
+                                content = response['Body'].read().decode(
+                                    'utf-8')
+                                base_path = f"bda/output/BarclaysDocs/{pdf_name}/{file_uuid}/0/standard_output/0/assets/"
+                                import re
+                                content = re.sub(
+                                    r'!\[([^\]]*)\]\(\./([^)]+)\)', lambda m: f'![{m.group(1)}](s3://{bucket_name}/{base_path}{m.group(2)})', content)
+                                doc_id = f"{pdf_name}"
+                                payload = json.dumps(
+                                    {"doc_id": doc_id, "doc_type": "markdown", "content": content})
+                                try:
+                                    conn.runLoadingJobWithData(
+                                        payload, "DocumentContent", "load_documents_content_json", None, None, 16000, 128000000)
+                                    processed_files.append({
+                                        'file_path': key,
+                                        'doc_id': doc_id,
+                                    })
+                                except Exception as e:
+                                    logger.error(
+                                        f"Error loading document {doc_id} from {key}: {e}")
+                logger.info(
+                    f"Processed {len(processed_files)} markdown files from S3 and loaded into TigerGraph.")
+                # --- End: S3 markdown extraction and TigerGraph loading ---
             except Exception as e:
                 logger.error(f"Error during Lambda preprocessing: {e}")
                 raise
