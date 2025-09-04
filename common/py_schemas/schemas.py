@@ -120,7 +120,7 @@ class CreateIngestConfig(BaseModel):
     data_source: str
     data_source_config: Dict
     loader_config: Dict = {"doc_id_field": str, "content_field": str}
-    file_format: str = "json"
+    file_format: str = "multi"
 
 
 class LoadingInfo(BaseModel):

@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 import logging
-
+import boto3
 from pyTigerGraph import TigerGraphConnection
 
 from common.config import embedding_dimension
@@ -16,6 +16,7 @@ from common.py_schemas.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 def init_supportai(conn: TigerGraphConnection, graphname: str) -> tuple[dict, dict]:
     # need to open the file using the absolute path
@@ -36,7 +37,7 @@ def init_supportai(conn: TigerGraphConnection, graphname: str) -> tuple[dict, di
     ]
 
     if "- VERTEX ResolvedEntity" in current_schema:
-        schema_res="Schema already exists, skipped"
+        schema_res = "Schema already exists, skipped"
     else:
         file_path = "common/gsql/supportai/SupportAI_Schema.gsql"
         with open(file_path, "r") as f:
@@ -48,7 +49,7 @@ def init_supportai(conn: TigerGraphConnection, graphname: str) -> tuple[dict, di
         )
 
     if "- embedding(Dimension=" in current_schema:
-        schema_res+=" Embeddding schema already exists, skipped"
+        schema_res += " Embeddding schema already exists, skipped"
     else:
         if int(ver[0]) >= 4 and int(ver[1]) >= 2:
             file_path = "common/gsql/supportai/SupportAI_Schema_Native_Vector.gsql"
@@ -79,10 +80,11 @@ def init_supportai(conn: TigerGraphConnection, graphname: str) -> tuple[dict, di
                 "common/gsql/supportai/retrievers/GraphRAG_Hybrid_Vector_Search.gsql",
             ])
         else:
-            raise Exception(f"Vector feature is not supported by the current TigerGraph version: {ver}")
+            raise Exception(
+                f"Vector feature is not supported by the current TigerGraph version: {ver}")
 
     if "- doc_chunk_epoch_processed_index" in current_schema:
-        index_res="Index already exists, skipped"
+        index_res = "Index already exists, skipped"
     else:
         file_path = "common/gsql/supportai/SupportAI_IndexCreation.gsql"
         with open(file_path) as f:
@@ -103,7 +105,8 @@ def init_supportai(conn: TigerGraphConnection, graphname: str) -> tuple[dict, di
                 conn.graphname, q_body
             )
         )
-        logger.info(f"Done creating supportai query {q_name} with status {q_res}")
+        logger.info(
+            f"Done creating supportai query {q_name} with status {q_res}")
 
     logger.info(f"Installing supportai queries all together")
     query_res = conn.gsql(
@@ -116,38 +119,66 @@ def init_supportai(conn: TigerGraphConnection, graphname: str) -> tuple[dict, di
     return schema_res, index_res, query_res
 
 
+def trigger_bedrock_bda(lambda_arn, bucket_name, output_bucket):
+    lambda_client = boto3.client('lambda')
+    payload = {
+        "bucket_name": bucket_name,
+        "output_bucket": output_bucket
+    }
+    response = lambda_client.invoke(
+        FunctionName=lambda_arn,
+        InvocationType='RequestResponse',  # or 'Event' for async
+        Payload=json.dumps(payload)
+    )
+    result = json.loads(response['Payload'].read())
+    return result
+
+
 def create_ingest(
     graphname: str,
     ingest_config: CreateIngestConfig,
     conn: TigerGraphConnection,
 ):
+    # Check for invalid combination of multi format and non-s3 data source
+    if ingest_config.file_format.lower() == "multi" and ingest_config.data_source.lower() != "s3":
+        raise Exception(
+            "AWS Bedrock BDA preprocessing with 'multi' file format is only supported for S3 data sources.")
+
     if ingest_config.file_format.lower() == "json":
         file_path = "common/gsql/supportai/SupportAI_InitialLoadJSON.gsql"
 
         with open(file_path) as f:
             ingest_template = f.read()
-        ingest_template = ingest_template.replace("@uuid@", str(uuid.uuid4().hex))
+        ingest_template = ingest_template.replace(
+            "@uuid@", str(uuid.uuid4().hex))
         doc_id = ingest_config.loader_config.get("doc_id_field", "doc_id")
         doc_text = ingest_config.loader_config.get("content_field", "content")
         doc_type = ingest_config.loader_config.get("doc_type", "")
-        ingest_template = ingest_template.replace('"doc_id"', '"{}"'.format(doc_id))
-        ingest_template = ingest_template.replace('"content"', '"{}"'.format(doc_text))
-        ingest_template = ingest_template.replace('"doc_type"', '"{}"'.format(doc_type))
+        ingest_template = ingest_template.replace(
+            '"doc_id"', '"{}"'.format(doc_id))
+        ingest_template = ingest_template.replace(
+            '"content"', '"{}"'.format(doc_text))
+        ingest_template = ingest_template.replace(
+            '"doc_type"', '"{}"'.format(doc_type))
 
     if ingest_config.file_format.lower() == "csv":
         file_path = "common/gsql/supportai/SupportAI_InitialLoadCSV.gsql"
 
         with open(file_path) as f:
             ingest_template = f.read()
-        ingest_template = ingest_template.replace("@uuid@", str(uuid.uuid4().hex))
+        ingest_template = ingest_template.replace(
+            "@uuid@", str(uuid.uuid4().hex))
         separator = ingest_config.get("separator", "|")
         header = ingest_config.get("header", "true")
         eol = ingest_config.get("eol", "\n")
         quote = ingest_config.get("quote", "double")
-        ingest_template = ingest_template.replace('"|"', '"{}"'.format(separator))
-        ingest_template = ingest_template.replace('"true"', '"{}"'.format(header))
+        ingest_template = ingest_template.replace(
+            '"|"', '"{}"'.format(separator))
+        ingest_template = ingest_template.replace(
+            '"true"', '"{}"'.format(header))
         ingest_template = ingest_template.replace('"\\n"', '"{}"'.format(eol))
-        ingest_template = ingest_template.replace('"double"', '"{}"'.format(quote))
+        ingest_template = ingest_template.replace(
+            '"double"', '"{}"'.format(quote))
 
     file_path = "common/gsql/supportai/SupportAI_DataSourceCreation.gsql"
 
@@ -179,6 +210,30 @@ def create_ingest(
         data_stream_conn = data_stream_conn.replace(
             "@source_config@", json.dumps(connector)
         )
+
+        if ingest_config.file_format.lower() == "multi":
+            lambda_arn = ingest_config.data_source_config["lambda_arn"]
+            bucket_name = ingest_config.data_source_config["bucket_name"]
+            output_bucket = ingest_config.data_source_config["output_bucket"]
+
+            try:
+                lambda_result = trigger_bedrock_bda(
+                    lambda_arn, bucket_name, output_bucket)
+                if lambda_result.get("statusCode") != 200:
+                    raise Exception(f"Lambda failed: {lambda_result}")
+                body = lambda_result.get("body")
+                if not body:
+                    raise Exception("Lambda response missing 'body'")
+                jobs = json.loads(body).get("jobs")
+                if not jobs or not jobs[0].get("output_json_path"):
+                    raise Exception(
+                        "No output_json_path found in Lambda result")
+                output_json_path = jobs[0]["output_json_path"]
+                ingest_config.data_source_config["data_path"] = output_json_path
+                ingest_config.file_format = "json"
+            except Exception as e:
+                logger.error(f"Error during Lambda preprocessing: {e}")
+                raise
 
     elif ingest_config.data_source.lower() == "azure":
         if ingest_config.data_source_config.get("account_key") is not None:
@@ -229,11 +284,14 @@ def create_ingest(
     else:
         raise Exception("Data source not implemented")
 
-    load_job_created = conn.gsql("USE GRAPH {}\n".format(graphname) + ingest_template)
+    load_job_created = conn.gsql(
+        "USE GRAPH {}\n".format(graphname) + ingest_template)
 
-    res["load_job_id"] = load_job_created.split(":")[1].strip(" [").strip(" ").strip(".").strip("]")
+    res["load_job_id"] = load_job_created.split(
+        ":")[1].strip(" [").strip(" ").strip(".").strip("]")
     if ingest_config.data_source_config:
-        res["data_path"] = ingest_config.data_source_config.get("data_path", "")
+        res["data_path"] = ingest_config.data_source_config.get(
+            "data_path", "")
 
     if ingest_config.data_source.lower() == "local":
         res["data_source_id"] = "DocumentContent"
@@ -241,6 +299,7 @@ def create_ingest(
         data_source_created = conn.gsql(
             "USE GRAPH {}\n".format(graphname) + data_stream_conn
         )
-        res["data_source_id"] = data_source_created.split(":")[1].strip(" [").strip(" ").strip(".").strip("]")
+        res["data_source_id"] = data_source_created.split(
+            ":")[1].strip(" [").strip(" ").strip(".").strip("]")
 
     return res
