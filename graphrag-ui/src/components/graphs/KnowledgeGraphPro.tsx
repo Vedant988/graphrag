@@ -13,6 +13,7 @@ export const KnowledgeGraphPro = ({ data }) => {
 
   useEffect(() => {
 
+    console.log("parsing data", data)
     let parsedData: any[] = [];
     if (typeof data === 'string') {
       parsedData = JSON.parse(data);
@@ -54,9 +55,9 @@ export const KnowledgeGraphPro = ({ data }) => {
     let nodesSet = new Set<string>();
 
     parsedData.forEach((e, i) => {
-      if (e.v && e.t) {
-        edgesList.push({ id: `e${i}`, source: e.v, target: e.t });
-        nodesSet.add(e.v);
+      if (e.s && e.t) {
+        edgesList.push({ id: `e${i}`, source: e.s, target: e.t });
+        nodesSet.add(e.s);
         nodesSet.add(e.t);
       }
     });
@@ -104,7 +105,7 @@ export const KnowledgeGraphPro = ({ data }) => {
         labelType="all"
         theme={darkTheme}
         sizingType="centrality"
-        draggable
+        layoutType="treeTd2d"
       />
     ) : <div className='m-10'>Sorry no graph or table available</div> }
     {edges && nodes ? (<div className='absolute top-[10px] right-[10px] w-[170px]'>
