@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import json
-from typing import List
+from typing import List, Dict, Set
 import logging
 
 from common.extractors.BaseExtractor import BaseExtractor
@@ -31,11 +31,13 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         allowed_entity_types: List[str] = None,
         allowed_relationship_types: List[str] = None,
         strict_mode: bool = False,
+        graph_schema: str = None,
     ):
         self.llm_service = llm_service
         self.allowed_vertex_types = allowed_entity_types
         self.allowed_edge_types = allowed_relationship_types
         self.strict_mode = strict_mode
+        self.graph_schema = graph_schema
 
     async def _aextract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
         try:
@@ -265,7 +267,7 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                 "Mandatory: Make sure to answer in the correct format, specified here: {format_instructions}",
             ),
         ]
-        if self.allowed_vertex_types or self.allowed_edge_types:
+        if self.allowed_vertex_types or self.allowed_edge_types or self.graph_schema:
             prompt.append(
                 (
                     "human",
@@ -277,6 +279,8 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
             prompt.append(("human", f"Allowed Node Types: {self.allowed_vertex_types}"))
         if self.allowed_edge_types:
             prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
+        if self.graph_schema:
+            prompt.append(("human", f"Graph Schema: {self.graph_schema}"))
         prompt = ChatPromptTemplate.from_messages(prompt)
         chain = prompt | self.llm_service.model  # | parser
         er = await self._aextract_kg_from_doc(document, chain, parser)
@@ -303,7 +307,7 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                 "Mandatory: Make sure to answer in the correct format, specified here: {format_instructions}",
             ),
         ]
-        if self.allowed_vertex_types or self.allowed_edge_types:
+        if self.allowed_vertex_types or self.allowed_edge_types or self.graph_schema:
             prompt.append(
                 (
                     "human",
@@ -315,6 +319,8 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
             prompt.append(("human", f"Allowed Node Types: {self.allowed_vertex_types}"))
         if self.allowed_edge_types:
             prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
+        if self.graph_schema:
+            prompt.append(("human", f"Graph Schema: {self.graph_schema}"))
         prompt = ChatPromptTemplate.from_messages(prompt)
         chain = prompt | self.llm_service.model  # | parser
         er = self._extract_kg_from_doc(document, chain, parser)
