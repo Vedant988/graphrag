@@ -35,7 +35,6 @@ class GenerateCypher(BaseTool):
     conn: TigerGraphConnectionProxy = None
     llm: LLM = None
     schema_rep: str = None
-    schema_ver: int = None
 
     def __init__(self, conn: TigerGraphConnectionProxy, llm):
         """Initialize GenerateCypher.
@@ -51,10 +50,9 @@ class GenerateCypher(BaseTool):
         self.conn = conn
         self.llm = llm
         self.schema_rep = ""
-        self.schema_ver = -1
 
     def _generate_schema_rep(self):
-        self.schema_rep, self.schema_ver = generate_schema_rep(self.conn, self.schema_rep, self.schema_ver)
+        self.schema_rep = generate_schema_rep(self.conn)
         return self.schema_rep
         
     def generate_cypher(self, question: str, history: Iterable[str]) -> str:

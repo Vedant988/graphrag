@@ -34,8 +34,6 @@ class GenerateGSQL(BaseTool):
     description: str = "Generates a GSQL query for the question."
     conn: TigerGraphConnectionProxy = None
     llm: LLM = None
-    schema_rep: str = None
-    schema_ver: int = 0
 
     def __init__(self, conn: TigerGraphConnectionProxy, llm):
         """Initialize GenerateGSQL.
@@ -50,12 +48,12 @@ class GenerateGSQL(BaseTool):
         super().__init__()
         self.conn = conn
         self.llm = llm
-        self.schema_rep = ""
-        self.schema_ver = 0
     
     def _generate_schema_rep(self):
-        self.schema_rep, self.schema_ver = generate_schema_rep(self.conn, self.schema_rep, self.schema_ver)
-        return self.schema_rep
+        schema_rep = generate_schema_rep(self.conn)
+        return f"""The schema of the graph is as follows:
+        {schema_rep}
+        """
         
     def generate_gsql(self, question: str, history: Iterable[str]) -> str:
         """Generate GSQL query for the question.

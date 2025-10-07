@@ -34,6 +34,7 @@ from common.embeddings.tigergraph_embedding_store import TigerGraphEmbeddingStor
 from common.extractors import GraphExtractor, LLMEntityRelationshipExtractor
 from common.extractors.BaseExtractor import BaseExtractor
 from common.logs.logwriter import LogWriter
+from common.db.schema_utils import generate_schema_rep
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,10 @@ async def init(
     if graphrag_config.get("extractor") == "graphrag":
         extractor = GraphExtractor()
     elif graphrag_config.get("extractor") == "llm":
-        extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config))
+        if graphrag_config.get("use_graph_schema", True):
+            extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config), graph_schema=generate_schema_rep(conn))
+        else:
+            extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config))
     else:
         raise ValueError("Invalid extractor type")
 

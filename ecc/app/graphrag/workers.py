@@ -248,17 +248,16 @@ async def extract(
             for i, node in enumerate(doc.nodes):
                 logger.info(f"extract writes entity vert to upsert\nNode: {node.id}")
                 v_id = util.process_id(str(node.id))
+                type_id = util.process_id(node.type)
                 if len(v_id) == 0:
                     continue
+
                 desc = await get_vert_desc(conn, v_id, node)
 
                 # embed the entity
                 # embed with the v_id if the description is blank
                 if len(desc[0]) == 0:
                     desc[0] = str(node.id)
-
-                # (v_id, content, index_name)
-                await embed_chan.put((v_id, desc[0], "Entity"))
 
                 await upsert_chan.put(
                     (
@@ -269,14 +268,19 @@ async def extract(
                             v_id,  # v_id
                             {  # attrs
                                 "description": desc,
+                                "entity_type": type_id,
                                 "epoch_added": int(time.time()),
                             },
                         ),
                     )
                 )
+
+                # (v_id, content, index_name)
+                await embed_chan.put((v_id, desc[0], "Entity"))
+
+                # upsert type vert
                 if isinstance(extractor, LLMEntityRelationshipExtractor):
                     logger.info("extract writes type vert to upsert")
-                    type_id = util.process_id(node.type)
                     if len(type_id) == 0:
                         continue
                     await upsert_chan.put(
