@@ -20,7 +20,6 @@ from langchain.prompts import PromptTemplate
 from langchain.tools import BaseTool
 from langchain.llms.base import LLM
 from common.metrics.tg_proxy import TigerGraphConnectionProxy
-from common.db.connections import get_schema_ver
 from common.db.schema_utils import generate_schema_rep
 
 logger = logging.getLogger(__name__)

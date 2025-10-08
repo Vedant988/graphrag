@@ -28,6 +28,7 @@ from graphrag import community_summarizer, util
 from langchain_community.graphs.graph_document import GraphDocument, Node
 from pyTigerGraph import AsyncTigerGraphConnection
 
+from common.db.schema_utils import graphrag_vertex_types, graphrag_edge_types
 from common.embeddings.embedding_services import EmbeddingModel
 from common.embeddings.base_embedding_store import EmbeddingStore
 from common.extractors import BaseExtractor, LLMEntityRelationshipExtractor
@@ -227,6 +228,7 @@ async def extract(
     conn: AsyncTigerGraphConnection,
     chunk: str,
     chunk_id: str,
+    vertex_types: List[str],
 ):
     # if loader is running, wait until it's done
     if not util.loading_event.is_set():
@@ -307,6 +309,24 @@ async def extract(
                                 "ENTITY_HAS_TYPE",  # edgeType
                                 "EntityType",  # tgt_type
                                 type_id,  # tgt_id
+                                None,  # attributes
+                            ),
+                        )
+                    )
+
+                # Link the vertex to the chunk it came from
+                if type_id in vertex_types and type_id not in graphrag_vertex_types:
+                    logger.info(f"extract writes contains edge of {v_id} of type {type_id} to upsert")
+                    await upsert_chan.put(
+                        (
+                            util.upsert_edge,
+                            (
+                                conn,
+                                "DocumentChunk",  # src_type
+                                chunk_id,  # src_id
+                                "CONTAINS_ENTITY",  # edge_type
+                                type_id,  # tgt_type
+                                v_id,  # tgt_id
                                 None,  # attributes
                             ),
                         )
@@ -531,7 +551,6 @@ async def process_community(
         logger.info(f"Processing Community: {comm_id}")
         # get the children of the community
         children = await util.get_commuinty_children(conn, i, comm_id)
-        comm_id = util.process_id(comm_id)
         err = False
 
         # if the community only has one child, use its description

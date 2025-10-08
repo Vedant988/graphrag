@@ -34,7 +34,7 @@ from common.embeddings.tigergraph_embedding_store import TigerGraphEmbeddingStor
 from common.extractors import GraphExtractor, LLMEntityRelationshipExtractor
 from common.extractors.BaseExtractor import BaseExtractor
 from common.logs.logwriter import LogWriter
-from common.db.schema_utils import generate_schema_rep
+from common.db.schema_utils import generate_schema_rep_async
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,8 @@ async def init(
         extractor = GraphExtractor()
     elif graphrag_config.get("extractor") == "llm":
         if graphrag_config.get("use_graph_schema", True):
-            extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config), graph_schema=generate_schema_rep(conn))
+            graph_schema = await generate_schema_rep_async(conn, graphrag=True)
+            extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config), graph_schema=graph_schema)
         else:
             extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config))
     else:
@@ -173,8 +174,10 @@ def map_attrs(attributes: dict):
     return attrs
 
 
-def process_id(v_id: str):
-    v_id = v_id.replace(" ", "_").replace("/", "").replace("%", "percent").lower()
+def process_id(v_id: str, lowercase: bool = False):
+    v_id = v_id.replace(" ", "_").replace("/", "").replace("%", "percent")
+    if lowercase:
+        v_id = v_id.lower()
 
     has_func = re.compile(r"(.*)\(").findall(v_id)
     if len(has_func) > 0:

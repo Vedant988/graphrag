@@ -96,8 +96,8 @@ class TigerGraphEmbeddingStore(EmbeddingStore):
                 with open(f"common/gsql/vector/{q_name}.gsql", "r") as f:
                     q_body = f.read()
                 q_res = self.conn.gsql(
-                    """USE GRAPH {}\nBEGIN\n{}\nEND\ninstall query {}\n""".format(
-                        self.conn.graphname, q_body, q_name
+                    """USE GRAPH {}\nBEGIN\n{}\nEND\n""".format(
+                        self.conn.graphname, q_body
                     )
                 )
                 need_install = True

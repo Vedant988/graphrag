@@ -20,7 +20,6 @@ from langchain.prompts import PromptTemplate
 from langchain.tools import BaseTool
 from langchain.llms.base import LLM
 from common.metrics.tg_proxy import TigerGraphConnectionProxy
-from common.db.connections import get_schema_ver
 from common.db.schema_utils import generate_schema_rep
 
 logger = logging.getLogger(__name__)
@@ -34,7 +33,6 @@ class GenerateCypher(BaseTool):
     description: str = "Generates a Cypher query for the question."
     conn: TigerGraphConnectionProxy = None
     llm: LLM = None
-    schema_rep: str = None
 
     def __init__(self, conn: TigerGraphConnectionProxy, llm):
         """Initialize GenerateCypher.
@@ -49,12 +47,13 @@ class GenerateCypher(BaseTool):
         super().__init__()
         self.conn = conn
         self.llm = llm
-        self.schema_rep = ""
 
     def _generate_schema_rep(self):
-        self.schema_rep = generate_schema_rep(self.conn)
-        return self.schema_rep
-        
+        schema_rep = generate_schema_rep(self.conn)
+        return f"""The schema of the graph is as follows:
+        {schema_rep}
+        """
+
     def generate_cypher(self, question: str, history: Iterable[str]) -> str:
         """Generate Cypher query for the question.
         Args:

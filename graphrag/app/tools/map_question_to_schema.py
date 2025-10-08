@@ -27,7 +27,7 @@ import re
 import logging
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
-from common.db.connections import get_schema_ver
+from common.db.schema_utils import get_schema_ver
 
 logger = logging.getLogger(__name__)
 

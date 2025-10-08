@@ -292,6 +292,10 @@ async def extract(
     (chunk , chunk_id) <- q.get()
     """
     logger.info("Entity Extration Start")
+
+    # get vertex types
+    vertex_types = await conn.getVertexTypes()
+
     # consume task queue
     async with asyncio.TaskGroup() as grp:
         done_count = 0
@@ -306,7 +310,7 @@ async def extract(
                 else:
                     if entity_extraction_switch:
                         grp.create_task(
-                            workers.extract(upsert_chan, embed_chan, extractor, conn, *item)
+                            workers.extract(upsert_chan, embed_chan, extractor, conn, *item, vertex_types=vertex_types)
                         )
             except ChannelClosed:
                 break

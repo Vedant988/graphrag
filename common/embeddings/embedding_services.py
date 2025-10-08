@@ -137,7 +137,7 @@ class EmbeddingModel(Embeddings):
             max_context_tokens = self.token_calculator.get_max_context_tokens()
             if len(question) > max_context_tokens:
                 if self.token_calculator.count_tokens(question) > max_context_tokens:
-                    question = self.token_calculator.truncate_to_token_limit(question, max_content_tokens)
+                    question = self.token_calculator.truncate_to_token_limit(question, max_context_tokens)
 
         if isinstance(self.embeddings, GoogleGenerativeAIEmbeddings):
             query_embedding = await self.embeddings.aembed_query(question, output_dimensionality=self.dimensions)

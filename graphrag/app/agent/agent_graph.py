@@ -413,6 +413,7 @@ class TigerGraphAgentGraph:
             )
         state["answer"] = resp
 
+        logger.info(f"Generated answer: {resp.natural_language_response}")
         return state
 
 

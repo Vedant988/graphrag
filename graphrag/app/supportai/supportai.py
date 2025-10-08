@@ -8,7 +8,7 @@ import re
 import pyTigerGraph as tg
 from pyTigerGraph import TigerGraphConnection
 
-from common.config import embedding_dimension
+from common.config import embedding_dimension, graphrag_config
 from common.py_schemas.schemas import (
     # GraphRAGResponse,
     CreateIngestConfig,
@@ -44,13 +44,20 @@ def init_supportai(conn: TigerGraphConnection, graphname: str) -> tuple[dict, di
         file_path = "common/gsql/supportai/SupportAI_Schema.gsql"
         with open(file_path, "r") as f:
             schema = f.read()
+        if graphrag_config.get("use_graph_schema", True):
+            schema_append = "EDGE CONTAINS_ENTITY(FROM DocumentChunk, TO Entity"
+            for vert in conn.getVertexTypes():
+                schema_append += f"""|FROM DocumentChunk, TO {vert}"""
+            schema_append += ")"
+            schema = schema.replace("EDGE CONTAINS_ENTITY(FROM DocumentChunk, TO Entity)", schema_append)
         schema_res = conn.gsql(
             """USE GRAPH {}\n{}\nRUN SCHEMA_CHANGE JOB add_supportai_schema""".format(
                 graphname, schema
             )
         )
 
-    if "- embedding(Dimension=" in current_schema:
+
+    if f"  - ResolvedEntity:\n    - embedding(Dimension={embedding_dimension}" in current_schema:
         schema_res+=" Embeddding schema already exists, skipped"
     else:
         if int(ver[0]) >= 4 and int(ver[1]) >= 2:
