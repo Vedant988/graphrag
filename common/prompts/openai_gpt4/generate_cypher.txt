@@ -12,6 +12,7 @@ Always use double quotes for strings instead of single quotes.
 Always convert strings to lower case using toLower() function for string comparision in WHERE clause.
 Use alias for ORDER BY if any, avoid using short alias names especially single letter alias, always use meaningful words connected by underscore.
 Always make sure the alias or attributes used in ORDER BY is the same type in RETURN. Always add ASC or DESC for ORDER BY based on data type.
+For questions like "summarize" or "write a summary" about something, fetch all information on its neighbour nodes and edges.
 
 Avoid to generate invalid OpenCypher queries based on the errors from history below.
 

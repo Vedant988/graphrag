@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import boto3
+import os
 import re
 import json
 import logging
@@ -396,8 +397,15 @@ class TigerGraphAgentGraph:
         )
 
         try:
+            # Replace S3 URLs with presigned URLs (for AWS Bedrock BDA processing)
             if isinstance(self.llm_provider, AWSBedrock):
                 answer.generated_answer = self.replace_s3_urls_with_presigned(answer.generated_answer)
+            
+            # Convert [IMAGE_REF:image_id] to markdown images for React UI
+            # This converts internal image references to URLs that the UI can display
+            answer.generated_answer = self.convert_image_refs_to_markdown(answer.generated_answer)
+            logger.info(f"[IMAGE_DEBUG] After conversion: {answer.generated_answer}")
+            
             resp = GraphRAGResponse(
                 natural_language_response=answer.generated_answer,
                 answered_question=True,
@@ -430,7 +438,7 @@ class TigerGraphAgentGraph:
             Any: Content with S3 URLs replaced by presigned URLs (same type as input).
         """
 
-        s3_url_pattern = r'\(s3://([^/]+)/([^\)]+)\)'
+        s3_url_pattern = r's3://([\w\-.]+)/([\w\-\./]+)'
         s3 = boto3.client('s3')
 
         def presign(match):
@@ -441,7 +449,7 @@ class TigerGraphAgentGraph:
                     Params={'Bucket': bucket, 'Key': key},
                     ExpiresIn=expires_in
                 )
-                return f"({url})"
+                return url
             except Exception as e:
                 logger.error(f"Failed to presign S3 url for s3://{bucket}/{key}: {e}")
                 return match.group(0)
@@ -457,6 +465,48 @@ class TigerGraphAgentGraph:
                 return value
 
         return process(content)
+    
+
+    def convert_image_refs_to_markdown(self, text):
+        """
+        Convert [IMAGE_REF:image_id] markers to markdown image syntax with API endpoint URLs.
+        
+        Creates relative URLs pointing to the /ui/image_vertex/ endpoint which serves images 
+        from TigerGraph. The endpoint uses standard HTTP Basic Authentication (same pattern as 
+        other endpoints), so credentials are handled via HTTP headers, not URL parameters.
+        
+        PATH_PREFIX is automatically handled by FastAPI router configuration.
+        
+        Format: [IMAGE_REF:image_id] → ![Image](/ui/image_vertex/{graphname}/{image_id})
+        
+        Args:
+            text (str): The text containing [IMAGE_REF:] markers.
+            
+        Returns:
+            str: The text with [IMAGE_REF:] markers converted to markdown with endpoint URLs.
+        """
+        if not isinstance(text, str):
+            return text
+            
+        if "[IMAGE_REF:" not in text:
+            return text
+        
+        import re
+        
+        # Get graphname from connection
+        graphname = self.db_connection.graphname
+        
+        # Replace [IMAGE_REF:image_id] with markdown image syntax pointing to the endpoint
+        # Note: Authentication is handled via HTTP Basic Auth headers (standard FastAPI pattern)
+        # PATH_PREFIX is already applied at router level in main.py, so use relative URL
+        converted = re.sub(
+            r'\[IMAGE_REF:([^\]]+)\]',
+            rf'![Image](/ui/image_vertex/{graphname}/\1)',
+            text
+        )
+        
+        logger.info(f"Converted {text.count('[IMAGE_REF:')} image reference(s) to endpoint URLs")
+        return converted
 
 
     def rewrite_question(self, state):

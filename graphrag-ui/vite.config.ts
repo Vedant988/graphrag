@@ -16,7 +16,8 @@ export default defineConfig({
       '^/ui/.*/chat': {
         target: 'ws://localhost:8000',
         ws: true,
-      }
+      },
+      '^/[^/]+/(graphrag|supportai)': 'http://localhost:8000',
     }
   },
 });

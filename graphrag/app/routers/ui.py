@@ -31,12 +31,16 @@ from agent.Q import DONE
 from fastapi import (
     APIRouter,
     Depends,
+    File,
     HTTPException,
+    Request,
+    UploadFile,
     WebSocket,
     WebSocketDisconnect,
     status,
 )
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.security.http import HTTPBase
 from pyTigerGraph import TigerGraphConnection
 from tools.validation_utils import MapQuestionToSchemaException
 
@@ -134,6 +138,68 @@ def add_feedback(
         raise e
 
     return {"message": "feedback saved", "message_id": message.message_id}
+
+
+@router.get(route_prefix + "/image_vertex/{graphname}/{image_id}")
+async def serve_image_from_vertex(
+    graphname: str,
+    image_id: str,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+):
+    """
+    Serve an image directly from the TigerGraph Image vertex.
+    
+    This endpoint uses standard HTTP Basic Authentication (same pattern as other endpoints).
+    The endpoint fetches the base64 encoded image data from the Image vertex
+    and returns it as an image response with the appropriate content type.
+    
+    Example URL: /ui/image_vertex/{graphname}/{image_id}
+    """
+    from fastapi.responses import Response
+    
+    try:
+        # Extract credentials from the dependency (same pattern as graph_query and other endpoints)
+        creds = creds[1]
+        encoded_username = base64.b64encode(creds.username.encode()).decode()
+        encoded_password = base64.b64encode(creds.password.encode()).decode()
+
+        # now you can use them separately
+        conn = get_db_connection_pwd_manual(graphname, encoded_username, encoded_password)
+        
+        # Fetch the Image vertex by ID
+        image_vertices = conn.getVerticesById('Image', [image_id.lower()])
+        
+        if not image_vertices:
+            raise HTTPException(status_code=404, detail=f"Image not found: {image_id}")
+        
+        image_vertex = image_vertices[0]
+        image_data_b64 = image_vertex['attributes'].get('image_data', '')
+        image_format = image_vertex['attributes'].get('image_format', 'jpg')
+        
+        if not image_data_b64:
+            raise HTTPException(status_code=404, detail=f"No image data for: {image_id}")
+        
+        # Decode base64 to bytes
+        image_bytes = base64.b64decode(image_data_b64)
+        
+        # Determine content type
+        content_type_map = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp'
+        }
+        content_type = content_type_map.get(image_format.lower(), 'image/jpeg')
+        
+        # Return image as Response
+        return Response(content=image_bytes, media_type=content_type)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving image {image_id} from graph {graphname}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error serving image: {str(e)}")
 
 
 @router.get(route_prefix + "/user/{user_id}")
@@ -569,4 +635,516 @@ async def chat(
         logger.info(f"Websocket disconnected: {str(e)}")
     except:
         await websocket.close()
+
+
+# =====================================================
+# File Upload Functionality for Server +Multi
+# =====================================================
+
+@router.get(route_prefix + "/{graphname}/uploads/list")
+async def list_uploaded_files(
+    graphname: str,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+):
+    """
+    List all files currently uploaded for a specific graphname.
+    Returns file names, sizes, and upload dates.
+    """
+    try:
+        upload_dir = os.path.join("uploads", graphname)
+        
+        if not os.path.exists(upload_dir):
+            return {"graphname": graphname, "files": [], "total_files": 0, "total_size": 0}
+        
+        files_info = []
+        total_size = 0
+        
+        for filename in os.listdir(upload_dir):
+            file_path = os.path.join(upload_dir, filename)
+            if os.path.isfile(file_path):
+                file_stat = os.stat(file_path)
+                files_info.append({
+                    "filename": filename,
+                    "size": file_stat.st_size,
+                    "modified": file_stat.st_mtime,
+                })
+                total_size += file_stat.st_size
+        
+        return {
+            "graphname": graphname,
+            "files": files_info,
+            "total_files": len(files_info),
+            "total_size": total_size,
+        }
+    
+    except Exception as e:
+        logger.error(f"Error listing files for graph {graphname}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
+
+
+@router.post(route_prefix + "/{graphname}/uploads")
+async def upload_files(
+    graphname: str,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+    files: list[UploadFile] = File(...),
+    overwrite: bool = False,
+):
+    """
+    Upload one or multiple files for a specific graphname.
+    Files are stored in uploads/{graphname}/ directory.
+    
+    Parameters:
+    - graphname: The graph name to associate files with
+    - files: List of files to upload
+    - overwrite: If False (default), will reject if files already exist
+    """
+    try:
+        upload_dir = os.path.join("uploads", graphname)
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Check for existing files if overwrite is False
+        if not overwrite:
+            existing_files = []
+            for file in files:
+                file_path = os.path.join(upload_dir, file.filename)
+                if os.path.exists(file_path):
+                    existing_files.append(file.filename)
+            
+            if existing_files:
+                return {
+                    "status": "conflict",
+                    "message": "Some files already exist. Set overwrite=true to replace them.",
+                    "existing_files": existing_files,
+                }
+        
+        # Save uploaded files
+        uploaded_files = []
+        total_size = 0
+        
+        for file in files:
+            file_path = os.path.join(upload_dir, file.filename)
+            
+            # Write file to disk
+            with open(file_path, "wb") as f:
+                content = await file.read()
+                f.write(content)
+                file_size = len(content)
+                total_size += file_size
+            
+            uploaded_files.append({
+                "filename": file.filename,
+                "size": file_size,
+                "path": file_path,
+            })
+            
+            logger.info(f"Uploaded file {file.filename} ({file_size} bytes) for graph {graphname}")
+        
+        return {
+            "status": "success",
+            "message": f"Successfully uploaded {len(uploaded_files)} file(s)",
+            "graphname": graphname,
+            "uploaded_files": uploaded_files,
+            "total_size": total_size,
+        }
+    
+    except Exception as e:
+        exc = traceback.format_exc()
+        logger.error(f"Error uploading files for graph {graphname}: {e}")
+        logger.debug_pii(f"Upload error trace:\n{exc}")
+        raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
+
+
+@router.delete(route_prefix + "/{graphname}/uploads")
+async def clear_uploaded_files(
+    graphname: str,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+    filename: str | None = None,
+):
+    """
+    Clear uploaded files for a specific graphname.
+    
+    Parameters:
+    - graphname: The graph name whose files to clear
+    - filename: If provided, only delete this specific file. Otherwise, delete all files.
+    """
+    try:
+        upload_dir = os.path.join("uploads", graphname)
+        
+        if not os.path.exists(upload_dir):
+            return {
+                "status": "success",
+                "message": f"No files found for graph {graphname}",
+                "deleted_files": [],
+            }
+        
+        deleted_files = []
+        
+        if filename:
+            # Delete specific file
+            file_path = os.path.join(upload_dir, filename)
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                os.remove(file_path)
+                deleted_files.append(filename)
+                logger.info(f"Deleted file {filename} for graph {graphname}")
+            else:
+                raise HTTPException(status_code=404, detail=f"File {filename} not found")
+        else:
+            # Delete all files in the directory
+            for filename in os.listdir(upload_dir):
+                file_path = os.path.join(upload_dir, filename)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    deleted_files.append(filename)
+            
+            # Remove the directory if it's empty
+            if not os.listdir(upload_dir):
+                os.rmdir(upload_dir)
+            
+            logger.info(f"Deleted {len(deleted_files)} file(s) for graph {graphname}")
+        
+        return {
+            "status": "success",
+            "message": f"Successfully deleted {len(deleted_files)} file(s)",
+            "graphname": graphname,
+            "deleted_files": deleted_files,
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        exc = traceback.format_exc()
+        logger.error(f"Error deleting files for graph {graphname}: {e}")
+        logger.debug_pii(f"Delete error trace:\n{exc}")
+        raise HTTPException(status_code=500, detail=f"Error deleting files: {str(e)}")
+
+
+# Cloud Storage Download Endpoints
+
+@router.post(route_prefix + "/{graphname}/cloud/download")
+async def download_from_cloud(
+    graphname: str,
+    credentials: Annotated[HTTPBase, Depends(security)],
+    provider: str = None,
+    # S3 parameters
+    access_key: str = None,
+    secret_key: str = None,
+    bucket: str = None,
+    region: str = None,
+    prefix: str = "",
+    # GCS parameters
+    project_id: str = None,
+    gcs_credentials_json: str = None,
+    # Azure parameters
+    account_name: str = None,
+    account_key: str = None,
+    container: str = None,
+):
+    """
+    Download files from cloud storage (S3, GCS, or Azure) to local directory.
+    
+    Parameters:
+    - graphname: The graph name to associate downloaded files with
+    - provider: Cloud provider (s3, gcs, azure)
+    - For S3: access_key, secret_key, bucket, region, prefix
+    - For GCS: project_id, gcs_credentials_json, bucket, prefix
+    - For Azure: account_name, account_key, container, prefix
+    """
+    try:
+        download_dir = os.path.join("downloaded_files_cloud", graphname)
+        os.makedirs(download_dir, exist_ok=True)
+        
+        downloaded_files = []
+        
+        if provider == "s3":
+            # Import boto3 for S3
+            try:
+                import boto3
+                from botocore.exceptions import ClientError
+            except ImportError:
+                raise HTTPException(
+                    status_code=500,
+                    detail="boto3 is not installed. Please install it to use S3 downloads."
+                )
+            
+            if not all([access_key, secret_key, bucket, region]):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Missing S3 credentials: access_key, secret_key, bucket, and region are required"
+                )
+            
+            # Create S3 client
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name=region
+            )
+            
+            # List and download objects
+            try:
+                paginator = s3_client.get_paginator('list_objects_v2')
+                pages = paginator.paginate(Bucket=bucket, Prefix=prefix or "")
+                
+                for page in pages:
+                    if 'Contents' not in page:
+                        continue
+                    
+                    for obj in page['Contents']:
+                        key = obj['Key']
+                        # Skip directories
+                        if key.endswith('/'):
+                            continue
+                        
+                        # Get filename
+                        filename = os.path.basename(key)
+                        local_path = os.path.join(download_dir, filename)
+                        
+                        # Download file
+                        s3_client.download_file(bucket, key, local_path)
+                        downloaded_files.append(filename)
+                        logger.info(f"Downloaded {key} to {local_path}")
+                
+            except ClientError as e:
+                logger.error(f"S3 download error: {e}")
+                raise HTTPException(status_code=500, detail=f"S3 error: {str(e)}")
+        
+        elif provider == "gcs":
+            # Import GCS client
+            try:
+                from google.cloud import storage
+                from google.oauth2 import service_account
+            except ImportError:
+                raise HTTPException(
+                    status_code=500,
+                    detail="google-cloud-storage is not installed. Please install it to use GCS downloads."
+                )
+            
+            if not all([project_id, gcs_credentials_json, bucket]):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Missing GCS credentials: project_id, gcs_credentials_json, and bucket are required"
+                )
+            
+            try:
+                # Parse credentials JSON
+                creds_dict = json.loads(gcs_credentials_json)
+                credentials = service_account.Credentials.from_service_account_info(creds_dict)
+                
+                # Create GCS client
+                gcs_client = storage.Client(project=project_id, credentials=credentials)
+                bucket_obj = gcs_client.bucket(bucket)
+                
+                # List and download blobs
+                blobs = bucket_obj.list_blobs(prefix=prefix or "")
+                
+                for blob in blobs:
+                    # Skip directories
+                    if blob.name.endswith('/'):
+                        continue
+                    
+                    # Get filename
+                    filename = os.path.basename(blob.name)
+                    local_path = os.path.join(download_dir, filename)
+                    
+                    # Download blob
+                    blob.download_to_filename(local_path)
+                    downloaded_files.append(filename)
+                    logger.info(f"Downloaded {blob.name} to {local_path}")
+                    
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid GCS credentials JSON")
+            except Exception as e:
+                logger.error(f"GCS download error: {e}")
+                raise HTTPException(status_code=500, detail=f"GCS error: {str(e)}")
+        
+        elif provider == "azure":
+            # Import Azure Blob Storage client
+            try:
+                from azure.storage.blob import BlobServiceClient
+            except ImportError:
+                raise HTTPException(
+                    status_code=500,
+                    detail="azure-storage-blob is not installed. Please install it to use Azure downloads."
+                )
+            
+            if not all([account_name, account_key, container]):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Missing Azure credentials: account_name, account_key, and container are required"
+                )
+            
+            try:
+                # Create Azure Blob Service client
+                connection_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key};EndpointSuffix=core.windows.net"
+                blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+                container_client = blob_service_client.get_container_client(container)
+                
+                # List and download blobs
+                blobs = container_client.list_blobs(name_starts_with=prefix or "")
+                
+                for blob in blobs:
+                    # Skip directories
+                    if blob.name.endswith('/'):
+                        continue
+                    
+                    # Get filename
+                    filename = os.path.basename(blob.name)
+                    local_path = os.path.join(download_dir, filename)
+                    
+                    # Download blob
+                    blob_client = container_client.get_blob_client(blob.name)
+                    with open(local_path, "wb") as download_file:
+                        download_file.write(blob_client.download_blob().readall())
+                    
+                    downloaded_files.append(filename)
+                    logger.info(f"Downloaded {blob.name} to {local_path}")
+                    
+            except Exception as e:
+                logger.error(f"Azure download error: {e}")
+                raise HTTPException(status_code=500, detail=f"Azure error: {str(e)}")
+        
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported cloud provider: {provider}. Supported: s3, gcs, azure"
+            )
+        
+        if not downloaded_files:
+            return {
+                "status": "warning",
+                "message": "No files found in the specified cloud storage location",
+                "graphname": graphname,
+                "provider": provider,
+                "downloaded_files": [],
+            }
+        
+        logger.info(f"Downloaded {len(downloaded_files)} file(s) from {provider} for graph {graphname}")
+        
+        return {
+            "status": "success",
+            "message": f"Successfully downloaded {len(downloaded_files)} file(s) from {provider}",
+            "graphname": graphname,
+            "provider": provider,
+            "downloaded_files": downloaded_files,
+            "local_path": download_dir,
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        exc = traceback.format_exc()
+        logger.error(f"Error downloading from cloud for graph {graphname}: {e}")
+        logger.debug_pii(f"Cloud download error trace:\n{exc}")
+        raise HTTPException(status_code=500, detail=f"Error downloading from cloud: {str(e)}")
+
+
+@router.get(route_prefix + "/{graphname}/cloud/list")
+async def list_cloud_downloads(
+    graphname: str,
+    credentials: Annotated[HTTPBase, Depends(security)],
+):
+    """
+    List downloaded files from cloud storage for a specific graph.
+    
+    Parameters:
+    - graphname: The graph name to list downloaded files for
+    """
+    try:
+        download_dir = os.path.join("downloaded_files_cloud", graphname)
+        
+        if not os.path.exists(download_dir):
+            return {
+                "status": "success",
+                "graphname": graphname,
+                "files": [],
+                "count": 0,
+            }
+        
+        files = []
+        for filename in os.listdir(download_dir):
+            file_path = os.path.join(download_dir, filename)
+            if os.path.isfile(file_path):
+                file_stat = os.stat(file_path)
+                files.append({
+                    "name": filename,
+                    "size": file_stat.st_size,
+                    "modified": file_stat.st_mtime,
+                })
+        
+        return {
+            "status": "success",
+            "graphname": graphname,
+            "files": files,
+            "count": len(files),
+        }
+    
+    except Exception as e:
+        exc = traceback.format_exc()
+        logger.error(f"Error listing cloud downloads for graph {graphname}: {e}")
+        logger.debug_pii(f"List error trace:\n{exc}")
+        raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
+
+
+@router.delete(route_prefix + "/{graphname}/cloud/delete")
+async def delete_cloud_downloads(
+    graphname: str,
+    credentials: Annotated[HTTPBase, Depends(security)],
+    filename: str = None,
+):
+    """
+    Delete downloaded cloud files for a specific graph.
+    
+    Parameters:
+    - graphname: The graph name whose downloaded files to clear
+    - filename: If provided, only delete this specific file. Otherwise, delete all files.
+    """
+    try:
+        download_dir = os.path.join("downloaded_files_cloud", graphname)
+        
+        if not os.path.exists(download_dir):
+            return {
+                "status": "success",
+                "message": f"No downloaded files found for graph {graphname}",
+                "deleted_files": [],
+            }
+        
+        deleted_files = []
+        
+        if filename:
+            # Delete specific file
+            file_path = os.path.join(download_dir, filename)
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                os.remove(file_path)
+                deleted_files.append(filename)
+                logger.info(f"Deleted cloud download {filename} for graph {graphname}")
+            else:
+                raise HTTPException(status_code=404, detail=f"File {filename} not found")
+        else:
+            # Delete all files in the directory
+            for filename in os.listdir(download_dir):
+                file_path = os.path.join(download_dir, filename)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    deleted_files.append(filename)
+            
+            # Remove the directory if it's empty
+            if not os.listdir(download_dir):
+                os.rmdir(download_dir)
+            
+            logger.info(f"Deleted {len(deleted_files)} cloud download(s) for graph {graphname}")
+        
+        return {
+            "status": "success",
+            "message": f"Successfully deleted {len(deleted_files)} file(s)",
+            "graphname": graphname,
+            "deleted_files": deleted_files,
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        exc = traceback.format_exc()
+        logger.error(f"Error deleting cloud downloads for graph {graphname}: {e}")
+        logger.debug_pii(f"Delete error trace:\n{exc}")
+        raise HTTPException(status_code=500, detail=f"Error deleting files: {str(e)}")
 

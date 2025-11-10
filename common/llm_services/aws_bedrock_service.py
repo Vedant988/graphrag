@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-import boto3
+import boto3, botocore
 from langchain_aws import ChatBedrock
 import logging
 from common.llm_services import LLM_Model
@@ -27,9 +27,18 @@ class AWSBedrock(LLM_Model):
     def __init__(self, config):
         super().__init__(config)
         model_name = config["llm_model"]
+
+        boto3_config = config.get("boto3_config", {})
+        client_config = botocore.config.Config(
+            max_pool_connections=boto3_config.get("max_pool_connections", 20),
+            read_timeout=boto3_config.get("read_timeout", 300),
+            retries={"max_attempts": boto3_config.get("retries", 5)},
+        )
+
         client = boto3.client(
             "bedrock-runtime",
             region_name=config.get("region_name", "us-east-1"),
+            config=client_config,
             aws_access_key_id=config["authentication_configuration"][
                 "AWS_ACCESS_KEY_ID"
             ],

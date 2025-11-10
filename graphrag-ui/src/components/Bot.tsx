@@ -1,6 +1,6 @@
 import "react-chatbot-kit/build/main.css";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Chatbot from "react-chatbot-kit";
 import ActionProvider from "../actions/ActionProvider.js";
 import config from "../actions/config.js";
@@ -25,10 +25,17 @@ const Bot = ({ layout, getConversationId }: { layout?: string | undefined, getCo
   const [selectedGraph, setSelectedGraph] = useState(localStorage.getItem("selectedGraph") || '');
   const [ragPattern, setRagPattern] = useState(localStorage.getItem("ragPattern") || '');
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    const parseStore = JSON.parse(localStorage.getItem("site") || "{}");
-    setStore(parseStore);
+    // Function to load store from localStorage
+    const loadStore = () => {
+      const parseStore = JSON.parse(localStorage.getItem("site") || "{}");
+      setStore(parseStore);
+    };
+
+    // Initial load
+    loadStore();
 
     // Set default selectedGraph to first graph if no value in localStorage
     if (!localStorage.getItem("selectedGraph") && parseStore?.graphs?.length > 0) {
@@ -47,7 +54,25 @@ const Bot = ({ layout, getConversationId }: { layout?: string | undefined, getCo
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
     const formattedDate = date.toLocaleDateString('en-US', options);
     setCurrentDate(formattedDate);
+
+    // Update graph list when window gets focus (when navigating back from Setup)
+    const handleFocus = () => {
+      loadStore();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
+
+  // Reload graph list when navigating back to chat (location change)
+  useEffect(() => {
+    const parseStore = JSON.parse(localStorage.getItem("site") || "{}");
+    setStore(parseStore);
+  }, [location]);
 
   const handleSelect = (value) => {
     setSelectedGraph(value);

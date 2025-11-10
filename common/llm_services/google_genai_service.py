@@ -36,7 +36,7 @@ class GoogleGenAI(LLM_Model):
         self.llm = ChatGoogleGenerativeAI(
             temperature=config["model_kwargs"]["temperature"],
             model=model_name,
-            max_tokens=None,
+            max_tokens=config.get("token_limit"),
             timeout=None,
             max_retries=2,
         )

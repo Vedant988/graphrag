@@ -3,7 +3,7 @@ from common.embeddings.base_embedding_store import EmbeddingStore
 from common.metrics.tg_proxy import TigerGraphConnectionProxy
 from common.llm_services.base_llm import LLM_Model
 from common.py_schemas import CandidateScore, CandidateGenerator
-from common.utils import TokenCalculator
+from common.utils.token_calculator import TokenCalculator
 from common.config import completion_config
 
 from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser

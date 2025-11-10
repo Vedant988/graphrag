@@ -99,6 +99,41 @@ if "token_limit" in llm_config:
     if "token_limit" not in embedding_config:
         embedding_config["token_limit"] = llm_config["token_limit"]
 
+# Get multimodal_service config (optional, for vision/image tasks)
+multimodal_config = llm_config.get("multimodal_service")
+
+# Merge shared authentication configuration from llm_config level into service configs
+# Services can still override by defining their own authentication_configuration
+shared_auth = llm_config.get("authentication_configuration", {})
+if shared_auth:
+    # Merge into embedding_config (service-specific auth takes precedence)
+    if "authentication_configuration" not in embedding_config:
+        embedding_config["authentication_configuration"] = shared_auth.copy()
+    else:
+        # Merge shared auth with service-specific auth (service-specific takes precedence)
+        merged_embedding_auth = shared_auth.copy()
+        merged_embedding_auth.update(embedding_config["authentication_configuration"])
+        embedding_config["authentication_configuration"] = merged_embedding_auth
+    
+    # Merge into completion_config (service-specific auth takes precedence)
+    if "authentication_configuration" not in completion_config:
+        completion_config["authentication_configuration"] = shared_auth.copy()
+    else:
+        # Merge shared auth with service-specific auth (service-specific takes precedence)
+        merged_completion_auth = shared_auth.copy()
+        merged_completion_auth.update(completion_config["authentication_configuration"])
+        completion_config["authentication_configuration"] = merged_completion_auth
+    
+    # Merge into multimodal_config if it exists (service-specific auth takes precedence)
+    if multimodal_config:
+        if "authentication_configuration" not in multimodal_config:
+            multimodal_config["authentication_configuration"] = shared_auth.copy()
+        else:
+            # Merge shared auth with service-specific auth (service-specific takes precedence)
+            merged_multimodal_auth = shared_auth.copy()
+            merged_multimodal_auth.update(multimodal_config["authentication_configuration"])
+            multimodal_config["authentication_configuration"] = merged_multimodal_auth
+
 if graphrag_config is None:
     graphrag_config = {"reuse_embedding": True}
 if "chunker" not in graphrag_config:
@@ -156,6 +191,38 @@ def get_llm_service(llm_config) -> LLM_Model:
         return IBMWatsonX(llm_config["completion_service"])
     else:
         raise Exception("LLM Completion Service Not Supported")
+
+def get_multimodal_service() -> LLM_Model:
+    """
+    Get the multimodal/vision LLM service for image description tasks.
+    Uses multimodal_service if configured, otherwise falls back to completion_service.
+    Currently supports: OpenAI, Azure, GenAI, VertexAI
+    """
+    # Use multimodal_service if available, otherwise fallback to completion_service
+    service_config = multimodal_config if multimodal_config else completion_config
+    
+    # Make a copy to avoid modifying the original config
+    config_copy = service_config.copy()
+    
+    # Add default prompt_path if not present (required by LLM service classes but not used for multimodal)
+    if "prompt_path" not in config_copy:
+        config_copy["prompt_path"] = "./common/prompts/openai_gpt4/"
+    
+    service_type = config_copy["llm_service"].lower()
+    
+    if service_type == "openai":
+        return OpenAI(config_copy)
+    elif service_type == "azure":
+        return AzureOpenAI(config_copy)
+    elif service_type == "genai":
+        return GoogleGenAI(config_copy)
+    elif service_type == "vertexai":
+        return GoogleVertexAI(config_copy)
+    else:
+        raise Exception(
+            f"Multimodal service '{service_type}' not supported. "
+            "Only OpenAI, Azure, GenAI, and VertexAI are currently supported for vision tasks."
+        )
 
 if os.getenv("INIT_EMBED_STORE", "true") == "true":
     conn = TigerGraphConnection(

@@ -108,8 +108,9 @@ ordered-set==4.1.0
 orjson==3.10.18
 packaging==24.2
 pandas==2.2.3
-pathtools==0.1.2
+#pathtools==0.1.2
 pillow==11.2.1
+PyMuPDF==1.26.4
 platformdirs==4.3.8
 pluggy==1.6.0
 prometheus_client==0.22.1
@@ -127,12 +128,15 @@ pygit2==1.18.0
 pyparsing==3.2.3
 pypdf==5.6.1
 pytest==8.4.1
+python-docx==1.1.2
+pytesseract==0.3.10
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
+python-multipart==0.0.20
 python-iso639==2025.2.18
 python-magic==0.4.27
 pyTigerDriver==1.0.15
-pyTigerGraph==1.9.0
+pyTigerGraph==1.9.1
 pytz==2025.2
 PyYAML==6.0.2
 rapidfuzz==3.13.0

@@ -58,6 +58,7 @@ def retrieve_answer(
     )
     try:
         resp = agent.question_for_agent(query.query)
+        # Note: IMAGE_REF conversion happens in agent_graph.py
         pmetrics.llm_success_response_total.labels(embedding_service.model_name).inc()
     except MapQuestionToSchemaException:
         resp.natural_language_response = (
@@ -133,6 +134,16 @@ def retrieve_answer_with_chathistory(
         logger.info(f"latest 3 pairs of queries: {latest_history_query}")
 
         resp = agent.question_for_agent(query.query, latest_history_query)
+        
+        # Convert IMAGE_REF markers to markdown images for UI display
+        if resp.natural_language_response and "[IMAGE_REF:" in resp.natural_language_response:
+            import re
+            resp.natural_language_response = re.sub(
+                r'\[IMAGE_REF:([^\]]+)\]',
+                rf'![Image](/ui/image_vertex/{graphname}/\1)',
+                resp.natural_language_response
+            )
+        
         pmetrics.llm_success_response_total.labels(embedding_service.model_name).inc()
 
         conversation_history.append(

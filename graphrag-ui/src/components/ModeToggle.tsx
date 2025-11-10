@@ -1,4 +1,4 @@
-import { Moon, Sun, LogOut } from "lucide-react";
+import { Moon, Sun, LogOut, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,21 @@ export function ModeToggle() {
     }
   };
 
+  const handleSetup = () => {
+    navigate("/setup");
+  };
+
   return (
     <div className="absolute right-4 top-[13px] flex items-center gap-2">
+      <Button 
+        variant="outline" 
+        className="dark:border-[#3D3D3D]"
+        onClick={handleSetup}
+        title="Setup"
+      >
+        <Settings className="h-[1rem] w-[1rem]" />
+      </Button>
+      
       <Button 
         variant="outline" 
         className="dark:border-[#3D3D3D]"

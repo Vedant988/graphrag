@@ -49,6 +49,19 @@ class BaseIngestion:
                 chunker_params.get("breakpoint_threshold_type", "percentile"),
                 chunker_params.get("breakpoint_threshold_amount", 0.95),
             )
+        elif chunker.lower() == "html":
+            from common.chunkers.html_chunker import HTMLChunker
+
+            chunker = HTMLChunker(
+                headers=chunker_params.get("headers", None)
+            )
+        elif chunker.lower() == "markdown":
+            from common.chunkers.markdown_chunker import MarkdownChunker
+
+            chunker = MarkdownChunker(
+                chunk_size=chunker_params.get("chunk_size", 0),
+                chunk_overlap=chunker_params.get("overlap_size", 0)
+            )
         else:
             raise ValueError(f"Chunker {chunker} not supported")
 
@@ -415,6 +428,8 @@ class BatchIngestion(BaseIngestion):
             blob_store = AzureBlobStore(
                 doc_source.service_params["azure_connection_string"]
             )
+        elif doc_source.service == "local":
+            raise ValueError("Local service should use direct file processing, not blob store")
         else:
             raise ValueError(f"Service {doc_source.service} not supported")
 

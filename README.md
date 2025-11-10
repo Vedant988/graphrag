@@ -4,6 +4,47 @@
 > - **Supported Backend:** TigerGraph is the only Vector and Graph DB supported in this project. Hybrid Search is the officially retriever method supported at backend.  
 > - **Limitations:** No official support is provided unless delivered through a Statement of Work (SOW) with the Solutions team. Customizations are customer-owned self-service to handle custom LLM service, prompt logic, UI integration, and pipeline orchestration. This project is provided "as is" without any warranties or guarantees.
 
+## Table of Contents
+
+- [Releases](#releases)
+- [Overview](#overview)
+  - [Nature Language Query](#nature-language-query)
+  - [Knowledge Graph Query](#knowledge-graph-query)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Quick Start](#quick-start)
+    - [Use TigerGraph Docker-Based Instance](#use-tigergraph-docker-based-instance)
+    - [Use Pre-Installed TigerGraph Instance](#use-pre-installed-tigergraph-instance)
+  - [Deploy GraphRAG Manually](#deploy-graphrag-manually)
+    - [Manual Deploy of GraphRAG with Docker Compose](#manual-deploy-of-graphrag-with-docker-compose)
+    - [Use Standalone TigerGraph instance (If preferred)](#use-standalone-tigergraph-instance-if-preferred)
+    - [Manual Deploy of GraphRAG with Kubernetes](#manual-deploy-of-graphrag-with-kubernetes)
+- [Use TigerGraph GraphRAG](#use-tigergraph-graphrag)
+  - [Run Demo with Preloaded GraphRAG](#run-demo-with-preloaded-graphrag)
+  - [Manually Build GraphRAG From Scratch](#manually-build-graphrag-from-scratch)
+- [Detailed Data Ingestion Methods](#detailed-data-ingestion-methods)
+- [More Detailed Configurations](#more-detailed-configurations)
+  - [DB configuration](#db-configuration)
+  - [GraphRAG configuration](#graphrag-configuration)
+  - [Chat configuration](#chat-configuration)
+  - [LLM provider configuration](#llm-provider-configuration)
+    - [OpenAI](#openai)
+    - [Google GenAI](#google-genai)
+    - [GCP VertexAI](#gcp-vertexai)
+    - [Azure](#azure)
+    - [AWS Bedrock](#aws-bedrock)
+    - [Ollama](#ollama)
+    - [Hugging Face](#hugging-face)
+    - [Groq](#groq)
+- [Customization and Extensibility](#customization-and-extensibility)
+  - [Test Your Code Changes](#test-your-code-changes)
+    - [Testing with Pytest](#testing-with-pytest)
+    - [Test Code Change in Docker Container](#test-code-change-in-docker-container)
+  - [Test Script Options](#test-script-options)
+    - [Configure LLM Service](#configure-llm-service)
+    - [Configure Testing Graphs](#configure-testing-graphs)
+    - [Configure Weights and Biases](#configure-weights-and-biases)
+
 ## Releases
 * **9/22/2025: GraphRAG is available now officially v1.1 (v1.1.0). AWS Bedrock support is completed with BDA integration for multimodal document ingestion.
 * **6/18/2025: GraphRAG is available now officially v1.0 (v1.0.0). TigerGraph database is the only graph and vector storagge supported.
@@ -11,56 +52,84 @@ Please see [Release Notes](https://docs.tigergraph.com/tg-graphrag/current/relea
 
 ## Overview
 
-![./docs/img/TG-GraphRAG-Architecture.png](./docs/img/TG-GraphRAG-Architecture.png)
+![GraphRAG Overview](./docs/img/TG-GraphRAG-Overview.png)
 
-TigerGraph GraphRAG is an AI assistant that is meticulously designed to combine the powers of vector store, graph databases and generative AI to draw the most value from data and to enhance productivity across various business functions, including analytics, development, and administration tasks. It is one AI assistant with three core component services:
-* InquiryAI as a natural language assistant for graph-powered solutions
-* SupportAI as a knowledge Q&A assistant for documents and graphs
+TigerGraph GraphRAG is an AI assistant that is meticulously designed to combine the powers of vector store, graph databases and generative AI to draw the most value from data and to enhance productivity across various business functions, including analytics, development, and administration tasks. It is one AI assistant with two core component services:
+* A natural language assistant for graph-powered solutions
+* A knowledge Q&A assistant for documents and graphs
 
 You can interact with GraphRAG through the built-in chat interface and APIs. For now, your own LLM services (from OpenAI, Azure, GCP, AWS Bedrock, Ollama, Hugging Face and Groq.) are required to use GraphRAG, but in future releases you can use TigerGraph’s LLMs.
 
-### InquiryAI
-![./docs/img/InquiryAI-Architecture.png](./docs/img/InquiryAI-Architecture.png)
+### Nature Language Query
+![Nature Language Query](./docs/img/NatureLanguageQuery-Architecture.png)
 
-When a question is posed in natural language, GraphRAG (InquiryAI) employs a novel three-phase interaction with both the TigerGraph database and a LLM of the user's choice, to obtain accurate and relevant responses.
+When a question is posed in natural language, GraphRAG employs a novel three-phase interaction with both the TigerGraph database and a LLM of the user's choice, to obtain accurate and relevant responses.
 
 The first phase aligns the question with the particular data available in the database. GraphRAG uses the LLM to compare the question with the graph’s schema and replace entities in the question by graph elements. For example, if there is a vertex type of `BareMetalNode` and the user asks `How many servers are there?`, the question will be translated to `How many BareMetalNode vertices are there?`. In the second phase, GraphRAG uses the LLM to compare the transformed question with a set of curated database queries and functions in order to select the best match. In the third phase, GraphRAG executes the identified query and returns the result in natural language along with the reasoning behind the actions.
 
 Using pre-approved queries provides multiple benefits. First and foremost, it reduces the likelihood of hallucinations, because the meaning and behavior of each query has been validated.  Second, the system has the potential of predicting the execution resources needed to answer the question.
 
-### SupportAI
-![./docs/img/InquiryAI-Architecture.png](./docs/img/SupportAI-Architecture.png)
+### Knowledge Graph Query
+![Knowledge Graph Query](./docs/img/GraphRAG-Architecture.png)
 
-With SupportAI, GraphRAG creates chatbots with graph-augmented AI on a user's own documents or text data. It builds a knowledge graph from source material and applies its unique variant of knowledge graph-based RAG (Retrieval Augmented Generation) to improve the contextual relevance and accuracy of answers to natural-language questions.
+For inquiries cannot be answered with structured graph data, GraphRAG employs an AI chatbots with graph-augmented Knowledge Graph based on a user's own documents or text data. It builds a knowledge graph from source material and applies its unique variant of knowledge graph-based RAG (Retrieval Augmented Generation) to improve the contextual relevance and accuracy of answers to natural-language questions.
 
 GraphRAG will also identify concepts and build an ontology, to add semantics and reasoning to the knowledge graph, or users can provide their own concept ontology. Then, with this comprehensive knowledge graph, GraphRAG performs hybrid retrievals, combining traditional vector search and graph traversals, to collect more relevant information and richer context to answer users’ knowledge questions.
 
 Organizing the data as a knowledge graph allows a chatbot to access accurate, fact-based information quickly and efficiently, thereby reducing the reliance on generating responses from patterns learned during training, which can sometimes be incorrect or out of date.
 
+[Go back to top](#top)
+
 
 ## Getting Started
 
-### Self-Managed
-The quickest way to access TigerGraph GraphRAG is to deploy its docker image with the docker compose file in the repo. In order to take this route, you will need the following prerequisites.
-
-#### Prerequisites
-* Docker
+### Prerequisites
+* Docker + Docker Compose Plugin, or Kubernetes
 * TigerGraph DB 4.2+.
 * API key of your LLM provider. (An LLM provider refers to a company or organization that offers Large Language Models (LLMs) as a service. The API key verifies the identity of the requester, ensuring that the request is coming from a registered and authorized user or application.) Currently, GraphRAG supports the following LLM providers: OpenAI, Azure OpenAI, GCP, AWS Bedrock.
 
-#### Deploy with Docker Compose
-* Step 1: Get docker-compose file
-  - Download the [docker-compose.yml](https://raw.githubusercontent.com/tigergraph/ecosys/refs/heads/master/tutorials/graphrag/docker-compose.yml) file directly
 
-  The Docker Compose file contains all dependencies for GraphRAG. Moreover, GraphRAG comes with a Swagger API documentation page when it is deployed. If you wish to disable it, you can set the `PRODUCTION` environment variable to true for the GraphRAG service in the Compose file.
+### Quick Start
 
-* Step 2: Set up configurations
+#### Use TigerGraph Docker-Based Instance
+Set your OpenAI api key as environment varabiel OPENAI_API_KEY and use the following command for a one-step quick deployment with TigerGraph Community Edition and default configurations:
+```
+curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag.sh | sh
+```
 
-  Next, in the same directory as the Docker Compose file is in, create and fill in the following configuration files:
-  * [configs/server_config.json](https://raw.githubusercontent.com/tigergraph/ecosys/refs/heads/master/tutorials/graphrag/configs/server_config.json)
-  * [configs/nginx.conf](https://raw.githubusercontent.com/tigergraph/ecosys/refs/heads/master/tutorials/graphrag/configs/nginx.conf)
+The GraphRAG instances will be deployed at `./graphrag` folder and TigerGraph instance will be available at `http://localhost:14240`.
+To change installation folder, use `sh -s -- <graphrag_folder>` instead of `sh` at the end of the above command.
 
-  Here’s what the folder structure looks like:
+#### Use Pre-Installed TigerGraph Instance
+
+Using the following command for a one-step quick deployment with TigerGraph Community Edition and default configurations:
+```
+curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag_tg.sh | sh
+```
+
+The GraphRAG instances will be deployed at `./graphrag` folder and connect to TigerGraph instance at `http://localhost:14240` by default.
+To change installation folder, TigerGraph instance location or username/password, use `sh -s -- <graphrag_loc> <tg_host> <tg_port> <tg_username> <tg_password>` instead of `sh` at the end of the above command.
+
+[Go back to top](#top)
+
+
+### Deploy GraphRAG Manually
+The GraphRAG services can be deployed manually using Docker Compose or Kubernetes with updated configurations for different use cases.
+
+#### Manual Deploy of GraphRAG with Docker Compose
+
+##### Step 1: Get docker-compose file
+Download the [docker-compose.yml](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/docker-compose.yml) file directly
+
+The Docker Compose file contains all dependencies for GraphRAG including a TigerGraph database. If you want to use a separate TigerGraph instance, you can comment out the `tigergraph` section from the docker compose file and restart all services. However, please follow the instructions below to make sure your standalone TigerGraph server is accessible from other GraphRAG containers.
+
+##### Step 2: Set up configurations
+
+Next, download the following configuration files and put them in a `configs` subdirectory of the directory contains the Docker Compose file:
+* [configs/server_config.json](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/server_config.json)
+* [configs/nginx.conf](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/nginx.conf)
+
+Here’s what the folder structure looks like:
 ```
     graphrag
     ├── configs
@@ -69,13 +138,13 @@ The quickest way to access TigerGraph GraphRAG is to deploy its docker image wit
     └── docker-compose.yml
 ```
 
-* Step 3: Adjust configurations
+##### Step 3: Adjust configurations
 
 Edit `llm_config` section of `configs/server_config.json` and replace `<YOUR_OPENAI_API_KEY>` to your own OPENAI_API_KEY. 
-
+ 
 > If desired, you can also change the model to be used for the embedding service and completion service to your preferred models to adjust the output from the LLM service.
 
-* Step 4 (Optional): Configure Logging Level in Dockerfile
+##### Step 4: Configure Logging Level in Dockerfile (Optional)
 
 To configure the logging level of the service, edit the Docker Compose file.
 
@@ -99,18 +168,19 @@ This line can be changed to support different logging levels.
 | `DEBUG_PII` | Finer-grained information that could potentially include `PII`, such as a user’s question, the complete function call (with parameters), and the LLM’s natural language response. |
 | NOTSET | All messages are processed. |
 
-* Step 5: Start all services
-
-Uncomment `tigergraph` section from `docker-compose.yml` if it's commented out. Please follow the [instructions](https://github.com/tigergraph/ecosys/blob/master/tutorials/GSQL.md#set-up-environment) to download TigerGraph docker image.
+##### Step 5: Start all services
 
 Now, simply run `docker compose up -d` and wait for all the services to start.
 
 > Note: `graphrag` container will be down if TigerGraph service is not ready. Log into the `tigergraph` container, bring up tigergraph services and rerun `docker compose up -d` should resolve the issue.
 
-* Step 6: Stop all services (when needed)
+##### Step 6: Stop all services (when needed)
+
 Run command `docker compose down` and wait for all the service containers to stopped and removed.
 
-#### Use Standalone TigerGraph instance (Optional)
+[Go back to top](#top)
+
+#### Use Standalone TigerGraph instance (If preferred)
 
 > **_Note:_** Vector feature is available in both TigerGraph Community Edition 4.2.0+ and Enterprise Edition 4.2.0+.
 
@@ -135,43 +205,197 @@ After using the database, and you want to shutdown it, use the following shell c
 gadmin stop all
 ```
 
-#### Deploy with Kubernetes
-> Note: TigerGraph instance should be deployed separately in advance and accessible from the kubernetes env
+[Go back to top](#top)
 
-* Step 1: Get kubernetes deployment file
-  - Download the [graphrag-k8s.yml](https://raw.githubusercontent.com/tigergraph/ecosys/refs/heads/master/tutorials/graphrag/graphrag-k8s.yml) file directly
 
-* Step 2: Set up configurations
+#### Manual Deploy of GraphRAG with Kubernetes
+
+##### Step 1: Get kubernetes deployment file
+  Download the [graphrag-k8s.yml](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/graphrag-k8s.yml) file directly
+
+##### Step 2: Modify `graphrag-k8s.yml` (Optional)
+  Remove the sections for tigergraph instance if you're using a standalone TigerGraph instance instead
+
+##### Step 3: Set up server configurations
   Next, in the same directory as the Kubernetes deployment file is in, create a `configs` directory and download the following configuration files:
-  * [configs/server_config.json](https://raw.githubusercontent.com/tigergraph/ecosys/refs/heads/master/tutorials/graphrag/configs/server_config.json)
+  * [configs/server_config.json](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/server_config.json)
 
-* Step 3: Update the TigerGraph database information, LLM API keys and other configs accordingly in `configs/server_config.json`.
+  Update the TigerGraph database information, LLM API keys and other configs accordingly.
 
-* Step 4: Start all services
+##### Step 4: Install Nginx Ingress (Optional)
+  If Nginx Ingress is not installed yet, it can be installed using `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.1/deploy/static/provider/cloud/deploy.yaml`
+
+##### Step 5: Start all services
   Replace `/path/to/graphrag/configs` with the absolute path of the `configs` folder inside `graphrag-k8s.yml`, and update the TigerGraph database information and other configs accordingly.
 
-  Now, simply run `kubectl apply -f graphrag-k8s.yml` and wait for all the services in the deployment to be started.
+  Now, simply run `kubectl apply -f graphrag-k8s.yml` and wait for all the services to start.
 
-> Note: Nginx Ingress should be installed using `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.1/deploy/static/provider/cloud/deploy.yaml`
+##### Step 6: Stop all services (Optional)
+  Run kubectl delete -f graphrag-k8s.yml and wait for all the services in the deployment to be deleted.
 
-* Step 5: Stop all services (when needed)
-  Run `kubectl delete -f graphrag-k8s.yml` and wait for all the services in the deployment to be deleted.
+> Note: Nginx Ingress should be deleted using kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.1/deploy/static/provider/cloud/deploy.yaml if port 80 needs to be released
 
-> Note: Nginx Ingress should be deleted using `kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.2.1/deploy/static/provider/cloud/deploy.yaml` if port 80 needs to be released
-
-### Data Ingestion
-For data ingestion, please follow the ![GraphRAG Demo Notebook](./docs/notebooks/GraphRAGDemo.ipynb)
-
-### Access GraphRAG ChatBot from UI
-Open your browser to access `http://localhost` to access GraphRAG Chat. If you're accessing GraphRAG UI remotely, use the machine's hostname of IP address instead.
+[Go back to top](#top)
 
 
-## Detailed Configurations
+## Use TigerGraph GraphRAG
+
+GraphRAG is friendly to both technical and non-technical users. There is a graphical chat interface as well as API access to GraphRAG. Function-wise, GraphRAG can answer your questions by calling existing queries in the database, build a knowledge graph from your documents, and answer knowledge questions based on your documents.
+
+### Run Demo with Preloaded GraphRAG
+
+The pre-loaded knowledge graph `TigerGraphRAG` is provided for an express access to the GraphRAG features.
+
+#### Step 1: Get data package
+
+Download the following data file and put it under `/home/tigergraph/graphrag/` inside your TigerGraph container:
+* [ExportedGraph.zip](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/data/ExportedGraph.zip)
+
+Use the following commands if the file cannot be downloaded inside the TigerGraph container directly:
+```
+docker exec -it tigergraph mkdir -p /home/tigergraph/graphrag
+docker exec -it tigergraph curl -kL https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/data/ExportedGraph.zip -o /home/tigergraph/graphrag/ExportedGraph.zip
+```
+
+> Note: command should be changed to equivalent formats if standalone TigerGraph instance is used
+
+#### Step 2: Import data package
+Next, log onto the TigerGraph instance and make use of the Database Import feature to recreate the GraphRAG:
+```
+docker exec -it tigergraph /bin/bash
+gsql "import graph all from \"/home/tigergraph/graphrag\""
+gsql "install query all"
+```
+
+Wait until the following output is given:
+```
+[======================================================================================================] 100% (26/26)
+Query installation finished.
+```
+
+#### Step 3: Access Chatbot UI
+Open your browser to access `http://localhost:<nginx_port>` to access GraphRAG Chat. For example: http://localhost:80
+
+Enter the username and password of the TigerGraph database to login.
+
+![Chat Login](./docs/img/ChatLogin.jpg)
+
+On the top of the page, select `Community Search` as RAG pattern and `TigerGraphRAG` as Graph.
+![RAG Config](./docs/img/RAGConfig.jpg)
+
+In the chat box, input the question `how to load data to tigergraph vector store, give an example in Python` and click the `send` button.
+![Demo Question](./docs/img/DemoQuestion.jpg)
+
+You can also ask other questions on statistics and data inside the TigerGraph database.
+![Data          ](./docs/img/Inquiry.jpg)
+
+[Go back to top](#top)
+
+
+### Manually Build GraphRAG From Scratch
+
+If you want to experience the whole process of GraphRAG, you can build the GraphRAG from scratch. However, please review the LLM model and service setting carefully because it will cost some money to re-generate embedding and data structure for the raw data.
+
+#### Step 1: Get demo script
+
+The following scripts are needed to run the demo. Please download and put them in the same directory `./graphrag` as the Docker Compose file:
+* Demo driver: [graphrag_demo.sh](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/graphrag_demo.sh)
+* GraphRAG initializer: [init_graphrag.py](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/init_graphrag.py)
+* Example: [answer_question.py](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/answer_question.py)
+
+#### Step 2: Download the demo data
+
+Next, download the following data file and put it in a `data` subdirectory of the directory contains the Docker Compose file:
+* [data/tg_tutorials.jsonl](https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/data/tg_tutorials.jsonl)
+
+#### Step 3: Run the demo driver script
+
+> Note: Python 3.11+ is needed to run the demo
+
+It is recommended to use a virtual env to isolate the runtime environment for the demo
+```
+python3.11 -m venv demo
+source demo/bin/activate
+```
+
+Now, simply run the demo script to try GraphRAG.
+```
+  ./graphrag_demo.sh
+```
+
+The script will:
+1. Check the environment
+1. Init TigerGraph schema and related queries needed
+1. Load the sample data
+1. Init the GraphRAG based on the graph and install required queries
+1. Ask a question via Python to get answer from GraphRAG
+
+[Go back to top](#top)
+
+
+## Detailed Data Ingestion Methods
+For more examples of data ingestion, please follow the [GraphRAG Demo Notebook](./docs/notebooks/GraphRAGDemo.ipynb)
+
+[Go back to top](#top)
+
+
+## More Detailed Configurations
+
+### DB configuration
+Copy the below into `configs/server_config.json` and edit the `hostname` and `getToken` fields to match your database's configuration. If token authentication is enabled in TigerGraph, set `getToken` to `true`. Set the timeout, memory threshold, and thread limit parameters as desired to control how much of the database's resources are consumed when answering a question.
+
+```json
+{
+    "db_config": {
+        "hostname": "http://tigergraph",
+        "restppPort": "9000",
+        "gsPort": "14240",
+        "getToken": false,
+        "default_timeout": 300,
+        "default_mem_threshold": 5000,
+        "default_thread_limit": 8
+    }
+}
+```
+
+### GraphRAG configuration
+Copy the below code into `configs/server_config.json`. You shouldn’t need to change anything unless you change the port of the chat history service in the Docker Compose file.
+
+`reuse_embedding` to `true` will skip re-generating the embedding if it already exists.
+`ecc` and `chat_history_api` are the addresses of internal components of GraphRAG.If you use the Docker Compose file as is, you don’t need to change them.
+
+```json
+{
+    "graphrag_config": {
+        "reuse_embedding": false,
+        "ecc": "http://eventual-consistency-service:8001",
+        "chat_history_api": "http://chat-history:8002"
+    }
+}
+```
+
+### Chat configuration
+Copy the below code into `configs/server_config.json`. You shouldn’t need to change anything unless you change the port of the chat history service in the Docker Compose file.
+
+```json
+{
+    "chat-history": {
+        "apiPort":"8002",
+        "dbPath": "chats.db",
+        "dbLogPath": "db.log",
+        "logPath": "requestLogs.jsonl",
+        "conversationAccessRoles": ["superuser", "globaldesigner"]
+    }
+}
+```
+
+[Go back to top](#top)
+
 
 ### LLM provider configuration
 In the `llm_config` section of `configs/server_config.json` file, copy JSON config template from below for your LLM provider, and fill out the appropriate fields. Only one provider is needed.
 
-* OpenAI
+#### OpenAI
 In addition to the `OPENAI_API_KEY`, `llm_model` and `model_name` can be edited to match your specific configuration details.
 
 ```json
@@ -199,7 +423,7 @@ In addition to the `OPENAI_API_KEY`, `llm_model` and `model_name` can be edited 
 }
 ```
 
-* Google GenAI
+#### Google GenAI
 
 Get your Gemini API key via https://aistudio.google.com/app/apikey.
 
@@ -229,7 +453,7 @@ Get your Gemini API key via https://aistudio.google.com/app/apikey.
 }
 ```
 
-* GCP VertexAI
+#### GCP VertexAI
 
 Follow the GCP authentication information found here: https://cloud.google.com/docs/authentication/application-default-credentials#GAC and create a Service Account with VertexAI credentials. Then add the following to the docker run command:
 
@@ -259,7 +483,7 @@ And your JSON config should follow as:
 }
 ```
 
-* Azure
+#### Azure
 
 In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_deployment`, `llm_model` and `model_name` can be edited to match your specific configuration details.
 
@@ -296,7 +520,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
 }
 ```
 
-* AWS Bedrock
+#### AWS Bedrock
 
 ```json
 {
@@ -312,7 +536,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
         },
         "completion_service": {
             "llm_service": "bedrock",
-            "llm_model": "anthropic.claude-3-5-haiku-20241022-v1:0",
+            "llm_model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
             "region_name":"us-west-2",
             "authentication_configuration": {
                 "AWS_ACCESS_KEY_ID": "ACCESS_KEY",
@@ -327,7 +551,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
 }
 ```
 
-* Ollama
+#### Ollama
 
 ```json
 {
@@ -353,7 +577,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
 }
 ```
 
-* Hugging Face
+#### Hugging Face
 
 Example configuration for a model on Hugging Face with a dedicated endpoint is shown below. Please specify your configuration details:
 
@@ -410,7 +634,7 @@ Example configuration for a model on Hugging Face with a serverless endpoint is 
 }
 ```
 
-* Groq
+#### Groq
 
 ```json
 {
@@ -437,70 +661,16 @@ Example configuration for a model on Hugging Face with a serverless endpoint is 
 }
 ```
 
-### DB configuration
-Copy the below into `configs/server_config.json` and edit the `hostname` and `getToken` fields to match your database's configuration. If token authentication is enabled in TigerGraph, set `getToken` to `true`. Set the timeout, memory threshold, and thread limit parameters as desired to control how much of the database's resources are consumed when answering a question.
+[Go back to top](#top)
 
-```json
-{
-    "db_config": {
-        "hostname": "http://tigergraph",
-        "restppPort": "9000",
-        "gsPort": "14240",
-        "getToken": false,
-        "default_timeout": 300,
-        "default_mem_threshold": 5000,
-        "default_thread_limit": 8
-    }
-}
-```
-
-### GraphRAG configuration
-Copy the below code into `configs/server_config.json`. You shouldn’t need to change anything unless you change the port of the chat history service in the Docker Compose file.
-
-`reuse_embedding` to `true` will skip re-generating the embedding if it already exists.
-`ecc` and `chat_history_api` are the addresses of internal components of GraphRAG.If you use the Docker Compose file as is, you don’t need to change them.
-
-```json
-{
-    "graphrag_config": {
-        "reuse_embedding": false,
-        "ecc": "http://eventual-consistency-service:8001",
-        "chat_history_api": "http://chat-history:8002"
-    }
-}
-```
-
-### Chat configuration
-Copy the below code into `configs/server_config.json`. You shouldn’t need to change anything unless you change the port of the chat history service in the Docker Compose file.
-
-```json
-{
-    "chat-history": {
-        "apiPort":"8002",
-        "dbPath": "chats.db",
-        "dbLogPath": "db.log",
-        "logPath": "requestLogs.jsonl",
-        "conversationAccessRoles": ["superuser", "globaldesigner"]
-    }
-}
-```
-
-### Enable openCypher Query Generation in InquiryAI
-If you would like to enable openCypher query generation in InquiryAI, you can set the `USE_CYPHER` environment variable to `"true"` in the GraphRAG service in the docker compose file. By default, this is set to `"false"`. **Note**: openCypher query generation is still in beta and may not work as expected, as well as increases the potential of hallucinated answers due to bad code generation. Use with caution, and only in non-production environments.
-
-## Using TigerGraph GraphRAG
-
-GraphRAG is friendly to both technical and non-technical users. There is a graphical chat interface as well as API access to GraphRAG. Function-wise, GraphRAG can answer your questions by calling existing queries in the database (InquiryAI), build a knowledge graph from your documents (SupportAI), and answer knowledge questions based on your documents (SupportAI).
-
-Please refer to our [official documentation](https://docs.tigergraph.com/tg-graphrag/current/using-graphrag/) on how to use GraphRAG.
 
 ## Customization and Extensibility
 TigerGraph GraphRAG is designed to be easily extensible. The service can be configured to use different LLM providers, different graph schemas, and different LangChain tools. The service can also be extended to use different embedding services, different LLM generation services, and different LangChain tools. For more information on how to extend the service, see the [Developer Guide](./docs/DeveloperGuide.md).
 
-## Testing
+### Test Your Code Changes
 A family of tests are included under the `tests` directory. If you would like to add more tests please refer to the [guide here](./docs/DeveloperGuide.md#adding-a-new-test-suite). A shell script `run_tests.sh` is also included in the folder which is the driver for running the tests. The easiest way to use this script is to execute it in the Docker Container for testing.
 
-### Testing with Pytest
+#### Testing with Pytest
 You can run testing for each service by going to the top level of the service's directory and running `python -m pytest`
 
 e.g. (from the top level)
@@ -510,7 +680,7 @@ python -m pytest
 cd ..
 ```
 
-### Test in Docker Container
+#### Test Code Change in Docker Container
 
 First, make sure that all your LLM service provider configuration files are working properly. The configs will be mounted for the container to access. Also make sure that all the dependencies such as database are ready. If not, you can run the included docker compose file to create those services.
 ```sh

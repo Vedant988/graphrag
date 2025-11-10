@@ -119,13 +119,13 @@ class CreateVectorIndexConfig(BaseModel):
 class CreateIngestConfig(BaseModel):
     data_source: str
     data_source_config: Dict
-    loader_config: Dict = {"doc_id_field": str, "content_field": str}
+    loader_config: Optional[Dict] = None  # Made optional - will auto-generate defaults
     file_format: str = "json"
 
 
 class LoadingInfo(BaseModel):
     load_job_id: str
-    data_source_id: str
+    data_source_id: Union[str, Dict]
     file_path: str
 
 

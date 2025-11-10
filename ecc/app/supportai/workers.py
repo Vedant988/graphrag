@@ -80,10 +80,15 @@ async def chunk_doc(
         chunker_type = doc["attributes"]["ctype"].lower().strip()
     else:
         chunker_type = ""
+    
+    v_id = util.process_id(doc["v_id"])
+    
+    # Use markdown chunker for all documents
+    # Image descriptions wrapped in headers will naturally become single chunks
     chunker = ecc_util.get_chunker(chunker_type)
     chunks = chunker.chunk(doc["attributes"]["text"])
-    v_id = util.process_id(doc["v_id"])
-    logger.info(f"Chunking {v_id}")
+    
+    logger.info(f"Chunking {v_id} into {len(chunks)} chunk(s)")
     for i, chunk in enumerate(chunks):
         chunk_id = f"{v_id}_chunk_{i}"
         # send chunks to be upserted (func, args)

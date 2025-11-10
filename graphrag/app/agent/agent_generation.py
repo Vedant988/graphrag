@@ -21,7 +21,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from common.logs.logwriter import LogWriter
 from common.logs.log import req_id_cv
-from common.utils import TokenCalculator
+from common.utils.token_calculator import TokenCalculator
 from common.config import completion_config
 
 

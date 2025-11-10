@@ -4,6 +4,7 @@ import "./index.css";
 import { Outlet, RouterProvider, createBrowserRouter } from "react-router-dom";
 import Chat from "./pages/Chat";
 import ChatDialog from "./pages/ChatDialog.tsx";
+import Setup from "./pages/Setup.tsx";
 import { ThemeProvider } from "./components/ThemeProvider.tsx";
 import { ModeToggle } from "@/components/ModeToggle.tsx";
 
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
       {
         path: "/preferences",
         element: <ChatDialog />,
+      },
+      {
+        path: "/setup",
+        element: <Setup />,
       },
     ],
   },

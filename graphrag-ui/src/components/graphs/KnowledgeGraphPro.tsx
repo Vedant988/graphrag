@@ -97,7 +97,7 @@ export const KnowledgeGraphPro = ({ data }) => {
   <>{/* edges ? JSON.stringify(edges) : 'no data' */}
     {/* {edges} */}
     {/* {edges && <pre>{edges}</pre>} */}
-    { edges && nodes ? (
+    { edges && nodes && nodes.length > 0 && edges.length > 0 ? (
       <GraphCanvas
         ref={ref} 
         nodes={nodes} 

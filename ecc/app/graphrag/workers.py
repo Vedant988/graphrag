@@ -92,15 +92,19 @@ async def chunk_doc(
             chunker_type = doc["attributes"]["ctype"].lower().strip()
         else:
             chunker_type = ""
-        chunker = ecc_util.get_chunker(chunker_type)
-        # decode the text return from tigergraph as it was encoded when written into jsonl file for uploading
-        chunks = chunker.chunk(doc["attributes"]["text"].encode('utf-8').decode('unicode_escape'))
+        
         v_id = util.process_id(doc["v_id"])
         if v_id != doc["v_id"]:
             logger.info(f"""Cloning doc/content {doc["v_id"]} -> {v_id}""")
             await upsert_chan.put((upsert_doc, (conn, v_id, chunker_type, doc["attributes"]["text"])))
+        
+        # Use get_chunker for all types (including images)
+        # For images, get_chunker returns SingleChunker which preserves [IMAGE_REF:] markers
+        chunker = ecc_util.get_chunker(chunker_type)
+        # decode the text return from tigergraph as it was encoded when written into jsonl file for uploading
+        chunks = chunker.chunk(doc["attributes"]["text"].encode('utf-8').decode('unicode_escape'))
        
-        logger.info(f"Chunking {v_id}")
+        logger.info(f"Chunking {v_id} into {len(chunks)} chunk(s)")
         for i, chunk in enumerate(chunks):
             chunk_id = f"{v_id}_chunk_{i}"
             logger.info(f"Processing chunk {chunk_id}")

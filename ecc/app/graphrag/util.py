@@ -174,17 +174,13 @@ def map_attrs(attributes: dict):
     return attrs
 
 
-def process_id(v_id: str, lowercase: bool = False):
-    v_id = v_id.replace(" ", "_").replace("/", "").replace("%", "percent")
-    if lowercase:
-        v_id = v_id.lower()
-
+def process_id(v_id: str):
     has_func = re.compile(r"(.*)\(").findall(v_id)
     if len(has_func) > 0:
         v_id = has_func[0]
+    v_id = v_id.replace(" ", "-").lower().replae("/", "_").replace("(", "").replace(")", "")
     if v_id == "''" or v_id == '""':
         return ""
-    v_id = v_id.replace("(", "").replace(")", "")
 
     return v_id
 
