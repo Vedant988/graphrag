@@ -183,136 +183,153 @@ def extract_text_from_file_with_images_as_docs(file_path, graphname=None):
 
 def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
     """
-    Extract PDF as ONE markdown document with inline image references.
+    Extract PDF as ONE markdown document with inline image references using pymupdf4llm.
+    Uses unique temporary folder per PDF to allow parallel processing.
+    After processing, delete the extracted image folder.
     """
-    try:
-        import fitz  # PyMuPDF
-        from PIL import Image as PILImage
+    # Use unique folder per PDF to allow parallel processing without conflicts
+    unique_folder_id = uuid.uuid4().hex[:12]
+    image_output_folder = Path(f"tg_temp_{unique_folder_id}")
 
-        doc = fitz.open(file_path)
-        markdown_parts = []
+    try:
+        import pymupdf4llm
+        from PIL import Image as PILImage
+        from common.utils.image_data_extractor import describe_image_with_llm
+        from common.utils.markdown_parsing import MarkdownProcessor
+
+        # Ensure clean slate - remove folder if it exists from failed previous run
+        if image_output_folder.exists():
+            shutil.rmtree(image_output_folder, ignore_errors=True)
+
+        # Convert PDF to markdown with extracted image files
+        try:
+            markdown_content = pymupdf4llm.to_markdown(
+                file_path,
+                write_images=True,
+                image_path=str(image_output_folder),  # unique folder per PDF
+                force_text=False,
+                margins=0,
+                image_size_limit=0.08,
+            )
+        except Exception as e:
+            logger.error(f"pymupdf4llm failed for {file_path}: {e}")
+            # Cleanup folder if it was created
+            if image_output_folder.exists():
+                shutil.rmtree(image_output_folder, ignore_errors=True)
+            return [{
+                "doc_id": base_doc_id,
+                "doc_type": "markdown",
+                "content": f"[PDF extraction failed: {e}]",
+                "position": 0
+            }]
+
+        if not markdown_content or not markdown_content.strip():
+            logger.warning(f"No content extracted from PDF: {file_path}")
+
+        # Extract image references from markdown
+        image_refs = MarkdownProcessor.extract_images(markdown_content)
+
+        if not image_refs:
+            # cleanup folder anyway
+            if image_output_folder.exists():
+                shutil.rmtree(image_output_folder, ignore_errors=True)
+
+            return [{
+                "doc_id": base_doc_id,
+                "doc_type": "markdown",
+                "content": markdown_content,
+                "position": 0
+            }]
+
         image_entries = []
         image_counter = 0
 
-        for page_num, page in enumerate(doc, start=1):
-            if page_num > 1:
-                markdown_parts.append("\n\n")
-            markdown_parts.append(f"--- Page {page_num} ---\n") #Avoid to be splitted as a single chunk
+        for img_ref in image_refs:
+            try:
+                img_path = Path(img_ref["path"])  # convert to Path
+                image_id = img_ref["image_id"]
 
-            blocks = page.get_text("blocks", sort=True)
-            text_blocks_with_pos = []
+                # Image description
+                description = describe_image_with_llm(str(img_path))
 
-            for block in blocks:
-                block_type = block[6] if len(block) > 6 else 0
-                if block_type == 0:
-                    text = block[4].strip()
-                    if text:
-                        y_pos = block[1]
-                        text_blocks_with_pos.append({'type': 'text', 'content': text, 'y_pos': y_pos})
+                markdown_content = MarkdownProcessor.insert_description_by_id(
+                    markdown_content,
+                    image_id,
+                    description
+                )
 
-            image_list = page.get_images(full=True)
-            images_with_pos = []
+                # Convert image to base64
+                pil_image = PILImage.open(img_path)
+                buffer = io.BytesIO()
 
-            if image_list:
-                for img_index, img_info in enumerate(image_list):
-                    try:
-                        xref = img_info[0]
-                        base_image = doc.extract_image(xref)
-                        image_bytes = base_image["image"]
-                        image_ext = base_image["ext"]
+                if pil_image.mode != "RGB":
+                    pil_image = pil_image.convert("RGB")
 
-                        img_rects = page.get_image_rects(xref)
-                        y_pos = img_rects[0].y0 if img_rects else 999999
+                pil_image.save(buffer, format="JPEG", quality=95)
+                image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-                        pil_image = PILImage.open(io.BytesIO(image_bytes))
-                        if pil_image.width < 100 or pil_image.height < 100:
-                            continue
+                image_counter += 1
+                image_doc_id = f"{base_doc_id}_image_{image_counter}"
 
-                        from common.utils.image_data_extractor import describe_image_with_llm
-                        description = describe_image_with_llm(pil_image)
-                        description_lower = description.lower()
-                        logo_indicators = [
-                            'logo:', 'icon:', 'logo', 'icon', 'branding',
-                            'watermark', 'trademark', 'stylized letter',
-                            'stylized text', 'word "', "word '"
-                        ]
-                        if any(indicator in description_lower for indicator in logo_indicators):
-                            continue
+                # Replace file path with tg:// protocol reference in markdown
+                markdown_content = MarkdownProcessor.replace_path_with_tg_protocol(
+                    markdown_content,
+                    image_id,
+                    image_doc_id
+                )
 
-                        buffer = io.BytesIO()
-                        if pil_image.mode != 'RGB':
-                            pil_image = pil_image.convert('RGB')
-                        pil_image.save(buffer, format="JPEG", quality=95)
-                        image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+                image_entries.append({
+                    "doc_id": image_doc_id,
+                    "doc_type": "image",
+                    "image_description": description,
+                    "image_data": image_base64,
+                    "image_format": "jpg",
+                    "parent_doc": base_doc_id,
+                    "page_number": 0,
+                    "width": pil_image.width,
+                    "height": pil_image.height,
+                    "position": image_counter
+                })
 
-                        image_counter += 1
-                        image_doc_id = f"{base_doc_id}_image_{image_counter}"
+            except Exception as img_error:
+                logger.warning(f"Failed to process image {img_ref.get('path')}: {img_error}")
 
-                        images_with_pos.append({
-                            'type': 'image',
-                            'image_doc_id': image_doc_id,
-                            'description': description,
-                            'y_pos': y_pos,
-                            'image_data': image_base64,
-                            'image_format': image_ext,
-                            'width': pil_image.width,
-                            'height': pil_image.height
-                        })
-                    except Exception as img_error:
-                        logger.warning(f"Failed to extract image on page {page_num}: {img_error}")
+        # FINAL CLEANUP — delete folder after processing everything
+        if image_output_folder.exists() and image_output_folder.is_dir():
+            try:
+                shutil.rmtree(image_output_folder)
+                logger.debug(f"Deleted image folder: {image_output_folder}")
+            except Exception as delete_err:
+                logger.warning(f"Failed to delete folder {image_output_folder}: {delete_err}")
 
-            all_elements = text_blocks_with_pos + images_with_pos
-            all_elements.sort(key=lambda x: x['y_pos'])
-
-            for element in all_elements:
-                if element['type'] == 'text':
-                    markdown_parts.append(element['content'])
-                    markdown_parts.append("\n\n")
-                else:
-                    # Add image description as text, then markdown image reference
-                    # Use short alt text in markdown, full description as regular text
-                    markdown_parts.append(f"![{element['description']}](tg://{element['image_doc_id']})\n\n")
-
-                    image_entries.append({
-                        "doc_id": element['image_doc_id'],
-                        "doc_type": "image",
-                        "image_description": element['description'],
-                        "image_data": element['image_data'],
-                        "image_format": element['image_format'],
-                        "parent_doc": base_doc_id,
-                        "page_number": page_num,
-                        "width": element['width'],
-                        "height": element['height'],
-                        "position": int(element['image_doc_id'].split('_')[-1])
-                    })
-
-        doc.close()
-
-        markdown_content = "".join(markdown_parts) if markdown_parts else "" #No content extracted from PDF
-        if not markdown_content:
-            return []
-
+        # Build final result
         result = [{
             "doc_id": base_doc_id,
-            "doc_type": "",
+            "doc_type": "markdown",
             "content": markdown_content,
             "position": 0
         }]
         result.extend(image_entries)
+
         return result
 
-    except ImportError:
-        logger.error("PyMuPDF not available")
+    except ImportError as import_err:
+        logger.error(f"Required library missing: {import_err}")
+        # Cleanup on import error
+        if image_output_folder.exists():
+            shutil.rmtree(image_output_folder, ignore_errors=True)
         return [{
             "doc_id": base_doc_id,
-            "doc_type": "",
-            "content": "[PDF extraction requires PyMuPDF]",
+            "doc_type": "markdown",
+            "content": "[PDF extraction requires pymupdf4llm and PyMuPDF]",
             "position": 0
         }]
     except Exception as e:
         logger.error(f"Error extracting PDF: {e}")
+        # Cleanup on any other error
+        if image_output_folder.exists():
+            shutil.rmtree(image_output_folder, ignore_errors=True)
         raise
-
 
 def _extract_standalone_image_as_doc(file_path, base_doc_id, graphname=None):
     """
@@ -324,25 +341,15 @@ def _extract_standalone_image_as_doc(file_path, base_doc_id, graphname=None):
 
         pil_image = PILImage.open(file_path)
         if pil_image.width < 100 or pil_image.height < 100:
-            return [{
-                "doc_id": base_doc_id,
-                "doc_type": "",
-                "content": f"[Skipped small image: {file_path.name}]",
-                "position": 0
-            }]
+            pass
 
-        description = describe_image_with_llm(pil_image)
+        description = describe_image_with_llm(str(Path(file_path).absolute()))
         description_lower = description.lower()
         logo_indicators = ['logo:', 'icon:', 'logo', 'icon', 'branding',
                            'watermark', 'trademark', 'stylized letter',
                            'stylized text', 'word "', "word '"]
         if any(indicator in description_lower for indicator in logo_indicators):
-            return [{
-                "doc_id": base_doc_id,
-                "doc_type": "",
-                "content": f"[Skipped logo/icon: {file_path.name}]",
-                "position": 0
-            }]
+            return []
 
         buffer = io.BytesIO()
         if pil_image.mode != 'RGB':
@@ -353,7 +360,6 @@ def _extract_standalone_image_as_doc(file_path, base_doc_id, graphname=None):
         image_id = f"{base_doc_id}_image_1"
         # Put description as text, then markdown image reference with short alt text
         content = f"![{description}](tg://{image_id})"
-
         return [
             {
                 "doc_id": base_doc_id,
@@ -379,7 +385,7 @@ def _extract_standalone_image_as_doc(file_path, base_doc_id, graphname=None):
         logger.error(f"Error extracting image: {e}")
         return [{
             "doc_id": base_doc_id,
-            "doc_type": "",
+            "doc_type": "markdown",
             "content": f"[Image extraction failed: {str(e)}]",
             "position": 0
         }]
@@ -441,12 +447,10 @@ def get_doc_type_from_extension(extension):
 
     if extension in ['.html', '.htm']:
         return 'html'
-    elif extension in ['.md']:
-        return 'markdown'
     elif extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp']:
         return 'image'
     else:
-        return ''
+        return 'markdown'
 
 
 def get_supported_extensions():
