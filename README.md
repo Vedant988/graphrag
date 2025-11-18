@@ -482,7 +482,7 @@ In addition to the `OPENAI_API_KEY`, `llm_model` and `model_name` can be edited 
             "model_kwargs": {
                 "temperature": 0
             },
-            "prompt_path": "./app/prompts/openai_gpt4/"
+            "prompt_path": "./common/prompts/openai_gpt4/"
         },
         "multimodal_service": {
             "llm_service": "openai",
@@ -614,7 +614,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
                 "temperature": 0,
                 "max_tokens": 4096
             },
-            "prompt_path": "./app/prompts/aws_bedrock_claude3haiku/"
+            "prompt_path": "./common/prompts/openai_gpt4/"
         },
         "multimodal_service": {
             "llm_service": "bedrock",
