@@ -103,24 +103,23 @@ Organizing the data as a knowledge graph allows a chatbot to access accurate, fa
 ### Quick Start
 
 #### Use TigerGraph Docker-Based Instance
-Set your LLM Provider (supported `openai` or `gemini`) api key as environment varabiel LLM_API_KEY and use the following command for a one-step quick deployment with TigerGraph Community Edition and default configurations:
+Set your OpenAI api key as environment varabiel OPENAI_API_KEY and use the following command for a one-step quick deployment with TigerGraph Community Edition and default configurations:
 ```
-curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag.sh | bash
+curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag.sh | sh
 ```
 
 The GraphRAG instances will be deployed at `./graphrag` folder and TigerGraph instance will be available at `http://localhost:14240`.
-To change installation folder, use `bash -s -- <graphrag_folder> <llm_provider>` instead of `bash` at the end of the above command.
-
-> Note: for other LLM providers, manually update `configs/server_config.json` accordingly and re-run `docker compose up -d`
+To change installation folder, use `sh -s -- <graphrag_folder>` instead of `sh` at the end of the above command.
 
 #### Use Pre-Installed TigerGraph Instance
-Similar to the above setup, and use the following command for a one-step quick deployment connecting to a pre-installed TigerGraph with default configurations:
+
+Using the following command for a one-step quick deployment with TigerGraph Community Edition and default configurations:
 ```
-curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag_tg.sh | bash
+curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag_tg.sh | sh
 ```
 
 The GraphRAG instances will be deployed at `./graphrag` folder and connect to TigerGraph instance at `http://localhost:14240` by default.
-To change installation folder, TigerGraph instance location or username/password, use `bash -s -- <graphrag_folder> <llm_provider> <tg_host> <tg_port> <tg_username> <tg_password>` instead of `bash` at the end of the above command.
+To change installation folder, TigerGraph instance location or username/password, use `sh -s -- <graphrag_loc> <tg_host> <tg_port> <tg_username> <tg_password>` instead of `sh` at the end of the above command.
 
 [Go back to top](#top)
 
@@ -152,7 +151,7 @@ Here’s what the folder structure looks like:
 
 ##### Step 3: Adjust configurations
 
-Edit `llm_config` section of `configs/server_config.json` and replace `<YOUR_LLM_API_KEY>` to your own LLM_API_KEY for the LLM provider. 
+Edit `llm_config` section of `configs/server_config.json` and replace `<YOUR_OPENAI_API_KEY>` to your own OPENAI_API_KEY. 
  
 > If desired, you can also change the model to be used for the embedding service and completion service to your preferred models to adjust the output from the LLM service.
 
@@ -470,23 +469,27 @@ In addition to the `OPENAI_API_KEY`, `llm_model` and `model_name` can be edited 
 ```json
 {
     "llm_config": {
+        "authentication_configuration": {
+            "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY_HERE"
+        },
         "embedding_service": {
-            "embedding_model_service": "openai",
             "model_name": "text-embedding-3-small",
-            "authentication_configuration": {
-                "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY_HERE"
-            }
+            "embedding_model_service": "openai"
         },
         "completion_service": {
             "llm_service": "openai",
             "llm_model": "gpt-4.1-mini",
-            "authentication_configuration": {
-                "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY_HERE"
-            },
             "model_kwargs": {
                 "temperature": 0
             },
             "prompt_path": "./common/prompts/openai_gpt4/"
+        },
+        "multimodal_service": {
+            "llm_service": "openai",
+            "llm_model": "gpt-4o-mini",
+            "model_kwargs": {
+                "temperature": 0
+            }
         }
     }
 }
@@ -546,7 +549,7 @@ And your JSON config should follow as:
             "model_kwargs": {
                 "temperature": 0
             },
-            "prompt_path": "./common/prompts/gcp_vertexai_palm/"
+            "prompt_path": "./app/prompts/gcp_vertexai_palm/"
         }
     }
 }
@@ -583,7 +586,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
             "model_kwargs": {
                 "temperature": 0
             },
-            "prompt_path": "./common/prompts/azure_open_ai_gpt35_turbo_instruct/"
+            "prompt_path": "./app/prompts/azure_open_ai_gpt35_turbo_instruct/"
         }
     }
 }
@@ -594,27 +597,32 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
 ```json
 {
     "llm_config": {
+        "authentication_configuration": {
+            "AWS_ACCESS_KEY_ID": "YOUR_AWS_ACCESS_KEY",
+            "AWS_SECRET_ACCESS_KEY": "YOUR_AWS_SECRET_KEY",
+            "AWS_REGION_NAME": "us-west-2"
+        },
         "embedding_service": {
+            "model_name": "amazon.titan-embed-text-v1",
             "embedding_model_service": "bedrock",
-            "model_name":"amazon.titan-embed-text-v2",
-            "region_name":"us-west-2",
-            "authentication_configuration": {
-                "AWS_ACCESS_KEY_ID": "ACCESS_KEY",
-                "AWS_SECRET_ACCESS_KEY": "SECRET"
-            }
+            "dimensions": 1536
         },
         "completion_service": {
             "llm_service": "bedrock",
-            "llm_model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-            "region_name":"us-west-2",
-            "authentication_configuration": {
-                "AWS_ACCESS_KEY_ID": "ACCESS_KEY",
-                "AWS_SECRET_ACCESS_KEY": "SECRET"
-            },
+            "llm_model": "anthropic.claude-3-5-sonnet-20240620-v1:0",
             "model_kwargs": {
                 "temperature": 0,
+                "max_tokens": 4096
             },
-            "prompt_path": "./common/prompts/aws_bedrock_claude3haiku/"
+            "prompt_path": "./common/prompts/openai_gpt4/"
+        },
+        "multimodal_service": {
+            "llm_service": "bedrock",
+            "llm_model": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+            "model_kwargs": {
+                "temperature": 0,
+                "max_tokens": 4096
+            }
         }
     }
 }
@@ -640,7 +648,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
             "model_kwargs": {
                 "temperature": 0.0000001
             },
-            "prompt_path": "./common/prompts/openai_gpt4/"
+            "prompt_path": "./app/prompts/openai_gpt4/"
         }
     }
 }
@@ -670,7 +678,7 @@ Example configuration for a model on Hugging Face with a dedicated endpoint is s
             "model_kwargs": {
                 "temperature": 0.1
             },
-            "prompt_path": "./common/prompts/openai_gpt4/"
+            "prompt_path": "./app/prompts/openai_gpt4/"
         }
     }
 }
@@ -697,7 +705,7 @@ Example configuration for a model on Hugging Face with a serverless endpoint is 
             "model_kwargs": {
                 "temperature": 0.1
             },
-            "prompt_path": "./common/prompts/llama_70b/"
+            "prompt_path": "./app/prompts/llama_70b/"
         }
     }
 }
@@ -724,7 +732,7 @@ Example configuration for a model on Hugging Face with a serverless endpoint is 
             "model_kwargs": {
                 "temperature": 0.1
             },
-            "prompt_path": "./common/prompts/openai_gpt4/"
+            "prompt_path": "./app/prompts/openai_gpt4/"
         }
     }
 }
