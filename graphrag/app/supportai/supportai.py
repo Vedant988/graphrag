@@ -337,9 +337,9 @@ def create_ingest(
     conn: TigerGraphConnection,
 ):
     # Check for invalid combination of multi format and non-s3 data source
-    if ingest_config.data_source.lower() in ["bda", "server"] and ingest_config.get("file_format", "").lower() != "multi":
-        logger.warning(f"File format {ingest_config.get('file_format', '').lower()} is not supported for data source {ingest_config.data_source.lower()}")
-        ingest_config["file_format"] = "multi"
+    if ingest_config.data_source.lower() in ["bda", "server"] and ingest_config.file_format.lower() != "multi":
+        logger.warning(f"File format {ingest_config.file_format.lower()} is not supported for data source {ingest_config.data_source.lower()}")
+        ingest_config.file_format = "multi"
 
     res_ingest_config = {"data_source": ingest_config.data_source.lower()}
     res_ingest_config["file_format"] = ingest_config.file_format.lower()
@@ -481,9 +481,9 @@ def create_ingest(
         except Exception as e:
             raise Exception(f"Error during Amazon BDA preprocessing: {e}")
     elif ingest_config.data_source.lower() == "server":
-        data_path = ingest_config.data_source_config.get("data_path", None)
+        data_path = ingest_config.data_source_config.get("folder_path", None)
         if data_path is None:
-            raise Exception("Data path not provided for server processing")
+            raise Exception("Folder path not provided for server processing")
         try:
             extractor = TextExtractor()
             server_processing_result = extractor.process_folder(data_path, graphname=graphname)
@@ -652,7 +652,10 @@ def ingest(
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
                 if ingest_config.get("server_jobs"):
                     for doc_data in ingest_config.get("server_jobs"):
-                        if not doc_data.get("doc_id") or not doc_data.get("content"):
+                        if not doc_data.get("doc_id"):
+                            continue
+                        # Skip documents with neither content nor image_data
+                        if not doc_data.get("content") and not doc_data.get("image_data"):
                             continue
                         if doc_data.get("image_data"):
                             payload = {
@@ -660,8 +663,11 @@ def ingest(
                                 "doc_type": "image",
                                 "image_data": doc_data.get("image_data", ""),
                                 "image_format": doc_data.get("image_format", "jpg"),
+                                "image_description": doc_data.get("image_description", ""),
                                 "parent_doc": doc_data.get("parent_doc", ""),
                                 "page_number": doc_data.get("page_number", 0),
+                                "width": doc_data.get("width", 0),
+                                "height": doc_data.get("height", 0),
                                 "position": doc_data.get("position", 0),
                                 "content": ""
                             }
