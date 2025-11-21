@@ -501,18 +501,17 @@ def create_ingest(
             documents = server_processing_result.get("documents", [])
             doc_count = len(documents)
             
-            # Save each document as a separate JSON file
-            for idx, doc_data in enumerate(documents):
-                doc_filename = f"doc_{idx}_{doc_data.get('doc_id', 'unknown')}.json"
-                doc_filepath = os.path.join(temp_folder, doc_filename)
-                with open(doc_filepath, 'w', encoding='utf-8') as f:
-                    json.dump(doc_data, f, ensure_ascii=False, indent=2)
+            # Save all documents to a single JSONL file (our new logic)
+            jsonl_filepath = os.path.join(temp_folder, "processed_documents.jsonl")
+            with open(jsonl_filepath, 'w', encoding='utf-8') as f:
+                for doc_data in documents:
+                    f.write(json.dumps(doc_data, ensure_ascii=False) + '\n')
             
             # Clear documents from memory immediately after saving
             documents.clear()
             server_processing_result.clear()
             
-            logger.info(f"Saved {doc_count} processed documents to {temp_folder}")
+            logger.info(f"Saved {doc_count} processed documents to {jsonl_filepath}")
             
             res_ingest_config["temp_session_id"] = temp_session_id
             res_ingest_config["temp_folder"] = temp_folder
@@ -671,7 +670,6 @@ def ingest(
             }
         elif ingest_config.get("data_source") == "server":
             try:
-                processed_files = []
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
                 
                 # Read from temporary folder
@@ -679,54 +677,23 @@ def ingest(
                 if not temp_folder or not os.path.exists(temp_folder):
                     raise Exception(f"Temporary folder not found: {temp_folder}")
                 
-                # Read all JSON files from temp folder
-                json_files = [f for f in os.listdir(temp_folder) if f.endswith('.json')]
-                logger.info(f"Reading {len(json_files)} documents from {temp_folder}")
+                # Read the processed_documents.jsonl file (our new logic)
+                jsonl_file = os.path.join(temp_folder, "processed_documents.jsonl")
+                if not os.path.exists(jsonl_file):
+                    raise Exception(f"Processed documents file not found: {jsonl_file}")
                 
-                for json_filename in json_files:
-                    json_filepath = os.path.join(temp_folder, json_filename)
-                    try:
-                        with open(json_filepath, 'r', encoding='utf-8') as f:
-                            doc_data = json.load(f)
-                        
-                        if not doc_data.get("doc_id"):
-                            logger.warning(f"Skipping invalid document: {json_filename}")
-                            continue
-                        # Skip documents with neither content nor image_data
-                        if not doc_data.get("content") and not doc_data.get("image_data"):
-                            logger.warning(f"Skipping document with no content: {json_filename}")
-                            continue
-                            
-                        if doc_data.get("image_data"):
-                            payload = {
-                                "doc_id": doc_data.get("doc_id", ""),
-                                "doc_type": "image",
-                                "image_data": doc_data.get("image_data", ""),
-                                "image_format": doc_data.get("image_format", "jpg"),
-                                "image_description": doc_data.get("image_description", ""),
-                                "parent_doc": doc_data.get("parent_doc", ""),
-                                "page_number": doc_data.get("page_number", 0),
-                                "width": doc_data.get("width", 0),
-                                "height": doc_data.get("height", 0),
-                                "position": doc_data.get("position", 0),
-                                "content": ""
-                            }
-                        else:
-                            payload = {
-                                "doc_id": doc_data.get("doc_id", ""),
-                                "doc_type": doc_data.get("doc_type", "markdown"),
-                                "content": doc_data.get("content", "")
-                            }
-                        payload_json = json.dumps(payload)
-                        conn.runLoadingJobWithData(payload_json, data_source_id, loader_info.load_job_id)
-                        processed_files.append({
-                            'file_path': doc_data.get("doc_id", ""),
-                            'parent_doc': doc_data.get("parent_doc", ""),
-                        })
-                        logger.info(f"Data uploading done for doc_id: {doc_data.get('doc_id', 'unknown')}")
-                    except Exception as file_error:
-                        logger.error(f"Error processing file {json_filename}: {file_error}")
-                        continue
+                # Read entire JSONL content as a single string
+                with open(jsonl_file, 'r', encoding='utf-8') as f:
+                    jsonl_content = f.read()
+                
+                # Count documents for logging
+                document_count = jsonl_content.count('\n') if jsonl_content.strip() else 0
+                logger.info(f"Ingesting {document_count} documents from {jsonl_file}")
+                
+                # Pass entire JSONL content in ONE call (efficient!)
+                conn.runLoadingJobWithData(jsonl_content, data_source_id, loader_info.load_job_id)
+                
+                logger.info(f"Successfully ingested {document_count} documents")
                 
                 # Clean up temp folder after successful ingestion
                 try:
@@ -740,7 +707,7 @@ def ingest(
                 raise Exception(f"Error during server markdown extraction and TigerGraph loading: {e}")
             return {
                 "job_name": loader_info.load_job_id,
-                "summary": processed_files
+                "summary": f"Data ingestion successful - processed {document_count} documents"
             }
         else:
             raise Exception("Data source and file format combination not implemented")
