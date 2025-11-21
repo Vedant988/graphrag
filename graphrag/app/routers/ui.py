@@ -395,6 +395,7 @@ async def serve_image_from_vertex(
         LogWriter.info(f"Serving image {image_id} from graph {graphname}")
 
         # Fetch the Image vertex by ID
+        # TigerGraph loading job uses gsql_lower() so all IDs are stored in lowercase
         image_vertices = conn.getVerticesById('Image', [image_id.lower()])
         
         if not image_vertices:
