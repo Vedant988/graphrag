@@ -207,9 +207,9 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
                 file_path,
                 write_images=True,
                 image_path=str(image_output_folder),  # unique folder per PDF
-                force_text=False,
                 margins=0,
                 image_size_limit=0.08,
+                table_strategy="lines"
             )
         except Exception as e:
             logger.error(f"pymupdf4llm failed for {file_path}: {e}")
