@@ -1380,3 +1380,139 @@ async def delete_cloud_downloads(
         logger.debug_pii(f"Delete error trace:\n{exc}")
         raise HTTPException(status_code=500, detail=f"Error deleting files: {str(e)}")
 
+
+# Ingestion Temp Files Endpoints
+
+@router.get(route_prefix + "/{graphname}/ingestion_temp/list")
+async def list_ingestion_temp_files(
+    graphname: str,
+    credentials: Annotated[HTTPBase, Depends(security)],
+    session_id: str = None,
+):
+    """
+    List processed files in the ingestion temp folder for a specific graph.
+    """
+    try:
+        base_temp_dir = os.path.join("uploads", "ingestion_temp", graphname)
+        
+        if not os.path.exists(base_temp_dir):
+            return {
+                "status": "success",
+                "graphname": graphname,
+                "sessions": [],
+                "total_files": 0,
+            }
+        
+        sessions = []
+        total_files = 0
+        
+        # If session_id provided, list only that session
+        if session_id:
+            session_dir = os.path.join(base_temp_dir, session_id)
+            if os.path.exists(session_dir) and os.path.isdir(session_dir):
+                files = []
+                for filename in os.listdir(session_dir):
+                    filepath = os.path.join(session_dir, filename)
+                    if os.path.isfile(filepath) and filename.endswith('.json'):
+                        file_stat = os.stat(filepath)
+                        # Read doc_id from file
+                        try:
+                            with open(filepath, 'r', encoding='utf-8') as f:
+                                doc_data = json.load(f)
+                                doc_id = doc_data.get('doc_id', 'unknown')
+                        except:
+                            doc_id = 'unknown'
+                        
+                        files.append({
+                            "filename": filename,
+                            "doc_id": doc_id,
+                            "size": file_stat.st_size,
+                            "modified": file_stat.st_mtime,
+                        })
+                sessions.append({
+                    "session_id": session_id,
+                    "files": files,
+                    "file_count": len(files),
+                })
+                total_files = len(files)
+        
+        return {
+            "status": "success",
+            "graphname": graphname,
+            "sessions": sessions,
+            "total_files": total_files,
+        }
+    
+    except Exception as e:
+        exc = traceback.format_exc()
+        logger.error(f"Error listing ingestion temp files for graph {graphname}: {e}")
+        logger.debug_pii(f"List error trace:\n{exc}")
+        raise HTTPException(status_code=500, detail=f"Error listing temp files: {str(e)}")
+
+
+@router.delete(route_prefix + "/{graphname}/ingestion_temp/delete")
+async def delete_ingestion_temp_files(
+    graphname: str,
+    credentials: Annotated[HTTPBase, Depends(security)],
+    session_id: str = None,
+    filename: str = None,
+):
+    """
+    Delete files from ingestion temp folder.
+    """
+    try:
+        base_temp_dir = os.path.join("uploads", "ingestion_temp", graphname)
+        
+        if not session_id:
+            raise HTTPException(status_code=400, detail="session_id is required")
+        
+        session_dir = os.path.join(base_temp_dir, session_id)
+        
+        if not os.path.exists(session_dir):
+            return {
+                "status": "success",
+                "message": f"No temp files found for session {session_id}",
+                "deleted_files": [],
+            }
+        
+        deleted_files = []
+        
+        if filename:
+            # Delete specific file
+            file_path = os.path.join(session_dir, filename)
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                os.remove(file_path)
+                deleted_files.append(filename)
+                logger.info(f"Deleted temp file {filename} from session {session_id}")
+                
+                # If session folder is now empty, remove it
+                if not os.listdir(session_dir):
+                    os.rmdir(session_dir)
+                    logger.info(f"Removed empty session folder {session_id}")
+            else:
+                raise HTTPException(status_code=404, detail=f"File {filename} not found")
+        else:
+            # Delete entire session folder
+            import shutil
+            for filename in os.listdir(session_dir):
+                if os.path.isfile(os.path.join(session_dir, filename)):
+                    deleted_files.append(filename)
+            
+            shutil.rmtree(session_dir)
+            logger.info(f"Deleted session folder {session_id} for graph {graphname}")
+        
+        return {
+            "status": "success",
+            "message": f"Successfully deleted {len(deleted_files)} file(s)",
+            "deleted_files": deleted_files,
+            "session_id": session_id,
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        exc = traceback.format_exc()
+        logger.error(f"Error deleting ingestion temp files for graph {graphname}: {e}")
+        logger.debug_pii(f"Delete error trace:\n{exc}")
+        raise HTTPException(status_code=500, detail=f"Error deleting temp files: {str(e)}")
+
