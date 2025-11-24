@@ -56,6 +56,12 @@ const Setup = () => {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestMessage, setIngestMessage] = useState("");
+  
+  // Ingestion temp files state
+  const [tempSessionId, setTempSessionId] = useState<string | null>(null);
+  const [tempFiles, setTempFiles] = useState<any[]>([]);
+  const [showTempFiles, setShowTempFiles] = useState(false);
+  const [ingestJobData, setIngestJobData] = useState<any>(null);
 
   // Refresh state
   const [refreshOpen, setRefreshOpen] = useState(false);
@@ -416,6 +422,125 @@ const Setup = () => {
     }
   };
 
+  // Fetch temp processed files
+  const fetchTempFiles = async (sessionId: string) => {
+    if (!ingestGraphName || !sessionId) return;
+
+    try {
+      const creds = localStorage.getItem("creds");
+      const response = await fetch(`/ui/${ingestGraphName}/ingestion_temp/list?session_id=${sessionId}`, {
+        headers: { Authorization: `Basic ${creds}` },
+      });
+      const data = await response.json();
+      if (data.status === "success" && data.sessions.length > 0) {
+        setTempFiles(data.sessions[0].files || []);
+        setShowTempFiles(true);
+      }
+    } catch (error) {
+      console.error("Error fetching temp files:", error);
+    }
+  };
+
+  // Delete a specific temp file
+  const handleDeleteTempFile = async (filename: string) => {
+    if (!ingestGraphName || !tempSessionId) return;
+
+    try {
+      const creds = localStorage.getItem("creds");
+      const response = await fetch(
+        `/ui/${ingestGraphName}/ingestion_temp/delete?session_id=${tempSessionId}&filename=${encodeURIComponent(filename)}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Basic ${creds}` },
+        }
+      );
+      const data = await response.json();
+      if (data.status === "success") {
+        setIngestMessage(`✅ ${data.message}`);
+        // Refresh the temp files list
+        await fetchTempFiles(tempSessionId);
+      }
+    } catch (error: any) {
+      setIngestMessage(`❌ Error: ${error.message}`);
+    }
+  };
+
+  // Delete all temp files for session
+  const handleDeleteAllTempFiles = async () => {
+    if (!ingestGraphName || !tempSessionId) return;
+
+    try {
+      const creds = localStorage.getItem("creds");
+      const response = await fetch(
+        `/ui/${ingestGraphName}/ingestion_temp/delete?session_id=${tempSessionId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Basic ${creds}` },
+        }
+      );
+      const data = await response.json();
+      if (data.status === "success") {
+        setIngestMessage(`✅ ${data.message}`);
+        setTempFiles([]);
+        setShowTempFiles(false);
+        setTempSessionId(null);
+      }
+    } catch (error: any) {
+      setIngestMessage(`❌ Error: ${error.message}`);
+    }
+  };
+
+  // Run final ingest after user reviews temp files
+  const handleRunIngest = async () => {
+    if (!ingestJobData) {
+      setIngestMessage("❌ No ingest job data available");
+      return;
+    }
+
+    setIsIngesting(true);
+    setIngestMessage("Running final document ingest...");
+
+    try {
+      const creds = localStorage.getItem("creds");
+
+      const loadingInfo = {
+        load_job_id: ingestJobData.load_job_id,
+        data_source_id: ingestJobData.data_source_id,
+        file_path: ingestJobData.data_path,
+      };
+
+      const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${creds}`,
+        },
+        body: JSON.stringify(loadingInfo),
+      });
+
+      if (!ingestResponse.ok) {
+        const errorData = await ingestResponse.json();
+        throw new Error(errorData.detail || `Failed to run ingest: ${ingestResponse.statusText}`);
+      }
+
+      const ingestData = await ingestResponse.json();
+      console.log("Ingest response:", ingestData);
+
+      setIngestMessage(`✅ Data ingested successfully! Processed ${tempFiles.length} documents.`);
+      
+      // Clear temp state
+      setTempFiles([]);
+      setShowTempFiles(false);
+      setTempSessionId(null);
+      setIngestJobData(null);
+    } catch (error: any) {
+      console.error("Error running ingest:", error);
+      setIngestMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setIsIngesting(false);
+    }
+  };
+
   // Ingest files into knowledge graph (uploaded or downloaded)
   const handleIngestDocuments = async (sourceType: "uploaded" | "downloaded" = "uploaded") => {
     if (!ingestGraphName) {
@@ -460,37 +585,53 @@ const Setup = () => {
       const createData = await createResponse.json();
       console.log("Create ingest response:", createData);
 
-      // Step 2: Run ingest
-      setIngestMessage("Step 2/2: Running document ingest...");
+      // Check if temp files were created (for server data source)
+      const sessionId = createData.data_source_id?.temp_session_id;
+      
+      if (sessionId) {
+        // Files are saved to temp storage - show them for review
+        setTempSessionId(sessionId);
+        setIngestJobData({
+          load_job_id: createData.load_job_id,
+          data_source_id: createData.data_source_id,
+          data_path: createData.data_path || createData.file_path,
+        });
+        setIngestMessage(`✅ Processed ${createData.data_source_id.file_count} files. Review them below before ingesting.`);
+        await fetchTempFiles(sessionId);
+        setIsIngesting(false);
+      } else {
+        // No temp files (e.g., S3 Bedrock) - proceed directly to ingest
+        setIngestMessage("Step 2/2: Running document ingest...");
 
-      const loadingInfo = {
-        load_job_id: createData.load_job_id,
-        data_source_id: createData.data_source_id,
-        file_path: createData.data_path || createData.file_path, // Handle both field names
-      };
+        const loadingInfo = {
+          load_job_id: createData.load_job_id,
+          data_source_id: createData.data_source_id,
+          file_path: createData.data_path || createData.file_path,
+        };
 
-      const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${creds}`,
-        },
-        body: JSON.stringify(loadingInfo),
-      });
+        const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Basic ${creds}`,
+          },
+          body: JSON.stringify(loadingInfo),
+        });
 
-      if (!ingestResponse.ok) {
-        const errorData = await ingestResponse.json();
-        throw new Error(errorData.detail || `Failed to run ingest: ${ingestResponse.statusText}`);
+        if (!ingestResponse.ok) {
+          const errorData = await ingestResponse.json();
+          throw new Error(errorData.detail || `Failed to run ingest: ${ingestResponse.statusText}`);
+        }
+
+        const ingestData = await ingestResponse.json();
+        console.log("Ingest response:", ingestData);
+
+        setIngestMessage(`✅ Data ingested successfully! Processed documents from ${folderPath}/`);
+        setIsIngesting(false);
       }
-
-      const ingestData = await ingestResponse.json();
-      console.log("Ingest response:", ingestData);
-
-      setIngestMessage(`✅ Data ingested successfully! Processed documents from ${folderPath}/`);
     } catch (error: any) {
       console.error("Error ingesting data:", error);
       setIngestMessage(`❌ Error: ${error.message}`);
-    } finally {
       setIsIngesting(false);
     }
   };
@@ -1237,6 +1378,71 @@ const Setup = () => {
                           {ingestMessage}
                         </div>
                       )}
+
+                      {/* Processed Temp Files - Review before ingesting */}
+                      {showTempFiles && tempFiles.length > 0 && (
+                        <div className="mt-4 border border-gray-300 dark:border-[#3D3D3D] rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-medium text-black dark:text-white">
+                              Processed Files ({tempFiles.length})
+                            </h3>
+                            <Button
+                              onClick={handleDeleteAllTempFiles}
+                              variant="outline"
+                              size="sm"
+                              className="dark:border-[#3D3D3D]"
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Clear All
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                            Review the processed files below. You can delete any file before ingesting.
+                          </p>
+                          <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
+                            {tempFiles.map((file, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-2 bg-gray-50 dark:bg-shadeA rounded"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-black dark:text-white truncate">
+                                    {file.doc_id}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {(file.size / 1024).toFixed(2)} KB
+                                  </p>
+                                </div>
+                                <Button
+                                  onClick={() => handleDeleteTempFile(file.filename)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-2 dark:border-[#3D3D3D]"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                          <Button
+                            onClick={handleRunIngest}
+                            disabled={isIngesting}
+                            className="gradient text-white w-full"
+                          >
+                            {isIngesting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Ingesting...
+                              </>
+                            ) : (
+                              <>
+                                <Database className="h-4 w-4 mr-2" />
+                                Run Final Ingest
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1574,6 +1780,71 @@ const Setup = () => {
                             : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
                         }`}>
                           {ingestMessage}
+                        </div>
+                      )}
+
+                      {/* Processed Temp Files - Review before ingesting */}
+                      {showTempFiles && tempFiles.length > 0 && (
+                        <div className="mt-4 border border-gray-300 dark:border-[#3D3D3D] rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-medium text-black dark:text-white">
+                              Processed Files ({tempFiles.length})
+                            </h3>
+                            <Button
+                              onClick={handleDeleteAllTempFiles}
+                              variant="outline"
+                              size="sm"
+                              className="dark:border-[#3D3D3D]"
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Clear All
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                            Review the processed files below. You can delete any file before ingesting.
+                          </p>
+                          <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
+                            {tempFiles.map((file, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-2 bg-gray-50 dark:bg-shadeA rounded"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-black dark:text-white truncate">
+                                    {file.doc_id}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {(file.size / 1024).toFixed(2)} KB
+                                  </p>
+                                </div>
+                                <Button
+                                  onClick={() => handleDeleteTempFile(file.filename)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-2 dark:border-[#3D3D3D]"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                          <Button
+                            onClick={handleRunIngest}
+                            disabled={isIngesting}
+                            className="gradient text-white w-full"
+                          >
+                            {isIngesting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Ingesting...
+                              </>
+                            ) : (
+                              <>
+                                <Database className="h-4 w-4 mr-2" />
+                                Run Final Ingest
+                              </>
+                            )}
+                          </Button>
                         </div>
                       )}
                     </div>

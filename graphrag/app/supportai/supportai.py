@@ -489,14 +489,37 @@ def create_ingest(
             server_processing_result = extractor.process_folder(data_path, graphname=graphname)
             if server_processing_result.get("statusCode") != 200:
                 raise Exception(f"Server folder processing failed: {server_processing_result}")
-            else:
-                logger.info(f"Server folder processing completed successfully: {server_processing_result}")
+            
+            # Log only summary, NOT the full documents to avoid memory logging
+            logger.info(f"Server folder processing completed: {server_processing_result.get('message')}")
 
-            res_ingest_config["server_jobs"] = server_processing_result.get("documents", [])
+            # Save processed documents to temporary folder instead of keeping in memory
+            temp_session_id = str(uuid.uuid4())
+            temp_folder = os.path.join("uploads", "ingestion_temp", graphname, temp_session_id)
+            os.makedirs(temp_folder, exist_ok=True)
+            
+            documents = server_processing_result.get("documents", [])
+            doc_count = len(documents)
+            
+            # Save each document as a separate JSON file
+            for idx, doc_data in enumerate(documents):
+                doc_filename = f"doc_{idx}_{doc_data.get('doc_id', 'unknown')}.json"
+                doc_filepath = os.path.join(temp_folder, doc_filename)
+                with open(doc_filepath, 'w', encoding='utf-8') as f:
+                    json.dump(doc_data, f, ensure_ascii=False, indent=2)
+            
+            # Clear documents from memory immediately after saving
+            documents.clear()
+            server_processing_result.clear()
+            
+            logger.info(f"Saved {doc_count} processed documents to {temp_folder}")
+            
+            res_ingest_config["temp_session_id"] = temp_session_id
+            res_ingest_config["temp_folder"] = temp_folder
+            res_ingest_config["file_count"] = doc_count
             res_ingest_config["data_source_id"] = "DocumentContent"
-            # Use a placeholder path that doesn't start with "/" to avoid pyTigerGraph treating it as a file
-            # The actual folder path is stored in server_jobs, this is just for the API call
-            res["data_path"] = "in_response"
+            # Use a placeholder path to indicate temp storage
+            res["data_path"] = "in_temp_storage"
             res["data_source_id"] = res_ingest_config
         except Exception as e:
             raise Exception(f"Error during server folder processing: {e}")
@@ -650,13 +673,30 @@ def ingest(
             try:
                 processed_files = []
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
-                if ingest_config.get("server_jobs"):
-                    for doc_data in ingest_config.get("server_jobs"):
+                
+                # Read from temporary folder
+                temp_folder = ingest_config.get("temp_folder")
+                if not temp_folder or not os.path.exists(temp_folder):
+                    raise Exception(f"Temporary folder not found: {temp_folder}")
+                
+                # Read all JSON files from temp folder
+                json_files = [f for f in os.listdir(temp_folder) if f.endswith('.json')]
+                logger.info(f"Reading {len(json_files)} documents from {temp_folder}")
+                
+                for json_filename in json_files:
+                    json_filepath = os.path.join(temp_folder, json_filename)
+                    try:
+                        with open(json_filepath, 'r', encoding='utf-8') as f:
+                            doc_data = json.load(f)
+                        
                         if not doc_data.get("doc_id"):
+                            logger.warning(f"Skipping invalid document: {json_filename}")
                             continue
                         # Skip documents with neither content nor image_data
                         if not doc_data.get("content") and not doc_data.get("image_data"):
+                            logger.warning(f"Skipping document with no content: {json_filename}")
                             continue
+                            
                         if doc_data.get("image_data"):
                             payload = {
                                 "doc_id": doc_data.get("doc_id", ""),
@@ -684,6 +724,18 @@ def ingest(
                             'parent_doc': doc_data.get("parent_doc", ""),
                         })
                         logger.info(f"Data uploading done for doc_id: {doc_data.get('doc_id', 'unknown')}")
+                    except Exception as file_error:
+                        logger.error(f"Error processing file {json_filename}: {file_error}")
+                        continue
+                
+                # Clean up temp folder after successful ingestion
+                try:
+                    import shutil
+                    shutil.rmtree(temp_folder)
+                    logger.info(f"Cleaned up temporary folder: {temp_folder}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temp folder {temp_folder}: {cleanup_error}")
+                    
             except Exception as e:
                 raise Exception(f"Error during server markdown extraction and TigerGraph loading: {e}")
             return {
