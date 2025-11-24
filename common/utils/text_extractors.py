@@ -8,12 +8,16 @@ import logging
 import uuid
 import base64
 import io
+import threading
 from pathlib import Path
 import shutil
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
+
+# Global lock for pymupdf4llm calls (not thread-safe)
+_pymupdf4llm_lock = threading.Lock()
 
 
 class TextExtractor:
@@ -202,26 +206,39 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
             shutil.rmtree(image_output_folder, ignore_errors=True)
 
         # Convert PDF to markdown with extracted image files
-        try:
-            markdown_content = pymupdf4llm.to_markdown(
-                file_path,
-                write_images=True,
-                image_path=str(image_output_folder),  # unique folder per PDF
-                margins=0,
-                image_size_limit=0.08,
-                table_strategy="lines"
-            )
-        except Exception as e:
-            logger.error(f"pymupdf4llm failed for {file_path}: {e}")
-            # Cleanup folder if it was created
-            if image_output_folder.exists():
-                shutil.rmtree(image_output_folder, ignore_errors=True)
-            return [{
-                "doc_id": base_doc_id,
-                "doc_type": "markdown",
-                "content": f"[PDF extraction failed: {e}]",
-                "position": 0
-            }]
+        # Use lock because pymupdf4llm's table extraction is not thread-safe
+        # See: https://github.com/pymupdf/PyMuPDF/issues/3241
+        with _pymupdf4llm_lock:
+            try:
+                markdown_content = pymupdf4llm.to_markdown(
+                    file_path,
+                    write_images=True,
+                    image_path=str(image_output_folder),  # unique folder per PDF
+                    margins=0,
+                    image_size_limit=0.08,
+                )
+            except Exception:
+                # Retry with table_strategy="lines" if first attempt fails
+                try:
+                    markdown_content = pymupdf4llm.to_markdown(
+                        file_path,
+                        write_images=True,
+                        image_path=str(image_output_folder),  # unique folder per PDF
+                        margins=0,
+                        image_size_limit=0.08,
+                        table_strategy="lines",
+                    )
+                except Exception as e:
+                    logger.error(f"pymupdf4llm failed for {file_path}: {e}")
+                    # Cleanup folder if it was created
+                    if image_output_folder.exists():
+                        shutil.rmtree(image_output_folder, ignore_errors=True)
+                    return [{
+                        "doc_id": base_doc_id,
+                        "doc_type": "markdown",
+                        "content": f"[PDF extraction failed: {e}]",
+                        "position": 0
+                    }]
 
         if not markdown_content or not markdown_content.strip():
             logger.warning(f"No content extracted from PDF: {file_path}")
