@@ -62,6 +62,7 @@ const Setup = () => {
   const [tempFiles, setTempFiles] = useState<any[]>([]);
   const [showTempFiles, setShowTempFiles] = useState(false);
   const [ingestJobData, setIngestJobData] = useState<any>(null);
+  const [directIngestion, setDirectIngestion] = useState(false);
 
   // Refresh state
   const [refreshOpen, setRefreshOpen] = useState(false);
@@ -588,8 +589,8 @@ const Setup = () => {
       // Check if temp files were created (for server data source)
       const sessionId = createData.data_source_id?.temp_session_id;
       
-      if (sessionId) {
-        // Files are saved to temp storage - show them for review
+      if (sessionId && !directIngestion) {
+        // Files are saved to temp storage - show them for review (only if not direct ingestion)
         setTempSessionId(sessionId);
         setIngestJobData({
           load_job_id: createData.load_job_id,
@@ -600,7 +601,7 @@ const Setup = () => {
         await fetchTempFiles(sessionId);
         setIsIngesting(false);
       } else {
-        // No temp files (e.g., S3 Bedrock) - proceed directly to ingest
+        // No temp files (e.g., S3 Bedrock) OR direct ingestion enabled - proceed directly to ingest
         setIngestMessage("Step 2/2: Running document ingest...");
 
         const loadingInfo = {
@@ -1350,6 +1351,21 @@ const Setup = () => {
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                         Process uploaded files and add them to the knowledge graph
                       </p>
+                      
+                      {/* Direct Ingestion Checkbox */}
+                      <div className="flex items-center mb-3">
+                        <input
+                          type="checkbox"
+                          id="directIngestion"
+                          checked={directIngestion}
+                          onChange={(e) => setDirectIngestion(e.target.checked)}
+                          className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="directIngestion" className="text-sm text-gray-700 dark:text-gray-300">
+                          Direct Ingestion (skip file review)
+                        </label>
+                      </div>
+                      
                       <Button
                         onClick={() => handleIngestDocuments("uploaded")}
                         disabled={isIngesting}
@@ -1754,6 +1770,21 @@ const Setup = () => {
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                         Process downloaded files and add them to the knowledge graph
                       </p>
+                      
+                      {/* Direct Ingestion Checkbox */}
+                      <div className="flex items-center mb-3">
+                        <input
+                          type="checkbox"
+                          id="directIngestionDownloaded"
+                          checked={directIngestion}
+                          onChange={(e) => setDirectIngestion(e.target.checked)}
+                          className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <label htmlFor="directIngestionDownloaded" className="text-sm text-gray-700 dark:text-gray-300">
+                          Direct Ingestion (skip file review)
+                        </label>
+                      </div>
+                      
                       <Button
                         onClick={() => handleIngestDocuments("downloaded")}
                         disabled={isIngesting}
