@@ -675,50 +675,43 @@ def ingest(
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
                 if ingest_config.get("server_jobs"):
                     for doc_data in ingest_config.get("server_jobs"):
-                        if not doc_data.get("doc_id"):
+                        try:
+                            if not doc_data.get("doc_id"):
+                                continue
+                            # Skip documents with neither content nor image_data
+                            if not doc_data.get("content") and not doc_data.get("image_data"):
+                                continue
+                                
+                            if doc_data.get("image_data"):
+                                payload = {
+                                    "doc_id": doc_data.get("doc_id", ""),
+                                    "doc_type": "image",
+                                    "image_data": doc_data.get("image_data", ""),
+                                    "image_format": doc_data.get("image_format", "jpg"),
+                                    "image_description": doc_data.get("image_description", ""),
+                                    "parent_doc": doc_data.get("parent_doc", ""),
+                                    "page_number": doc_data.get("page_number", 0),
+                                    "width": doc_data.get("width", 0),
+                                    "height": doc_data.get("height", 0),
+                                    "position": doc_data.get("position", 0),
+                                    "content": ""
+                                }
+                            else:
+                                payload = {
+                                    "doc_id": doc_data.get("doc_id", ""),
+                                    "doc_type": doc_data.get("doc_type", "markdown"),
+                                    "content": doc_data.get("content", "")
+                                }
+                            payload_json = json.dumps(payload)
+                            conn.runLoadingJobWithData(payload_json, data_source_id, loader_info.load_job_id)
+                            processed_files.append({
+                                'file_path': doc_data.get("doc_id", ""),
+                                'parent_doc': doc_data.get("parent_doc", ""),
+                            })
+                            logger.info(f"Data uploading done for doc_id: {doc_data.get('doc_id', 'unknown')}")
+                        except Exception as file_error:
+                            logger.error(f"Error processing document {doc_data.get('doc_id', 'unknown')}: {file_error}")
                             continue
-                        # Skip documents with neither content nor image_data
-                        if not doc_data.get("content") and not doc_data.get("image_data"):
-                            continue
-                            
-                        if doc_data.get("image_data"):
-                            payload = {
-                                "doc_id": doc_data.get("doc_id", ""),
-                                "doc_type": "image",
-                                "image_data": doc_data.get("image_data", ""),
-                                "image_format": doc_data.get("image_format", "jpg"),
-                                "image_description": doc_data.get("image_description", ""),
-                                "parent_doc": doc_data.get("parent_doc", ""),
-                                "page_number": doc_data.get("page_number", 0),
-                                "width": doc_data.get("width", 0),
-                                "height": doc_data.get("height", 0),
-                                "position": doc_data.get("position", 0),
-                                "content": ""
-                            }
-                        else:
-                            payload = {
-                                "doc_id": doc_data.get("doc_id", ""),
-                                "doc_type": doc_data.get("doc_type", "markdown"),
-                                "content": doc_data.get("content", "")
-                            }
-                        payload_json = json.dumps(payload)
-                        conn.runLoadingJobWithData(payload_json, data_source_id, loader_info.load_job_id)
-                        processed_files.append({
-                            'file_path': doc_data.get("doc_id", ""),
-                            'parent_doc': doc_data.get("parent_doc", ""),
-                        })
-                        logger.info(f"Data uploading done for doc_id: {doc_data.get('doc_id', 'unknown')}")
-                    except Exception as file_error:
-                        logger.error(f"Error processing file {json_filename}: {file_error}")
-                        continue
-                
-                # Clean up temp folder after successful ingestion
-                try:
-                    import shutil
-                    shutil.rmtree(temp_folder)
-                    logger.info(f"Cleaned up temporary folder: {temp_folder}")
-                except Exception as cleanup_error:
-                    logger.warning(f"Failed to cleanup temp folder {temp_folder}: {cleanup_error}")
                     
             except Exception as e:
                 raise Exception(f"Error during server markdown extraction and TigerGraph loading: {e}")
