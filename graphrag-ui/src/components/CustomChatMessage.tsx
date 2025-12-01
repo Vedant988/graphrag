@@ -149,7 +149,7 @@ export const CustomChatMessage: FC<IChatbotMessageProps> = ({
   };
 
   const handleShowTable = () => {
-    if (!message.query_sources?.result && !message.query_sources?.answer) {
+    if (message.response_type == 'history' || !message.query_sources?.result) {
       return false;
     }
     setShowTableVis(prev => !prev);
@@ -225,8 +225,6 @@ export const CustomChatMessage: FC<IChatbotMessageProps> = ({
             <div className="relative w-full h-[550px] my-10 border border-solid border-[#000] my-10 h-auto">
               {message.query_sources?.result ? (
                 <KnowledgeTablPro data={message.query_sources?.result} />
-              ) : message.query_sources?.answer ? (
-                <KnowledgeTablPro data={message.query_sources?.answer} />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
                   No table data available
