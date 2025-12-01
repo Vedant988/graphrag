@@ -108,7 +108,7 @@ ordered-set==4.1.0
 orjson==3.10.18
 packaging==24.2
 pandas==2.2.3
-#pathtools==0.1.2
+pathtools==0.1.2
 pillow==11.2.1
 #PyMuPDF==1.26.4
 pymupdf4llm==0.2.0

@@ -8,6 +8,7 @@ import logging
 import uuid
 import base64
 import io
+import re
 import threading
 from pathlib import Path
 import shutil
@@ -18,6 +19,60 @@ logger = logging.getLogger(__name__)
 
 # Global lock for pymupdf4llm calls (not thread-safe)
 _pymupdf4llm_lock = threading.Lock()
+
+# Regex for markdown images: ![alt](path)
+_markdown_image_pattern = re.compile(r'!\[([^\]]*)\]\(([^)\s]+)\)')
+
+
+def extract_markdown_images(md_text):
+    """
+    Extract markdown image entries from text.
+    Returns list of {"path": path, "image_id": image_id}
+    image_id = basename without extension
+    """
+    images = []
+    for m in _markdown_image_pattern.finditer(md_text):
+        path = m.group(2)
+        basename = os.path.basename(path)
+        image_id = os.path.splitext(basename)[0]
+        images.append({"path": path, "image_id": image_id})
+    return images
+
+
+def insert_image_description_by_id(md_text, image_id, description):
+    """
+    Replace the description for an image whose basename == image_id.
+    """
+    def repl(m):
+        old_path = m.group(2)
+        candidate_id = os.path.splitext(os.path.basename(old_path))[0]
+
+        if candidate_id == image_id:
+            # Insert new description
+            return f'![{description}]({old_path})'
+
+        return m.group(0)
+
+    return _markdown_image_pattern.sub(repl, md_text)
+
+
+def replace_image_path_with_tg_protocol(md_text, image_id, tg_reference):
+    """
+    Replace the file path for an image whose basename == image_id with tg:// protocol reference.
+    tg_reference should be like 'Graphs_image_1'
+    """
+    def repl(m):
+        old_path = m.group(2)
+        candidate_id = os.path.splitext(os.path.basename(old_path))[0]
+
+        if candidate_id == image_id:
+            # Replace path with tg:// protocol reference
+            alt_text = m.group(1)
+            return f'![{alt_text}](tg://{tg_reference})'
+
+        return m.group(0)
+
+    return _markdown_image_pattern.sub(repl, md_text)
 
 
 class TextExtractor:
@@ -199,7 +254,6 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
         import pymupdf4llm
         from PIL import Image as PILImage
         from common.utils.image_data_extractor import describe_image_with_llm
-        from common.utils.markdown_parsing import MarkdownProcessor
 
         # Ensure clean slate - remove folder if it exists from failed previous run
         if image_output_folder.exists():
@@ -244,7 +298,7 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
             logger.warning(f"No content extracted from PDF: {file_path}")
 
         # Extract image references from markdown
-        image_refs = MarkdownProcessor.extract_images(markdown_content)
+        image_refs = extract_markdown_images(markdown_content)
 
         if not image_refs:
             # cleanup folder anyway
@@ -269,7 +323,7 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
                 # Image description
                 description = describe_image_with_llm(str(img_path))
 
-                markdown_content = MarkdownProcessor.insert_description_by_id(
+                markdown_content = insert_image_description_by_id(
                     markdown_content,
                     image_id,
                     description
@@ -289,7 +343,7 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
                 image_doc_id = f"{base_doc_id}_image_{image_counter}"
 
                 # Replace file path with tg:// protocol reference in markdown
-                markdown_content = MarkdownProcessor.replace_path_with_tg_protocol(
+                markdown_content = replace_image_path_with_tg_protocol(
                     markdown_content,
                     image_id,
                     image_doc_id

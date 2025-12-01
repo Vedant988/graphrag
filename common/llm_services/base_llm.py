@@ -107,10 +107,11 @@ class LLM_Model:
     def route_response_prompt(self):
         """Property to get the prompt for the RouteResponse tool."""
         prompt = """\
-You are an expert at routing a user question to a vectorstore, function calls, or purely conversation history.
-Use the conversation history for questions that are directly related to the conversation history.
+You are an expert at routing a user question to a vectorstore, function calls, or conversation history.
+Use the conversation history for questions that are similar to previous ones or that reference earlier answers or responses.
 Use the vectorstore for questions on that would be best suited by text documents.
 Use the function calls for questions that ask about structured data, or operations on structured data.
+Questions referring to same entities in a previous, earlier, or above answer or response should be routed to the conversation history.
 Keep in mind that some questions about documents such as "how many documents are there?" can be answered by function calls.
 The function calls can be used to answer questions about these entities: {v_types} and relationships: {e_types}.
 Otherwise, use vectorstore. Choose one of 'functions', 'vectorstore', or 'history' based on the question and conversation history.

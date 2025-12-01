@@ -180,7 +180,7 @@ class TigerGraphAgentGraph:
         """
         Run the agent cypher generator.
         """
-        self.emit_progress("Generating the Cypher to answer your question")
+        self.emit_progress("Generating the query to answer your question")
         gen_history = []
         response_json = None
 
@@ -196,9 +196,9 @@ class TigerGraphAgentGraph:
                 break
             except Exception as e:
                 gen_history.append(f"{i}: {cypher}\n\tError: {json_str}\n")
-        if response_json:
+        if response_json and not self.is_query_result_empty(response_json["results"][0]):
             state["context"] = {
-                "answer": response_json["results"][0],
+                "result": response_json["results"][0],
                 "cypher": cypher,
                 "reasoning": "The following OpenCypher query was executed to answer the question. {}".format(
                     cypher
@@ -208,7 +208,7 @@ class TigerGraphAgentGraph:
             state["context"] = {
                 "error": True,
                 "cypher": cypher,
-                "answer": json_str
+                "result": json_str
             }
             if "error_history" not in state or state["error_history"] is None:
                 state["error_history"] = []
@@ -397,9 +397,9 @@ class TigerGraphAgentGraph:
 
         elif state["lookup_source"] == "cypher":
             logger.debug_pii(
-                f"""request_id={req_id_cv.get()} Got result: {state["context"]["answer"]}"""
+                f"""request_id={req_id_cv.get()} Got result: {state["context"]["result"]}"""
             )
-            answer = step.generate_answer(state["question"], state["context"]["answer"], state["context"]["cypher"])
+            answer = step.generate_answer(state["question"], state["context"]["result"], state["context"]["cypher"])
 
         elif state["lookup_source"] == "history":
             state["context"] = {
@@ -444,7 +444,6 @@ class TigerGraphAgentGraph:
 
         return state
 
-
     def replace_s3_urls_with_presigned(self, content, expires_in=3600):
         """
         Recursively detects S3 URLs in content (string, list, or dict) 
@@ -485,7 +484,6 @@ class TigerGraphAgentGraph:
                 return value
 
         return process(content)
-    
 
     def convert_image_refs_to_markdown(self, text):
         """
@@ -530,7 +528,6 @@ class TigerGraphAgentGraph:
         else:
             return text
 
-
     def rewrite_question(self, state):
         """
         Run the agent question rewriter.
@@ -540,6 +537,21 @@ class TigerGraphAgentGraph:
         question_str = state["question"]
         state["question"] = step.rewrite_question(question_str)
         return state
+
+    def is_query_result_empty(self, query_result) -> bool:
+        """
+        Check if the query result is empty or contains empty values.
+        """
+        if query_result in ("", [], {}, (), set(), range(0), None):
+            return True
+
+        if isinstance(query_result, (list, set)):
+            return all(self.is_query_result_empty(item) for item in query_result)
+
+        if isinstance(query_result, dict):
+            return all(self.is_query_result_empty(v) for v in query_result.values())
+
+        return False
 
     # remove halucinaton check, always return grounded
     def check_answer_for_hallucinations(self, state):

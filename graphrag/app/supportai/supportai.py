@@ -673,28 +673,12 @@ def ingest(
             try:
                 processed_files = []
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
-                
-                # Read from temporary folder
-                temp_folder = ingest_config.get("temp_folder")
-                if not temp_folder or not os.path.exists(temp_folder):
-                    raise Exception(f"Temporary folder not found: {temp_folder}")
-                
-                # Read all JSON files from temp folder
-                json_files = [f for f in os.listdir(temp_folder) if f.endswith('.json')]
-                logger.info(f"Reading {len(json_files)} documents from {temp_folder}")
-                
-                for json_filename in json_files:
-                    json_filepath = os.path.join(temp_folder, json_filename)
-                    try:
-                        with open(json_filepath, 'r', encoding='utf-8') as f:
-                            doc_data = json.load(f)
-                        
+                if ingest_config.get("server_jobs"):
+                    for doc_data in ingest_config.get("server_jobs"):
                         if not doc_data.get("doc_id"):
-                            logger.warning(f"Skipping invalid document: {json_filename}")
                             continue
                         # Skip documents with neither content nor image_data
                         if not doc_data.get("content") and not doc_data.get("image_data"):
-                            logger.warning(f"Skipping document with no content: {json_filename}")
                             continue
                             
                         if doc_data.get("image_data"):

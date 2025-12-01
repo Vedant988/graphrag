@@ -65,18 +65,57 @@ export const KnowledgeTablPro = ({ data }) => {
       return;
     }
 
-    // Handle string data
+    // Handle string data - display it directly
     if (typeof data === 'string') {
       setDataType('gsql');
-      setTableData([]);
-      setColumns([]);
+      setTableData([{ content: data }]);
+      setColumns(['content']);
       setEdges([]);
       return;
     }
 
     // Handle Cypher query results (answer field) - these are objects with data arrays
     if (typeof data === 'object' && !Array.isArray(data)) {
-      // Check if this is Cypher data (object with array values like {"T": [...]})
+      // Check if this is final_retrieval data structure (SupportAI format)
+      if (data.final_retrieval && typeof data.final_retrieval === 'object') {
+        setDataType('final_retrieval');
+        setEdges([]);
+
+        // Convert final_retrieval structure to table rows
+        // Format: {chunk1: [text1, text2, ...], chunk2: [text3, text4, ...]}
+        // One row per chunk with all texts combined
+        const tableRows: any[] = [];
+        const finalRetrieval = data.final_retrieval;
+
+        Object.keys(finalRetrieval).forEach((chunkKey) => {
+          const texts = finalRetrieval[chunkKey];
+          if (Array.isArray(texts)) {
+            // Combine all texts for this chunk into a single string
+            const combinedText = texts.join('\n\n');
+            tableRows.push({
+              chunk: chunkKey,
+              text: combinedText
+            });
+          } else if (typeof texts === 'string') {
+            // Handle case where value is a single string instead of array
+            tableRows.push({
+              chunk: chunkKey,
+              text: texts
+            });
+          }
+        });
+
+        if (tableRows.length > 0) {
+          setColumns(['chunk', 'text']);
+          setTableData(tableRows);
+        } else {
+          setColumns([]);
+          setTableData([]);
+        }
+        return; // Exit early for final_retrieval data
+      }
+
+      // Check if this is Cypher data (object with array values like {"T": [...]} or object values like {"T": {...}})
       const dictKeys = Object.keys(data);
       if (dictKeys.length > 0) {
         const firstKey = dictKeys[0];
@@ -91,23 +130,42 @@ export const KnowledgeTablPro = ({ data }) => {
             const cols = Object.keys(firstRow);
             setColumns(cols);
             setTableData(firstValue);
-      } else {
+          } else {
+            setColumns([]);
+            setTableData([]);
+          }
+          return; // Exit early for Cypher data
+        } else if (firstValue && typeof firstValue === 'object' && !Array.isArray(firstValue)) {
+          // Handle object values like {"T": {"entity_type_count": 1036}}
+          // Convert to table with Key and Value columns
+          setDataType('cypher');
+          setEdges([]); // Clear GSQL edges for Cypher data
+
+          const tableRows = Object.keys(firstValue).map(key => ({
+            Key: key,
+            Value: firstValue[key]
+          }));
+
+          if (tableRows.length > 0) {
+            setColumns(['Key', 'Value']);
+            setTableData(tableRows);
+          } else {
             setColumns([]);
             setTableData([]);
           }
           return; // Exit early for Cypher data
         }
       }
-      
+
       // Handle GSQL results (object with @@edges)
       setDataType('gsql');
       setTableData([]);
       setColumns([]);
       setEdges([]);
-      
+
       // Look for @@edges in the data
       let setresults: any[] | null = null;
-      
+
       // Check if data is an array and look for @@edges in each item
       if (Array.isArray(data)) {
         for (const item of data) {
@@ -120,7 +178,7 @@ export const KnowledgeTablPro = ({ data }) => {
         // Direct @@edges in the object
         setresults = data['@@edges'];
       }
-      
+
       if (setresults && Array.isArray(setresults)) {
         setEdges(setresults);
         
@@ -172,7 +230,70 @@ export const KnowledgeTablPro = ({ data }) => {
 
  return (
   <>
-      {dataType === 'cypher' && tableData.length > 0 ? (
+      {dataType === 'final_retrieval' && tableData.length > 0 ? (
+        <>
+          <Table className="text-[11px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px] text-[11px]">Chunk</TableHead>
+                <TableHead className="text-[11px]">Text</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tableData.slice(startIndex, endIndex).map((item: any, index: number) => (
+                <TableRow key={index}>
+                  <TableCell className="text-left text-[11px]">{item.chunk}</TableCell>
+                  <TableCell className="text-left text-[11px] whitespace-pre-wrap">{item.text}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {tableData.length > rowsPerPage && (
+            <Pagination className="text-[11px]">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    className={
+                      startIndex === 0 ? "pointer-events-none opacity-50" : undefined
+                    }
+                    onClick={() => {
+                      setStartIndex(startIndex - rowsPerPage);
+                      setEndIndex(endIndex - rowsPerPage);
+                    }} />
+                </PaginationItem>
+
+                <PaginationItem>
+                  <PaginationNext
+                    className={
+                      endIndex >= tableData.length ? "pointer-events-none opacity-50" : undefined
+                    }
+                    onClick={() => {
+                      setStartIndex(startIndex + rowsPerPage);
+                      setEndIndex(endIndex + rowsPerPage);
+                    }} />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </>
+      ) : dataType === 'gsql' && tableData.length > 0 && edges.length === 0 ? (
+        <>
+          <Table className="text-[11px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px] text-[11px]">Content</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="text-left text-[11px] whitespace-pre-wrap">
+                  {tableData[0].content}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </>
+      ) : dataType === 'cypher' && tableData.length > 0 ? (
         <>
           <Table className="text-[11px]">
         <TableHeader>
