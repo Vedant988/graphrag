@@ -673,45 +673,68 @@ def ingest(
             try:
                 processed_files = []
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
-                if ingest_config.get("server_jobs"):
-                    for doc_data in ingest_config.get("server_jobs"):
-                        try:
-                            if not doc_data.get("doc_id"):
-                                continue
-                            # Skip documents with neither content nor image_data
-                            if not doc_data.get("content") and not doc_data.get("image_data"):
-                                continue
-                                
-                            if doc_data.get("image_data"):
-                                payload = {
-                                    "doc_id": doc_data.get("doc_id", ""),
-                                    "doc_type": "image",
-                                    "image_data": doc_data.get("image_data", ""),
-                                    "image_format": doc_data.get("image_format", "jpg"),
-                                    "image_description": doc_data.get("image_description", ""),
-                                    "parent_doc": doc_data.get("parent_doc", ""),
-                                    "page_number": doc_data.get("page_number", 0),
-                                    "width": doc_data.get("width", 0),
-                                    "height": doc_data.get("height", 0),
-                                    "position": doc_data.get("position", 0),
-                                    "content": ""
-                                }
-                            else:
-                                payload = {
-                                    "doc_id": doc_data.get("doc_id", ""),
-                                    "doc_type": doc_data.get("doc_type", "markdown"),
-                                    "content": doc_data.get("content", "")
-                                }
-                            payload_json = json.dumps(payload)
-                            conn.runLoadingJobWithData(payload_json, data_source_id, loader_info.load_job_id)
-                            processed_files.append({
-                                'file_path': doc_data.get("doc_id", ""),
-                                'parent_doc': doc_data.get("parent_doc", ""),
-                            })
-                            logger.info(f"Data uploading done for doc_id: {doc_data.get('doc_id', 'unknown')}")
-                        except Exception as file_error:
-                            logger.error(f"Error processing document {doc_data.get('doc_id', 'unknown')}: {file_error}")
+                
+                # Read from temporary folder
+                temp_folder = ingest_config.get("temp_folder")
+                if not temp_folder or not os.path.exists(temp_folder):
+                    raise Exception(f"Temporary folder not found: {temp_folder}")
+                
+                # Read all JSON files from temp folder
+                json_files = [f for f in os.listdir(temp_folder) if f.endswith('.json')]
+                logger.info(f"Reading {len(json_files)} documents from {temp_folder}")
+                
+                for json_filename in json_files:
+                    json_filepath = os.path.join(temp_folder, json_filename)
+                    try:
+                        with open(json_filepath, 'r', encoding='utf-8') as f:
+                            doc_data = json.load(f)
+                        
+                        if not doc_data.get("doc_id"):
+                            logger.warning(f"Skipping invalid document: {json_filename}")
                             continue
+                        # Skip documents with neither content nor image_data
+                        if not doc_data.get("content") and not doc_data.get("image_data"):
+                            logger.warning(f"Skipping document with no content: {json_filename}")
+                            continue
+                            
+                        if doc_data.get("image_data"):
+                            payload = {
+                                "doc_id": doc_data.get("doc_id", ""),
+                                "doc_type": "image",
+                                "image_data": doc_data.get("image_data", ""),
+                                "image_format": doc_data.get("image_format", "jpg"),
+                                "image_description": doc_data.get("image_description", ""),
+                                "parent_doc": doc_data.get("parent_doc", ""),
+                                "page_number": doc_data.get("page_number", 0),
+                                "width": doc_data.get("width", 0),
+                                "height": doc_data.get("height", 0),
+                                "position": doc_data.get("position", 0),
+                                "content": ""
+                            }
+                        else:
+                            payload = {
+                                "doc_id": doc_data.get("doc_id", ""),
+                                "doc_type": doc_data.get("doc_type", "markdown"),
+                                "content": doc_data.get("content", "")
+                            }
+                        payload_json = json.dumps(payload)
+                        conn.runLoadingJobWithData(payload_json, data_source_id, loader_info.load_job_id)
+                        processed_files.append({
+                            'file_path': doc_data.get("doc_id", ""),
+                            'parent_doc': doc_data.get("parent_doc", ""),
+                        })
+                        logger.info(f"Data uploading done for doc_id: {doc_data.get('doc_id', 'unknown')}")
+                    except Exception as file_error:
+                        logger.error(f"Error processing file {json_filename}: {file_error}")
+                        continue
+                
+                # Clean up temp folder after successful ingestion
+                try:
+                    import shutil
+                    shutil.rmtree(temp_folder)
+                    logger.info(f"Cleaned up temporary folder: {temp_folder}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temp folder {temp_folder}: {cleanup_error}")
                     
             except Exception as e:
                 raise Exception(f"Error during server markdown extraction and TigerGraph loading: {e}")
