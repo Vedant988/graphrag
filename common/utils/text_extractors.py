@@ -42,10 +42,11 @@ class TextExtractor:
             '.jpg': 'image/jpeg'
         }
 
-    async def _process_file_async(self, file_path, folder_path_obj, graphname):
+    async def _process_file_async(self, file_path, folder_path_obj, graphname, temp_folder=None, file_counter=None):
         """
         Async helper to process a single file.
         Runs in thread pool to avoid blocking on I/O operations.
+        If temp_folder is provided, saves documents immediately and returns metadata only.
         """
         try:
             loop = asyncio.get_event_loop()
@@ -57,6 +58,27 @@ class TextExtractor:
                 graphname
             )
 
+            # If temp_folder provided, save immediately and return metadata only
+            if temp_folder and doc_entries:
+                saved_files = []
+                for idx, doc_data in enumerate(doc_entries):
+                    # Use file_counter for unique naming across all files
+                    counter_val = next(file_counter) if file_counter else idx
+                    doc_filename = f"doc_{counter_val}_{doc_data.get('doc_id', 'unknown')}.json"
+                    doc_filepath = os.path.join(temp_folder, doc_filename)
+                    with open(doc_filepath, 'w', encoding='utf-8') as f:
+                        json.dump(doc_data, f, ensure_ascii=False, indent=2)
+                    saved_files.append(doc_filename)
+                
+                # Return metadata only, not full documents (memory efficient)
+                return {
+                    'success': True,
+                    'file_path': str(file_path),
+                    'saved_files': saved_files,
+                    'num_documents': len(doc_entries)
+                }
+            
+            # No temp_folder - return documents in memory (legacy behavior)
             return {
                 'success': True,
                 'file_path': str(file_path),
@@ -72,10 +94,11 @@ class TextExtractor:
             logger.warning(f"Failed to process file {file_path}: {e}")
             return {'success': False, 'file_path': str(file_path), 'error': str(e)}
 
-    async def _process_folder_async(self, folder_path, graphname=None, max_concurrent=10):
+    async def _process_folder_async(self, folder_path, graphname=None, max_concurrent=10, temp_folder=None):
         """
         Async version of process_folder for parallel file processing.
         This prevents conflicts when multiple users process folders simultaneously.
+        If temp_folder is provided, saves documents immediately to disk instead of holding in memory.
         """
         logger.info(f"Processing local folder ASYNC: {folder_path} for graph: {graphname} (max_concurrent={max_concurrent})")
 
@@ -86,6 +109,11 @@ class TextExtractor:
 
         if not folder_path_obj.is_dir():
             raise Exception(f"Path is not a directory: {folder_path}")
+
+        # Create temp folder if provided
+        if temp_folder:
+            os.makedirs(temp_folder, exist_ok=True)
+            logger.info(f"Saving processed documents to: {temp_folder}")
 
         def safe_walk(path):
             try:
@@ -111,16 +139,20 @@ class TextExtractor:
         logger.info(f"Found {len(files_to_process)} files to process")
 
         semaphore = asyncio.Semaphore(max_concurrent)
+        
+        # Thread-safe counter for unique file naming
+        file_counter = iter(range(100000)) if temp_folder else None
 
         async def process_with_semaphore(file_path):
             async with semaphore:
-                return await self._process_file_async(file_path, folder_path_obj, graphname)
+                return await self._process_file_async(file_path, folder_path_obj, graphname, temp_folder, file_counter)
 
         tasks = [process_with_semaphore(fp) for fp in files_to_process]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         all_documents = []
         processed_files_info = []
+        total_saved_files = []
 
         for result in results:
             if isinstance(result, Exception):
@@ -128,10 +160,15 @@ class TextExtractor:
                 continue
 
             if result.get('success'):
-                all_documents.extend(result.get('documents', []))
+                # If temp_folder was used, documents are saved to disk
+                if temp_folder:
+                    total_saved_files.extend(result.get('saved_files', []))
+                else:
+                    all_documents.extend(result.get('documents', []))
+                
                 processed_files_info.append({
                     'file_path': result['file_path'],
-                    'num_documents': result.get('num_documents', len(result.get('documents', []))),
+                    'num_documents': result.get('num_documents', 0),
                     'status': 'success'
                 })
             else:
@@ -141,23 +178,39 @@ class TextExtractor:
                     'error': result.get('error', 'Unknown error')
                 })
 
-        logger.info(f"Processed {len(processed_files_info)} files, extracted {len(all_documents)} total documents")
+        total_docs = len(total_saved_files) if temp_folder else len(all_documents)
+        logger.info(f"Processed {len(processed_files_info)} files, extracted {total_docs} total documents")
 
-        return {
+        response = {
             'statusCode': 200,
-            'message': f'Processed {len(processed_files_info)} files, {len(all_documents)} documents',
-            'documents': all_documents,
+            'message': f'Processed {len(processed_files_info)} files, {total_docs} documents',
             'files': processed_files_info,
-            'num_documents': len(all_documents)
+            'num_documents': total_docs
         }
+        
+        # Only include documents in response if NOT saving to temp_folder
+        if temp_folder:
+            response['saved_to_temp'] = True
+            response['temp_folder'] = temp_folder
+            response['saved_files'] = total_saved_files
+        else:
+            response['documents'] = all_documents
+        
+        return response
 
-    def process_folder(self, folder_path, graphname=None):
+    def process_folder(self, folder_path, graphname=None, temp_folder=None):
         """
         Process local folder with multiple file formats and extract text content.
         Uses async processing internally for parallel file handling.
+        
+        Args:
+            folder_path: Path to the folder containing files to process
+            graphname: Name of the graph (for context)
+            temp_folder: Optional path to save processed documents immediately.
+                        If provided, documents are saved to disk instead of returned in memory.
         """
         logger.info(f"Processing local folder: {folder_path} for graph: {graphname}")
-        return asyncio.run(self._process_folder_async(folder_path, graphname))
+        return asyncio.run(self._process_folder_async(folder_path, graphname, temp_folder=temp_folder))
 
 
 def extract_text_from_file_with_images_as_docs(file_path, graphname=None):
