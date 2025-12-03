@@ -485,34 +485,23 @@ def create_ingest(
         if data_path is None:
             raise Exception("Folder path not provided for server processing")
         try:
+            # Create temp folder BEFORE processing so extractor can save directly
+            temp_session_id = str(uuid.uuid4())
+            temp_folder = os.path.join("uploads", "ingestion_temp", graphname, temp_session_id)
+            
+            # Process files and save immediately to temp folder (memory efficient)
             extractor = TextExtractor()
-            server_processing_result = extractor.process_folder(data_path, graphname=graphname)
+            server_processing_result = extractor.process_folder(
+                data_path, 
+                graphname=graphname,
+                temp_folder=temp_folder  # Extractor saves files as it processes
+            )
+            
             if server_processing_result.get("statusCode") != 200:
                 raise Exception(f"Server folder processing failed: {server_processing_result}")
             
-            # Log only summary, NOT the full documents to avoid memory logging
+            doc_count = server_processing_result.get("num_documents", 0)
             logger.info(f"Server folder processing completed: {server_processing_result.get('message')}")
-
-            # Save processed documents to temporary folder instead of keeping in memory
-            temp_session_id = str(uuid.uuid4())
-            temp_folder = os.path.join("uploads", "ingestion_temp", graphname, temp_session_id)
-            os.makedirs(temp_folder, exist_ok=True)
-            
-            documents = server_processing_result.get("documents", [])
-            doc_count = len(documents)
-            
-            # Save each document as a separate JSON file
-            for idx, doc_data in enumerate(documents):
-                doc_filename = f"doc_{idx}_{doc_data.get('doc_id', 'unknown')}.json"
-                doc_filepath = os.path.join(temp_folder, doc_filename)
-                with open(doc_filepath, 'w', encoding='utf-8') as f:
-                    json.dump(doc_data, f, ensure_ascii=False, indent=2)
-            
-            # Clear documents from memory immediately after saving
-            documents.clear()
-            server_processing_result.clear()
-            
-            logger.info(f"Saved {doc_count} processed documents to {temp_folder}")
             
             res_ingest_config["temp_session_id"] = temp_session_id
             res_ingest_config["temp_folder"] = temp_folder
