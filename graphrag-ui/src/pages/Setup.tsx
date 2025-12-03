@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Database, Upload, RefreshCw, Loader2, Trash2, FolderUp, Cloud, ArrowLeft, CloudDownload, CloudCog } from "lucide-react";
+import { Database, Upload, RefreshCw, Loader2, Trash2, FolderUp, Cloud, ArrowLeft, CloudDownload, CloudCog, Settings } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -99,6 +99,26 @@ const Setup = () => {
   const [downloadedFiles, setDownloadedFiles] = useState<any[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadMessage, setDownloadMessage] = useState("");
+
+  // Server Configuration state
+  const [configOpen, setConfigOpen] = useState(false);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [configMessage, setConfigMessage] = useState("");
+  const [configMessageType, setConfigMessageType] = useState<"success" | "error" | "">("");
+  
+  // LLM Config state
+  const [llmService, setLlmService] = useState("openai");
+  const [llmModel, setLlmModel] = useState("");
+  const [llmApiKey, setLlmApiKey] = useState("");
+  const [llmTemperature, setLlmTemperature] = useState("0");
+  const [embeddingService, setEmbeddingService] = useState("openai");
+  const [embeddingModel, setEmbeddingModel] = useState("");
+  
+  // GraphRAG Config state
+  const [chunkerType, setChunkerType] = useState("semantic");
+  const [extractorType, setExtractorType] = useState("llm");
+  const [reuseEmbedding, setReuseEmbedding] = useState(true);
 
   // Fetch uploaded files
   const fetchUploadedFiles = async () => {
@@ -584,6 +604,153 @@ const Setup = () => {
       console.error("Error deleting temp files:", error);
     }
   };
+
+  // Fetch server configuration
+  const fetchServerConfig = async () => {
+    setIsLoadingConfig(true);
+    setConfigMessage("");
+    setConfigMessageType("");
+    
+    try {
+      const creds = localStorage.getItem("creds");
+      const response = await fetch("/ui/config", {
+        headers: { Authorization: `Basic ${creds}` },
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch configuration");
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === "success" && data.config) {
+        const { llm_config, graphrag_config } = data.config;
+        
+        // Set LLM config values
+        if (llm_config) {
+          const completionService = llm_config.completion_service || {};
+          const embeddingServiceConfig = llm_config.embedding_service || {};
+          const authConfig = llm_config.authentication_configuration || {};
+          
+          setLlmService(completionService.llm_service || "openai");
+          setLlmModel(completionService.llm_model || "");
+          setLlmTemperature(String(completionService.model_kwargs?.temperature ?? "0"));
+          setEmbeddingService(embeddingServiceConfig.embedding_model_service || "openai");
+          setEmbeddingModel(embeddingServiceConfig.model_name || "");
+          
+          // Get API key (masked for display)
+          const apiKey = authConfig.OPENAI_API_KEY || authConfig.AZURE_OPENAI_API_KEY || "";
+          setLlmApiKey(apiKey ? "••••••••" : "");
+        }
+        
+        // Set GraphRAG config values
+        if (graphrag_config) {
+          setChunkerType(graphrag_config.chunker || "semantic");
+          setExtractorType(graphrag_config.extractor || "llm");
+          setReuseEmbedding(graphrag_config.reuse_embedding !== false);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error fetching config:", error);
+      setConfigMessage(`❌ Error loading configuration: ${error.message}`);
+      setConfigMessageType("error");
+    } finally {
+      setIsLoadingConfig(false);
+    }
+  };
+
+  // Save server configuration
+  const handleSaveConfig = async () => {
+    setIsSavingConfig(true);
+    setConfigMessage("");
+    setConfigMessageType("");
+    
+    try {
+      const creds = localStorage.getItem("creds");
+      
+      // First fetch the current config to preserve other settings
+      const fetchResponse = await fetch("/ui/config", {
+        headers: { Authorization: `Basic ${creds}` },
+      });
+      
+      if (!fetchResponse.ok) {
+        throw new Error("Failed to fetch current configuration");
+      }
+      
+      const currentData = await fetchResponse.json();
+      const currentConfig = currentData.config || {};
+      
+      // Build updated config
+      const updatedLlmConfig = {
+        ...currentConfig.llm_config,
+        completion_service: {
+          ...currentConfig.llm_config?.completion_service,
+          llm_service: llmService,
+          llm_model: llmModel,
+          model_kwargs: {
+            ...currentConfig.llm_config?.completion_service?.model_kwargs,
+            temperature: parseFloat(llmTemperature) || 0,
+          },
+        },
+        embedding_service: {
+          ...currentConfig.llm_config?.embedding_service,
+          embedding_model_service: embeddingService,
+          model_name: embeddingModel,
+        },
+      };
+      
+      // Only update API key if user entered a new one (not masked)
+      if (llmApiKey && !llmApiKey.includes("•")) {
+        updatedLlmConfig.authentication_configuration = {
+          ...currentConfig.llm_config?.authentication_configuration,
+          OPENAI_API_KEY: llmApiKey,
+        };
+      }
+      
+      const updatedGraphragConfig = {
+        ...currentConfig.graphrag_config,
+        chunker: chunkerType,
+        extractor: extractorType,
+        reuse_embedding: reuseEmbedding,
+      };
+      
+      // Save updated config
+      const saveResponse = await fetch("/ui/config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${creds}`,
+        },
+        body: JSON.stringify({
+          llm_config: updatedLlmConfig,
+          graphrag_config: updatedGraphragConfig,
+        }),
+      });
+      
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json();
+        throw new Error(errorData.detail || "Failed to save configuration");
+      }
+      
+      const saveData = await saveResponse.json();
+      setConfigMessage("✅ Configuration saved successfully! Changes are now active.");
+      setConfigMessageType("success");
+      
+    } catch (error: any) {
+      console.error("Error saving config:", error);
+      setConfigMessage(`❌ Error saving configuration: ${error.message}`);
+      setConfigMessageType("error");
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  // Load config when dialog opens
+  useEffect(() => {
+    if (configOpen) {
+      fetchServerConfig();
+    }
+  }, [configOpen]);
 
   // Run final ingest after user reviews temp files
   const handleRunIngest = async () => {
@@ -1284,6 +1451,33 @@ const Setup = () => {
             </div>
           </div>
 
+        </div>
+
+        {/* Server Configuration - Separate row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          {/* Section 4: Server Configuration */}
+          <div className="border border-gray-300 dark:border-[#3D3D3D] rounded-lg p-6 bg-white dark:bg-shadeA flex flex-col h-full">
+            <div className="mb-4">
+              <div className="w-12 h-12 rounded-full bg-tigerOrange/10 flex items-center justify-center mb-4">
+                <Settings className="h-6 w-6 text-tigerOrange" />
+              </div>
+              <h2 className="text-lg font-semibold mb-2 text-black dark:text-white">
+                Server Configuration
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-[#D9D9D9] mb-4">
+                Configure LLM settings and GraphRAG options for your server.
+              </p>
+            </div>
+            <div className="mt-auto pt-4 border-t border-gray-300 dark:border-[#3D3D3D]">
+              <Button 
+                className="gradient w-full text-white"
+                onClick={() => setConfigOpen(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Configure Server
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Initialize Graph Dialog */}
@@ -2178,6 +2372,251 @@ const Setup = () => {
                   <>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Confirm & Refresh
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Server Configuration Dialog */}
+        <Dialog 
+          open={configOpen} 
+          onOpenChange={(open) => {
+            if (!open && isConfirmDialogOpen) {
+              return;
+            }
+            setConfigOpen(open);
+          }}
+        >
+          <DialogContent 
+            className="sm:max-w-[600px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D] max-h-[80vh] overflow-y-auto"
+            onInteractOutside={(e) => e.preventDefault()}
+          >
+            <DialogHeader>
+              <DialogTitle className="text-black dark:text-white">Server Configuration</DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-[#D9D9D9]">
+                Configure LLM and GraphRAG settings. Changes take effect immediately without restart.
+              </DialogDescription>
+            </DialogHeader>
+
+            {isLoadingConfig ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-tigerOrange" />
+                <span className="ml-2 text-gray-600 dark:text-gray-400">Loading configuration...</span>
+              </div>
+            ) : (
+              <Tabs defaultValue="llm" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="llm">LLM Configuration</TabsTrigger>
+                  <TabsTrigger value="graphrag">GraphRAG Configuration</TabsTrigger>
+                </TabsList>
+
+                {/* LLM Configuration Tab */}
+                <TabsContent value="llm" className="space-y-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                      LLM Service
+                    </label>
+                    <Select value={llmService} onValueChange={setLlmService}>
+                      <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA">
+                        <SelectValue placeholder="Select LLM service" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="azure">Azure OpenAI</SelectItem>
+                        <SelectItem value="bedrock">AWS Bedrock</SelectItem>
+                        <SelectItem value="vertexai">Google VertexAI</SelectItem>
+                        <SelectItem value="genai">Google GenAI</SelectItem>
+                        <SelectItem value="ollama">Ollama</SelectItem>
+                        <SelectItem value="groq">Groq</SelectItem>
+                        <SelectItem value="huggingface">HuggingFace</SelectItem>
+                        <SelectItem value="watsonx">IBM WatsonX</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                      LLM Model
+                    </label>
+                    <Input
+                      type="text"
+                      value={llmModel}
+                      onChange={(e) => setLlmModel(e.target.value)}
+                      placeholder="e.g., gpt-4o-mini, gpt-4.1-mini"
+                      className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                      API Key
+                    </label>
+                    <Input
+                      type="password"
+                      value={llmApiKey}
+                      onChange={(e) => setLlmApiKey(e.target.value)}
+                      placeholder="Enter API key (leave blank to keep current)"
+                      className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Leave blank to keep the current API key
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                      Temperature
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="2"
+                      value={llmTemperature}
+                      onChange={(e) => setLlmTemperature(e.target.value)}
+                      placeholder="0"
+                      className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                    />
+                  </div>
+
+                  <div className="border-t border-gray-300 dark:border-[#3D3D3D] pt-4 mt-4">
+                    <h4 className="text-sm font-medium mb-3 text-black dark:text-white">Embedding Service</h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                          Embedding Service
+                        </label>
+                        <Select value={embeddingService} onValueChange={setEmbeddingService}>
+                          <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA">
+                            <SelectValue placeholder="Select embedding service" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="openai">OpenAI</SelectItem>
+                            <SelectItem value="azure">Azure OpenAI</SelectItem>
+                            <SelectItem value="bedrock">AWS Bedrock</SelectItem>
+                            <SelectItem value="vertexai">Google VertexAI</SelectItem>
+                            <SelectItem value="genai">Google GenAI</SelectItem>
+                            <SelectItem value="ollama">Ollama</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                          Embedding Model
+                        </label>
+                        <Input
+                          type="text"
+                          value={embeddingModel}
+                          onChange={(e) => setEmbeddingModel(e.target.value)}
+                          placeholder="e.g., text-embedding-3-small"
+                          className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* GraphRAG Configuration Tab */}
+                <TabsContent value="graphrag" className="space-y-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                      Chunker Type
+                    </label>
+                    <Select value={chunkerType} onValueChange={setChunkerType}>
+                      <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA">
+                        <SelectValue placeholder="Select chunker type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="semantic">Semantic</SelectItem>
+                        <SelectItem value="character">Character</SelectItem>
+                        <SelectItem value="recursive">Recursive</SelectItem>
+                        <SelectItem value="regex">Regex</SelectItem>
+                        <SelectItem value="markdown">Markdown</SelectItem>
+                        <SelectItem value="html">HTML</SelectItem>
+                        <SelectItem value="single">Single</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Semantic chunking uses AI to create meaningful chunks
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                      Extractor Type
+                    </label>
+                    <Select value={extractorType} onValueChange={setExtractorType}>
+                      <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA">
+                        <SelectValue placeholder="Select extractor type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="llm">LLM</SelectItem>
+                        <SelectItem value="graph">Graph</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      LLM extractor uses AI to extract entities and relationships
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="reuseEmbedding"
+                      checked={reuseEmbedding}
+                      onChange={(e) => setReuseEmbedding(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-tigerOrange focus:ring-tigerOrange"
+                    />
+                    <label htmlFor="reuseEmbedding" className="text-sm text-black dark:text-white">
+                      Reuse Embeddings
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    When enabled, existing embeddings will be reused instead of regenerating
+                  </p>
+                </TabsContent>
+              </Tabs>
+            )}
+
+            {configMessage && (
+              <div className={`p-3 rounded-lg text-sm ${
+                configMessageType === "success"
+                  ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                  : configMessageType === "error"
+                  ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
+                  : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+              }`}>
+                {configMessage}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setConfigOpen(false)}
+                disabled={isSavingConfig}
+                className="dark:border-[#3D3D3D]"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveConfig}
+                disabled={isSavingConfig || isLoadingConfig}
+                className="gradient text-white"
+              >
+                {isSavingConfig ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Save Configuration
                   </>
                 )}
               </Button>

@@ -51,6 +51,62 @@ service_status = {}
 
 # Configs
 SERVER_CONFIG = os.getenv("SERVER_CONFIG", "configs/server_config.json")
+
+
+def get_config_file_path():
+    """Get the path to the server config file."""
+    return SERVER_CONFIG
+
+
+def get_current_config():
+    """Get the current in-memory configuration (llm_config and graphrag_config)."""
+    return {
+        "llm_config": llm_config,
+        "graphrag_config": graphrag_config,
+    }
+
+
+def update_config(new_llm_config: dict = None, new_graphrag_config: dict = None, persist: bool = True):
+    """
+    Update the in-memory configuration and optionally persist to file.
+    This allows config changes to take effect immediately without container restart.
+    
+    Args:
+        new_llm_config: New LLM configuration to apply
+        new_graphrag_config: New GraphRAG configuration to apply
+        persist: If True, also save changes to server_config.json file
+    """
+    global llm_config, graphrag_config
+    
+    # Update llm_config in memory
+    if new_llm_config is not None:
+        llm_config.clear()
+        llm_config.update(new_llm_config)
+    
+    # Update graphrag_config in memory
+    if new_graphrag_config is not None:
+        graphrag_config.clear()
+        graphrag_config.update(new_graphrag_config)
+    
+    # Persist to file if requested
+    if persist:
+        config_path = get_config_file_path()
+        if config_path[-5:] == ".json":
+            # Read current file config
+            with open(config_path, "r") as f:
+                file_config = json.load(f)
+            
+            # Update with new values
+            if new_llm_config is not None:
+                file_config["llm_config"] = new_llm_config
+            if new_graphrag_config is not None:
+                file_config["graphrag_config"] = new_graphrag_config
+            
+            # Write back to file
+            with open(config_path, "w") as f:
+                json.dump(file_config, f, indent=2)
+    
+    return True
 PATH_PREFIX = os.getenv("PATH_PREFIX", "")
 PRODUCTION = os.getenv("PRODUCTION", "false").lower() == "true"
 

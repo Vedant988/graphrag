@@ -46,7 +46,7 @@ from fastapi.security.http import HTTPBase
 from pyTigerGraph import TigerGraphConnection
 from tools.validation_utils import MapQuestionToSchemaException
 
-from common.config import db_config, graphrag_config, embedding_service, llm_config, service_status
+from common.config import db_config, graphrag_config, embedding_service, llm_config, service_status, get_current_config, update_config
 from common.db.connections import get_db_connection_pwd_manual
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
@@ -1515,4 +1515,73 @@ async def delete_ingestion_temp_files(
         logger.error(f"Error deleting ingestion temp files for graph {graphname}: {e}")
         logger.debug_pii(f"Delete error trace:\n{exc}")
         raise HTTPException(status_code=500, detail=f"Error deleting temp files: {str(e)}")
+
+
+# =====================================================
+# Server Configuration Endpoints
+# =====================================================
+
+@router.get(f"{route_prefix}/config")
+def get_server_config_endpoint(
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+):
+    """
+    Get the current server configuration (LLM config and GraphRAG config).
+    This returns the in-memory configuration that is actively being used.
+    """
+    try:
+        config = get_current_config()
+        
+        return {
+            "status": "success",
+            "config": config
+        }
+    except Exception as e:
+        logger.error(f"Error reading server config: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reading server configuration: {str(e)}"
+        )
+
+
+@router.put(f"{route_prefix}/config")
+def update_server_config_endpoint(
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+    config_update: dict = Body(...),
+):
+    """
+    Update the server configuration (LLM config and/or GraphRAG config).
+    Changes take effect immediately in memory AND are persisted to server_config.json.
+    No container restart required!
+    
+    Parameters:
+    - config_update: JSON body containing llm_config and/or graphrag_config to update
+    """
+    try:
+        new_llm_config = config_update.get("llm_config")
+        new_graphrag_config = config_update.get("graphrag_config")
+        
+        # Update in-memory config and persist to file
+        update_config(
+            new_llm_config=new_llm_config,
+            new_graphrag_config=new_graphrag_config,
+            persist=True
+        )
+        
+        logger.info("Server configuration updated successfully (in-memory and persisted)")
+        
+        # Return the updated config
+        updated_config = get_current_config()
+        
+        return {
+            "status": "success",
+            "message": "Configuration updated successfully. Changes are now active.",
+            "config": updated_config
+        }
+    except Exception as e:
+        logger.error(f"Error updating server config: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating server configuration: {str(e)}"
+        )
 
