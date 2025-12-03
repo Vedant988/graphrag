@@ -481,7 +481,7 @@ def create_ingest(
         except Exception as e:
             raise Exception(f"Error during Amazon BDA preprocessing: {e}")
     elif ingest_config.data_source.lower() == "server":
-        data_path = ingest_config.data_source_config.get("folder_path", None)
+        data_path = ingest_config.data_source_config.get("data_path", None)
         if data_path is None:
             raise Exception("Folder path not provided for server processing")
         try:
