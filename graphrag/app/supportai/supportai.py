@@ -502,26 +502,6 @@ def create_ingest(
             
             doc_count = server_processing_result.get("num_documents", 0)
             logger.info(f"Server folder processing completed: {server_processing_result.get('message')}")
-
-            # Save processed documents to temporary folder instead of keeping in memory
-            temp_session_id = str(uuid.uuid4())
-            temp_folder = os.path.join("uploads", "ingestion_temp", graphname, temp_session_id)
-            os.makedirs(temp_folder, exist_ok=True)
-            
-            documents = server_processing_result.get("documents", [])
-            doc_count = len(documents)
-            
-            # Save all documents to a single JSONL file (our new logic)
-            jsonl_filepath = os.path.join(temp_folder, "processed_documents.jsonl")
-            with open(jsonl_filepath, 'w', encoding='utf-8') as f:
-                for doc_data in documents:
-                    f.write(json.dumps(doc_data, ensure_ascii=False) + '\n')
-            
-            # Clear documents from memory immediately after saving
-            documents.clear()
-            server_processing_result.clear()
-            
-            logger.info(f"Saved {doc_count} processed documents to {jsonl_filepath}")
             
             res_ingest_config["temp_session_id"] = temp_session_id
             res_ingest_config["temp_folder"] = temp_folder
@@ -682,28 +662,28 @@ def ingest(
             try:
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
                 
-                # Read from temporary folder
+                # Read from temporary folder's JSONL file
                 temp_folder = ingest_config.get("temp_folder")
                 if not temp_folder or not os.path.exists(temp_folder):
                     raise Exception(f"Temporary folder not found: {temp_folder}")
                 
-                # Read the processed_documents.jsonl file (our new logic)
+                # Read the entire JSONL file as a string
                 jsonl_file = os.path.join(temp_folder, "processed_documents.jsonl")
                 if not os.path.exists(jsonl_file):
-                    raise Exception(f"Processed documents file not found: {jsonl_file}")
+                    raise Exception(f"JSONL file not found: {jsonl_file}")
                 
-                # Read entire JSONL content as a single string
+                logger.info(f"Reading JSONL file: {jsonl_file}")
+                
+                # Read entire JSONL content
                 with open(jsonl_file, 'r', encoding='utf-8') as f:
                     jsonl_content = f.read()
                 
-                # Count documents for logging
-                document_count = jsonl_content.count('\n') if jsonl_content.strip() else 0
-                logger.info(f"Ingesting {document_count} documents from {jsonl_file}")
-                
-                # Pass entire JSONL content in ONE call (efficient!)
+                # Load all documents in one call - runLoadingJobWithData supports JSONL format
                 conn.runLoadingJobWithData(jsonl_content, data_source_id, loader_info.load_job_id)
                 
-                logger.info(f"Successfully ingested {document_count} documents")
+                # Count documents for reporting
+                doc_count = sum(1 for line in jsonl_content.strip().split('\n') if line.strip())
+                logger.info(f"Successfully ingested {doc_count} documents from JSONL")
                 
                 # Clean up temp folder after successful ingestion
                 try:
@@ -717,7 +697,8 @@ def ingest(
                 raise Exception(f"Error during server markdown extraction and TigerGraph loading: {e}")
             return {
                 "job_name": loader_info.load_job_id,
-                "summary": f"Data ingestion successful - processed {document_count} documents"
+                "summary": f"Successfully ingested {doc_count} documents from JSONL",
+                "document_count": doc_count
             }
         else:
             raise Exception("Data source and file format combination not implemented")

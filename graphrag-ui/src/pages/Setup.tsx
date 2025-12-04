@@ -398,11 +398,18 @@ const Setup = () => {
 
       const data = await response.json();
       if (data.status === "success") {
-        setDownloadMessage(`✅ ${data.message}. Processing...`);
+        setDownloadMessage(`✅ ${data.message}. Processed ${data.doc_count || 0} document(s)`);
         await fetchDownloadedFiles();
         
-        // Step 2: Call create_ingest to process downloaded files
-        await handleCreateIngestAfterUpload("downloaded");
+        // Save session ID from automatic processing
+        if (data.temp_session_id) {
+          setTempSessionId(data.temp_session_id);
+          await fetchTempFiles(data.temp_session_id);
+        }
+      } else if (data.status === "partial_success") {
+        setDownloadMessage(`⚠️ ${data.message}`);
+        await fetchDownloadedFiles();
+        // Don't call create_ingest if processing already attempted
       } else if (data.status === "warning") {
         setDownloadMessage(`⚠️ ${data.message}`);
       } else {
@@ -421,22 +428,26 @@ const Setup = () => {
 
     try {
       const creds = localStorage.getItem("creds");
-      const response = await fetch(
-        `/ui/${ingestGraphName}/cloud/delete?filename=${encodeURIComponent(filename)}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Basic ${creds}` },
-        }
-      );
-      const data = await response.json();
       
-      // Also delete corresponding temp files if session exists
+      // Build URL with session_id if available
+      let deleteUrl = `/ui/${ingestGraphName}/cloud/delete?filename=${encodeURIComponent(filename)}`;
       if (tempSessionId) {
-        await handleDeleteTempFilesForOriginal(filename);
+        deleteUrl += `&session_id=${encodeURIComponent(tempSessionId)}`;
       }
+      
+      const response = await fetch(deleteUrl, {
+        method: "DELETE",
+        headers: { Authorization: `Basic ${creds}` },
+      });
+      const data = await response.json();
       
       setDownloadMessage(`✅ ${data.message}`);
       await fetchDownloadedFiles();
+      
+      // Refresh temp files list if session exists
+      if (tempSessionId) {
+        await fetchTempFiles(tempSessionId);
+      }
     } catch (error: any) {
       setDownloadMessage(`❌ Error: ${error.message}`);
     }
@@ -451,13 +462,26 @@ const Setup = () => {
 
     try {
       const creds = localStorage.getItem("creds");
-      const response = await fetch(`/ui/${ingestGraphName}/cloud/delete`, {
+      
+      // Build URL with session_id if available
+      let deleteUrl = `/ui/${ingestGraphName}/cloud/delete`;
+      if (tempSessionId) {
+        deleteUrl += `?session_id=${encodeURIComponent(tempSessionId)}`;
+      }
+      
+      const response = await fetch(deleteUrl, {
         method: "DELETE",
         headers: { Authorization: `Basic ${creds}` },
       });
       const data = await response.json();
       setDownloadMessage(`✅ ${data.message}`);
       await fetchDownloadedFiles();
+      
+      // Clear session ID and refresh temp files
+      if (tempSessionId) {
+        setTempSessionId(null);
+        setTempFiles([]);
+      }
     } catch (error: any) {
       setDownloadMessage(`❌ Error: ${error.message}`);
     }
@@ -541,44 +565,24 @@ const Setup = () => {
     }
 
     try {
-      // Extract base name without extension (e.g., "document.pdf" -> "document")
-      const baseName = originalFilename.replace(/\.[^/.]+$/, "");
-      console.log("Base name:", baseName);
-      
       const creds = localStorage.getItem("creds");
       
-      // Fetch temp files to find matches
-      const response = await fetch(`/ui/${ingestGraphName}/ingestion_temp/list?session_id=${tempSessionId}`, {
-        headers: { Authorization: `Basic ${creds}` },
-      });
-      const data = await response.json();
-      console.log("Temp files list response:", data);
-      
-      if (data.status === "success" && data.sessions.length > 0) {
-        const files = data.sessions[0].files || [];
-        console.log("All temp files:", files.map((f: any) => f.filename));
-        
-        // Find temp files matching pattern: doc_{idx}_{baseName}*.json
-        const matchingFiles = files.filter((f: any) => f.filename.includes(`_${baseName}`));
-        console.log("Matching files to delete:", matchingFiles.map((f: any) => f.filename));
-        
-        // Delete each matching file
-        for (const file of matchingFiles) {
-          console.log("Deleting temp file:", file.filename);
-          const deleteResponse = await fetch(
-            `/ui/${ingestGraphName}/ingestion_temp/delete?session_id=${tempSessionId}&filename=${encodeURIComponent(file.filename)}`,
-            {
-              method: "DELETE",
-              headers: { Authorization: `Basic ${creds}` },
-            }
-          );
-          const deleteData = await deleteResponse.json();
-          console.log("Delete response:", deleteData);
+      // Call the delete endpoint with the original filename
+      // The backend will handle removing all related documents from the JSONL file
+      const deleteResponse = await fetch(
+        `/ui/${ingestGraphName}/ingestion_temp/delete?session_id=${tempSessionId}&filename=${encodeURIComponent(originalFilename)}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Basic ${creds}` },
         }
-        
-        console.log(`Successfully deleted ${matchingFiles.length} temp file(s)`);
+      );
+      const deleteData = await deleteResponse.json();
+      console.log("Delete temp files response:", deleteData);
+      
+      if (deleteData.status === "success") {
+        console.log(`Successfully deleted processed documents for ${originalFilename}`);
       } else {
-        console.log("No temp files found or empty sessions");
+        console.error("Failed to delete temp files:", deleteData);
       }
     } catch (error: any) {
       console.error("Error deleting temp files:", error);
@@ -621,7 +625,8 @@ const Setup = () => {
       const ingestData = await ingestResponse.json();
       console.log("Ingest response:", ingestData);
 
-      setIngestMessage(`✅ Data ingested successfully! Processed ${tempFiles.length} documents.`);
+      const docCount = ingestData.document_count || tempFiles.length;
+      setIngestMessage(`✅ Data ingested successfully! Processed ${docCount} document(s).`);
       
       // Clear temp state
       setTempFiles([]);
@@ -691,7 +696,7 @@ const Setup = () => {
           data_source_id: createData.data_source_id,
           data_path: createData.data_path || createData.file_path,
         });
-        setIngestMessage(`✅ Processed ${createData.data_source_id.file_count} files. Review them below before ingesting.`);
+        setIngestMessage(`✅ Files processed successfully. Review them below before ingesting.`);
         await fetchTempFiles(sessionId);
         setIsIngesting(false);
       } else {
@@ -802,7 +807,7 @@ const Setup = () => {
           await handleRunIngest();
         } else {
           // Save for later - files ready for ingestion
-          setUploadMessage(`✅ Successfully processed ${createData.data_source_id.file_count} files. Ready for ingestion.`);
+          setUploadMessage(`✅ Files processed successfully. Ready for ingestion.`);
         }
       } else {
         console.warn("No session ID returned from create_ingest");
