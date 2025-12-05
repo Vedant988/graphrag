@@ -52,6 +52,7 @@ from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
 from common.metrics.prometheus_metrics import metrics as pmetrics
 from supportai import supportai
+from common.utils.text_extractors import TextExtractor
 from common.py_schemas.schemas import (
     AgentProgess,
     CreateIngestConfig,
@@ -990,6 +991,7 @@ async def clear_uploaded_files(
     graphname: str,
     creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
     filename: str | None = None,
+    session_id: str | None = None,
 ):
     """
     Clear uploaded files for a specific graphname.
@@ -997,6 +999,7 @@ async def clear_uploaded_files(
     Parameters:
     - graphname: The graph name whose files to clear
     - filename: If provided, only delete this specific file. Otherwise, delete all files.
+    - session_id: Optional session ID to delete processed content from temp folder
     """
     try:
         upload_dir = os.path.join("uploads", graphname)
@@ -1009,9 +1012,21 @@ async def clear_uploaded_files(
             }
         
         deleted_files = []
+        text_extractor = TextExtractor()
         
         if filename:
-            # Delete specific file
+            # Delete processed content from JSONL FIRST if session_id provided
+            if session_id:
+                temp_folder = os.path.join("uploads", "ingestion_temp", graphname, session_id)
+                if os.path.exists(temp_folder):
+                    logger.info(f"Deleting processed content for {filename} from temp folder")
+                    result = text_extractor.delete_file_from_jsonl(temp_folder, filename)
+                    if result.get('success'):
+                        logger.info(f"Removed {result.get('removed_count', 0)} processed documents for {filename}")
+                    else:
+                        logger.warning(f"Failed to remove processed content: {result.get('error', 'Unknown error')}")
+            
+            # Then delete the original file
             file_path = os.path.join(upload_dir, filename)
             if os.path.exists(file_path) and os.path.isfile(file_path):
                 os.remove(file_path)
@@ -1049,6 +1064,7 @@ async def clear_uploaded_files(
         raise HTTPException(status_code=500, detail=f"Error deleting files: {str(e)}")
 
 
+
 # Cloud Storage Download Endpoints
 
 @router.post(route_prefix + "/{graphname}/cloud/download")
@@ -1058,8 +1074,7 @@ async def download_from_cloud(
     request_body: dict = Body(...),
 ):
     """
-    Download files from cloud storage (S3, GCS, or Azure) to local directory
-    and automatically process them to create JSONL files for ingestion.
+    Download files from cloud storage (S3, GCS, or Azure) to local directory.
     
     Parameters:
     - graphname: The graph name to associate downloaded files with
@@ -1253,49 +1268,14 @@ async def download_from_cloud(
         
         logger.info(f"Downloaded {len(downloaded_files)} file(s) from {provider} for graph {graphname}")
         
-        # Automatically process downloaded files to create JSONL
-        from common.utils.text_extractors import TextExtractor
-        temp_session_id = str(uuid.uuid4())
-        temp_folder = os.path.join("uploads", "ingestion_temp", graphname, temp_session_id)
-        
-        try:
-            extractor = TextExtractor()
-            processing_result = extractor.process_folder(
-                download_dir,
-                graphname=graphname,
-                temp_folder=temp_folder
-            )
-            
-            if processing_result.get("statusCode") != 200:
-                logger.error(f"Cloud file processing failed: {processing_result}")
-                raise Exception(f"Failed to process downloaded files: {processing_result}")
-            
-            doc_count = processing_result.get("num_documents", 0)
-            logger.info(f"Processed {doc_count} documents from downloaded files")
-            
-            return {
-                "status": "success",
-                "message": f"Successfully downloaded and processed {len(downloaded_files)} file(s) from {provider}",
-                "graphname": graphname,
-                "provider": provider,
-                "downloaded_files": downloaded_files,
-                "local_path": download_dir,
-                "temp_session_id": temp_session_id,
-                "temp_folder": temp_folder,
-                "doc_count": doc_count,
-            }
-        except Exception as e:
-            logger.error(f"Error processing downloaded files: {e}")
-            # Return success for download but warn about processing failure
-            return {
-                "status": "partial_success",
-                "message": f"Downloaded {len(downloaded_files)} file(s) but processing failed: {str(e)}",
-                "graphname": graphname,
-                "provider": provider,
-                "downloaded_files": downloaded_files,
-                "local_path": download_dir,
-                "processing_error": str(e),
-            }
+        return {
+            "status": "success",
+            "message": f"Successfully downloaded {len(downloaded_files)} file(s) from {provider}",
+            "graphname": graphname,
+            "provider": provider,
+            "downloaded_files": downloaded_files,
+            "local_path": download_dir,
+        }
     
     except HTTPException:
         raise
@@ -1362,12 +1342,11 @@ async def delete_cloud_downloads(
 ):
     """
     Delete downloaded cloud files for a specific graph.
-    Also deletes corresponding processed documents from the JSONL file.
     
     Parameters:
     - graphname: The graph name whose downloaded files to clear
     - filename: If provided, only delete this specific file. Otherwise, delete all files.
-    - session_id: The session ID for the temp folder containing processed JSONL
+    - session_id: Optional session ID to delete processed content from temp folder
     """
     try:
         download_dir = os.path.join("downloaded_files_cloud", graphname)
@@ -1380,28 +1359,23 @@ async def delete_cloud_downloads(
             }
         
         deleted_files = []
+        text_extractor = TextExtractor()
         
         if filename:
-            # Delete specific file AND its processed documents from JSONL
+            # Delete processed content from JSONL FIRST if session_id provided
+            if session_id:
+                temp_folder = os.path.join("uploads", "ingestion_temp", graphname, session_id)
+                if os.path.exists(temp_folder):
+                    logger.info(f"Deleting processed content for {filename} from temp folder")
+                    result = text_extractor.delete_file_from_jsonl(temp_folder, filename)
+                    if result.get('success'):
+                        logger.info(f"Removed {result.get('removed_count', 0)} processed documents for {filename}")
+                    else:
+                        logger.warning(f"Failed to remove processed content: {result.get('error', 'Unknown error')}")
+            
+            # Then delete the original file
             file_path = os.path.join(download_dir, filename)
             if os.path.exists(file_path) and os.path.isfile(file_path):
-                # If session_id provided, also delete from JSONL
-                if session_id:
-                    from common.utils.text_extractors import TextExtractor
-                    extractor = TextExtractor()
-                    
-                    temp_folder = os.path.join("uploads", "ingestion_temp", graphname, session_id)
-                    if os.path.exists(temp_folder):
-                        # Delete from JSONL first
-                        delete_result = extractor.delete_file_from_jsonl(temp_folder, filename)
-                        logger.info(f"JSONL delete result for {filename}: {delete_result}")
-                        
-                        # If JSONL delete failed (and JSONL exists), warn but continue with file deletion
-                        if not delete_result.get('success'):
-                            logger.warning(f"Failed to delete from JSONL: {delete_result.get('error')}")
-                            # Continue with file deletion even if JSONL deletion failed
-                
-                # Delete the original downloaded file
                 os.remove(file_path)
                 deleted_files.append(filename)
                 logger.info(f"Deleted cloud download {filename} for graph {graphname}")
@@ -1409,21 +1383,13 @@ async def delete_cloud_downloads(
                 raise HTTPException(status_code=404, detail=f"File {filename} not found")
         else:
             # Delete all files in the directory
-            for fname in os.listdir(download_dir):
-                file_path = os.path.join(download_dir, fname)
+            for filename in os.listdir(download_dir):
+                file_path = os.path.join(download_dir, filename)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
-                    deleted_files.append(fname)
+                    deleted_files.append(filename)
             
-            # If session_id provided, delete the entire temp folder
-            if session_id:
-                temp_folder = os.path.join("uploads", "ingestion_temp", graphname, session_id)
-                if os.path.exists(temp_folder):
-                    import shutil
-                    shutil.rmtree(temp_folder, ignore_errors=True)
-                    logger.info(f"Deleted temp folder for session {session_id}")
-            
-            # Remove the download directory if it's empty
+            # Remove the directory if it's empty
             if not os.listdir(download_dir):
                 os.rmdir(download_dir)
             
@@ -1542,41 +1508,25 @@ async def delete_ingestion_temp_files(
         deleted_files = []
         
         if filename:
-            # Delete processed documents from JSONL for this original filename
-            # Note: Original files are NOT in temp folder, only processed_documents.jsonl is here
-            from common.utils.text_extractors import TextExtractor
-            extractor = TextExtractor()
-            
-            # Delete from JSONL - MUST succeed
-            delete_result = extractor.delete_file_from_jsonl(session_dir, filename)
-            logger.info(f"JSONL delete result for {filename}: {delete_result}")
-            
-            # If JSONL delete failed, return error
-            if not delete_result.get('success'):
-                error_msg = delete_result.get('error', 'Unknown error')
-                logger.error(f"Failed to delete from JSONL: {error_msg}")
-                raise HTTPException(status_code=500, detail=f"Failed to delete processed documents: {error_msg}")
-            
-            deleted_files.append(filename)
-            logger.info(f"Deleted {delete_result.get('removed_count', 0)} processed documents for {filename} from JSONL")
-            
-            # Check if temp folder was deleted by JSONL cleanup
-            if delete_result.get('temp_folder_deleted'):
-                logger.info(f"Session folder {session_id} was automatically deleted (no documents remaining)")
-            elif not os.path.exists(session_dir):
-                logger.info(f"Session folder {session_id} was deleted")
-            elif not os.listdir(session_dir):
-                # Clean up empty session folder
-                os.rmdir(session_dir)
-                logger.info(f"Removed empty session folder {session_id}")
+            # Delete specific file
+            file_path = os.path.join(session_dir, filename)
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                os.remove(file_path)
+                deleted_files.append(filename)
+                logger.info(f"Deleted temp file {filename} from session {session_id}")
+                
+                # If session folder is now empty, remove it
+                if not os.listdir(session_dir):
+                    os.rmdir(session_dir)
+                    logger.info(f"Removed empty session folder {session_id}")
             else:
-                logger.info(f"Removed {delete_result.get('removed_count', 0)} documents from JSONL, {delete_result.get('remaining_count', 0)} remaining")
+                raise HTTPException(status_code=404, detail=f"File {filename} not found")
         else:
-            # Delete entire session folder (including JSONL)
+            # Delete entire session folder
             import shutil
-            for fname in os.listdir(session_dir):
-                if os.path.isfile(os.path.join(session_dir, fname)):
-                    deleted_files.append(fname)
+            for filename in os.listdir(session_dir):
+                if os.path.isfile(os.path.join(session_dir, filename)):
+                    deleted_files.append(filename)
             
             shutil.rmtree(session_dir)
             logger.info(f"Deleted session folder {session_id} for graph {graphname}")

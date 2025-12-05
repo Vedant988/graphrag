@@ -40,7 +40,7 @@ const Setup = () => {
   const navigate = useNavigate();
   const [confirm, confirmDialog, isConfirmDialogOpen] = useConfirm();
   const [availableGraphs, setAvailableGraphs] = useState<string[]>([]);
-  
+
   const [initializeGraphOpen, setInitializeGraphOpen] = useState(false);
   const [graphName, setGraphName] = useState("");
   const [isInitializing, setIsInitializing] = useState(false);
@@ -71,7 +71,7 @@ const Setup = () => {
   const [refreshGraphName, setRefreshGraphName] = useState("");
   const [isRebuildRunning, setIsRebuildRunning] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
-  
+
   // S3 state
   const [fileFormat, setFileFormat] = useState<"json" | "multi">("json");
   const [awsAccessKey, setAwsAccessKey] = useState("");
@@ -129,7 +129,7 @@ const Setup = () => {
     }
 
     const filesArray = Array.from(selectedFiles);
-    
+
     // Check if any single file exceeds the server limit
     const oversizedFiles = filesArray.filter((file) => file.size > MAX_UPLOAD_SIZE_BYTES);
     if (oversizedFiles.length > 0) {
@@ -169,7 +169,7 @@ const Setup = () => {
         setUploadMessage(`✅ ${data.message} Processing...`);
         setSelectedFiles(null);
         await fetchUploadedFiles();
-        
+
         // Step 2: Call create_ingest to process uploaded files
         console.log("Calling handleCreateIngestAfterUpload from main upload...");
         await handleCreateIngestAfterUpload("uploaded");
@@ -200,9 +200,9 @@ const Setup = () => {
       for (let i = 0; i < filesArray.length; i++) {
         const file = filesArray[i];
         const fileNumber = i + 1;
-        
+
         setUploadMessage(`Uploading file ${fileNumber}/${totalFiles}: ${file.name} (${formatBytes(file.size)})...`);
-        
+
         const formData = new FormData();
         formData.append("files", file);
 
@@ -236,10 +236,10 @@ const Setup = () => {
       } else {
         setUploadMessage(`⚠️ Uploaded ${uploadedCount} files successfully, ${failedCount} failed. Processing...`);
       }
-      
+
       setSelectedFiles(null);
       await fetchUploadedFiles();
-      
+
       // Step 2: Call create_ingest to process uploaded files
       console.log("Calling handleCreateIngestAfterUpload...");
       await handleCreateIngestAfterUpload("uploaded");
@@ -261,25 +261,25 @@ const Setup = () => {
 
     try {
       const creds = localStorage.getItem("creds");
-      
-      // Also delete corresponding temp files FIRST if session exists
-      if (tempSessionId) {
-        console.log("Calling handleDeleteTempFilesForOriginal...");
-        await handleDeleteTempFilesForOriginal(filename);
-      }
-      
-      // Then delete original file
-      const response = await fetch(
-        `/ui/${ingestGraphName}/uploads?filename=${encodeURIComponent(filename)}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Basic ${creds}` },
-        }
-      );
+
+      // Delete original file (backend will also delete processed content from JSONL if session_id is provided)
+      const url = tempSessionId
+        ? `/ui/${ingestGraphName}/uploads?filename=${encodeURIComponent(filename)}&session_id=${tempSessionId}`
+        : `/ui/${ingestGraphName}/uploads?filename=${encodeURIComponent(filename)}`;
+
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: { Authorization: `Basic ${creds}` },
+      });
       const data = await response.json();
-      
+
       setUploadMessage(`✅ ${data.message}`);
       await fetchUploadedFiles();
+
+      // Refresh temp files list if session exists
+      if (tempSessionId) {
+        await fetchTempFiles(tempSessionId);
+      }
     } catch (error: any) {
       console.error("Delete error:", error);
       setUploadMessage(`❌ Error: ${error.message}`);
@@ -300,12 +300,12 @@ const Setup = () => {
         headers: { Authorization: `Basic ${creds}` },
       });
       const data = await response.json();
-      
+
       // Also clear temp session
       if (tempSessionId) {
         await handleDeleteAllTempFiles();
       }
-      
+
       setUploadMessage(`✅ ${data.message}`);
       await fetchUploadedFiles();
     } catch (error: any) {
@@ -341,7 +341,7 @@ const Setup = () => {
 
     try {
       const creds = localStorage.getItem("creds");
-      
+
       // Prepare request body based on provider
       let requestBody: any = { provider: cloudProvider };
 
@@ -398,18 +398,11 @@ const Setup = () => {
 
       const data = await response.json();
       if (data.status === "success") {
-        setDownloadMessage(`✅ ${data.message}. Processed ${data.doc_count || 0} document(s)`);
+        setDownloadMessage(`✅ ${data.message}. Processing...`);
         await fetchDownloadedFiles();
-        
-        // Save session ID from automatic processing
-        if (data.temp_session_id) {
-          setTempSessionId(data.temp_session_id);
-          await fetchTempFiles(data.temp_session_id);
-        }
-      } else if (data.status === "partial_success") {
-        setDownloadMessage(`⚠️ ${data.message}`);
-        await fetchDownloadedFiles();
-        // Don't call create_ingest if processing already attempted
+
+        // Step 2: Call create_ingest to process downloaded files
+        await handleCreateIngestAfterUpload("downloaded");
       } else if (data.status === "warning") {
         setDownloadMessage(`⚠️ ${data.message}`);
       } else {
@@ -428,22 +421,21 @@ const Setup = () => {
 
     try {
       const creds = localStorage.getItem("creds");
-      
-      // Build URL with session_id if available
-      let deleteUrl = `/ui/${ingestGraphName}/cloud/delete?filename=${encodeURIComponent(filename)}`;
-      if (tempSessionId) {
-        deleteUrl += `&session_id=${encodeURIComponent(tempSessionId)}`;
-      }
-      
-      const response = await fetch(deleteUrl, {
+
+      // Delete original file (backend will also delete processed content from JSONL if session_id is provided)
+      const url = tempSessionId
+        ? `/ui/${ingestGraphName}/cloud/delete?filename=${encodeURIComponent(filename)}&session_id=${tempSessionId}`
+        : `/ui/${ingestGraphName}/cloud/delete?filename=${encodeURIComponent(filename)}`;
+
+      const response = await fetch(url, {
         method: "DELETE",
         headers: { Authorization: `Basic ${creds}` },
       });
       const data = await response.json();
-      
+
       setDownloadMessage(`✅ ${data.message}`);
       await fetchDownloadedFiles();
-      
+
       // Refresh temp files list if session exists
       if (tempSessionId) {
         await fetchTempFiles(tempSessionId);
@@ -462,26 +454,13 @@ const Setup = () => {
 
     try {
       const creds = localStorage.getItem("creds");
-      
-      // Build URL with session_id if available
-      let deleteUrl = `/ui/${ingestGraphName}/cloud/delete`;
-      if (tempSessionId) {
-        deleteUrl += `?session_id=${encodeURIComponent(tempSessionId)}`;
-      }
-      
-      const response = await fetch(deleteUrl, {
+      const response = await fetch(`/ui/${ingestGraphName}/cloud/delete`, {
         method: "DELETE",
         headers: { Authorization: `Basic ${creds}` },
       });
       const data = await response.json();
       setDownloadMessage(`✅ ${data.message}`);
       await fetchDownloadedFiles();
-      
-      // Clear session ID and refresh temp files
-      if (tempSessionId) {
-        setTempSessionId(null);
-        setTempFiles([]);
-      }
     } catch (error: any) {
       setDownloadMessage(`❌ Error: ${error.message}`);
     }
@@ -558,31 +537,51 @@ const Setup = () => {
   // Delete temp files matching original filename
   const handleDeleteTempFilesForOriginal = async (originalFilename: string) => {
     console.log("handleDeleteTempFilesForOriginal called with:", originalFilename);
-    
+
     if (!ingestGraphName || !tempSessionId) {
       console.log("No graph name or session ID, returning");
       return;
     }
 
     try {
+      // Extract base name without extension (e.g., "document.pdf" -> "document")
+      const baseName = originalFilename.replace(/\.[^/.]+$/, "");
+      console.log("Base name:", baseName);
+
       const creds = localStorage.getItem("creds");
-      
-      // Call the delete endpoint with the original filename
-      // The backend will handle removing all related documents from the JSONL file
-      const deleteResponse = await fetch(
-        `/ui/${ingestGraphName}/ingestion_temp/delete?session_id=${tempSessionId}&filename=${encodeURIComponent(originalFilename)}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Basic ${creds}` },
+
+      // Fetch temp files to find matches
+      const response = await fetch(`/ui/${ingestGraphName}/ingestion_temp/list?session_id=${tempSessionId}`, {
+        headers: { Authorization: `Basic ${creds}` },
+      });
+      const data = await response.json();
+      console.log("Temp files list response:", data);
+
+      if (data.status === "success" && data.sessions.length > 0) {
+        const files = data.sessions[0].files || [];
+        console.log("All temp files:", files.map((f: any) => f.filename));
+
+        // Find temp files matching pattern: doc_{idx}_{baseName}*.json
+        const matchingFiles = files.filter((f: any) => f.filename.includes(`_${baseName}`));
+        console.log("Matching files to delete:", matchingFiles.map((f: any) => f.filename));
+
+        // Delete each matching file
+        for (const file of matchingFiles) {
+          console.log("Deleting temp file:", file.filename);
+          const deleteResponse = await fetch(
+            `/ui/${ingestGraphName}/ingestion_temp/delete?session_id=${tempSessionId}&filename=${encodeURIComponent(file.filename)}`,
+            {
+              method: "DELETE",
+              headers: { Authorization: `Basic ${creds}` },
+            }
+          );
+          const deleteData = await deleteResponse.json();
+          console.log("Delete response:", deleteData);
         }
-      );
-      const deleteData = await deleteResponse.json();
-      console.log("Delete temp files response:", deleteData);
-      
-      if (deleteData.status === "success") {
-        console.log(`Successfully deleted processed documents for ${originalFilename}`);
+
+        console.log(`Successfully deleted ${matchingFiles.length} temp file(s)`);
       } else {
-        console.error("Failed to delete temp files:", deleteData);
+        console.log("No temp files found or empty sessions");
       }
     } catch (error: any) {
       console.error("Error deleting temp files:", error);
@@ -625,9 +624,8 @@ const Setup = () => {
       const ingestData = await ingestResponse.json();
       console.log("Ingest response:", ingestData);
 
-      const docCount = ingestData.document_count || tempFiles.length;
-      setIngestMessage(`✅ Data ingested successfully! Processed ${docCount} document(s).`);
-      
+      setIngestMessage(`✅ Data ingested successfully! Processed ${tempFiles.length} documents.`);
+
       // Clear temp state
       setTempFiles([]);
       setShowTempFiles(false);
@@ -648,7 +646,7 @@ const Setup = () => {
       return;
     }
 
-    const folderPath = sourceType === "uploaded" 
+    const folderPath = sourceType === "uploaded"
       ? `uploads/${ingestGraphName}`
       : `downloaded_files_cloud/${ingestGraphName}`;
 
@@ -687,7 +685,7 @@ const Setup = () => {
 
       // Check if temp files were created (for server data source)
       const sessionId = createData.data_source_id?.temp_session_id;
-      
+
       if (sessionId && !directIngestion) {
         // Files are saved to temp storage - show them for review (only if not direct ingestion)
         setTempSessionId(sessionId);
@@ -696,37 +694,37 @@ const Setup = () => {
           data_source_id: createData.data_source_id,
           data_path: createData.data_path || createData.file_path,
         });
-        setIngestMessage(`✅ Files processed successfully. Review them below before ingesting.`);
+        setIngestMessage(`✅ Processed ${createData.data_source_id.file_count} files. Review them below before ingesting.`);
         await fetchTempFiles(sessionId);
         setIsIngesting(false);
       } else {
         // No temp files (e.g., S3 Bedrock) OR direct ingestion enabled - proceed directly to ingest
-      setIngestMessage("Step 2/2: Running document ingest...");
+        setIngestMessage("Step 2/2: Running document ingest...");
 
-      const loadingInfo = {
-        load_job_id: createData.load_job_id,
-        data_source_id: createData.data_source_id,
+        const loadingInfo = {
+          load_job_id: createData.load_job_id,
+          data_source_id: createData.data_source_id,
           file_path: createData.data_path || createData.file_path,
-      };
+        };
 
-      const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${creds}`,
-        },
-        body: JSON.stringify(loadingInfo),
-      });
+        const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Basic ${creds}`,
+          },
+          body: JSON.stringify(loadingInfo),
+        });
 
-      if (!ingestResponse.ok) {
-        const errorData = await ingestResponse.json();
-        throw new Error(errorData.detail || `Failed to run ingest: ${ingestResponse.statusText}`);
-      }
+        if (!ingestResponse.ok) {
+          const errorData = await ingestResponse.json();
+          throw new Error(errorData.detail || `Failed to run ingest: ${ingestResponse.statusText}`);
+        }
 
-      const ingestData = await ingestResponse.json();
-      console.log("Ingest response:", ingestData);
+        const ingestData = await ingestResponse.json();
+        console.log("Ingest response:", ingestData);
 
-      setIngestMessage(`✅ Data ingested successfully! Processed documents from ${folderPath}/`);
+        setIngestMessage(`✅ Data ingested successfully! Processed documents from ${folderPath}/`);
         setIsIngesting(false);
       }
     } catch (error: any) {
@@ -740,16 +738,16 @@ const Setup = () => {
   const handleCreateIngestAfterUpload = async (sourceType: "uploaded" | "downloaded" = "uploaded") => {
     console.log("handleCreateIngestAfterUpload called with sourceType:", sourceType);
     console.log("ingestGraphName:", ingestGraphName);
-    
+
     if (!ingestGraphName) {
       console.log("No graph name, returning early");
       return;
     }
 
-    const folderPath = sourceType === "uploaded" 
+    const folderPath = sourceType === "uploaded"
       ? `uploads/${ingestGraphName}`
       : `downloaded_files_cloud/${ingestGraphName}`;
-    
+
     console.log("folderPath:", folderPath);
 
     try {
@@ -764,7 +762,7 @@ const Setup = () => {
         loader_config: {},
         file_format: "multi"
       };
-      
+
       console.log("Calling create_ingest with config:", createIngestConfig);
 
       const createResponse = await fetch(`/ui/${ingestGraphName}/create_ingest`, {
@@ -775,7 +773,7 @@ const Setup = () => {
         },
         body: JSON.stringify(createIngestConfig),
       });
-      
+
       console.log("create_ingest response status:", createResponse.status);
 
       if (!createResponse.ok) {
@@ -786,10 +784,10 @@ const Setup = () => {
 
       const createData = await createResponse.json();
       console.log("create_ingest response data:", createData);
-      
+
       const sessionId = createData.data_source_id?.temp_session_id;
       console.log("Session ID:", sessionId);
-      
+
       if (sessionId) {
         // Save session ID for later ingest
         setTempSessionId(sessionId);
@@ -798,16 +796,16 @@ const Setup = () => {
           data_source_id: createData.data_source_id,
           data_path: createData.data_path || createData.file_path,
         });
-        
+
         console.log("Direct ingestion enabled:", directIngestion);
-        
+
         if (directIngestion) {
           // Direct ingestion - proceed to ingest immediately
           setUploadMessage("Running direct ingestion...");
           await handleRunIngest();
         } else {
           // Save for later - files ready for ingestion
-          setUploadMessage(`✅ Files processed successfully. Ready for ingestion.`);
+          setUploadMessage(`✅ Successfully processed ${createData.data_source_id.file_count} files. Ready for ingestion.`);
         }
       } else {
         console.warn("No session ID returned from create_ingest");
@@ -969,9 +967,9 @@ const Setup = () => {
         const statusData = await statusResponse.json();
         const wasRunning = isRebuildRunning;
         const isCurrentlyRunning = statusData.is_running || false;
-        
+
         setIsRebuildRunning(isCurrentlyRunning);
-        
+
         if (isCurrentlyRunning) {
           const startTime = statusData.started_at ? new Date(statusData.started_at * 1000).toLocaleString() : "unknown time";
           setRefreshMessage(`⚠️ A rebuild is already in progress for "${graphName}" (started at ${startTime}). Please wait for it to complete.`);
@@ -1027,7 +1025,7 @@ const Setup = () => {
 
     try {
       const creds = localStorage.getItem("creds");
-      
+
       const response = await fetch(`/ui/${refreshGraphName}/rebuild_graph`, {
         method: "POST",
         headers: {
@@ -1058,12 +1056,12 @@ const Setup = () => {
     if (refreshOpen && refreshGraphName) {
       // Check status immediately when dialog opens
       checkRebuildStatus(refreshGraphName, true);
-      
+
       // Set up polling to check status every 5 seconds while dialog is open
       const intervalId = setInterval(() => {
         checkRebuildStatus(refreshGraphName, false);
       }, 5000);
-      
+
       return () => clearInterval(intervalId);
     }
   }, [refreshOpen, refreshGraphName]);
@@ -1163,10 +1161,10 @@ const Setup = () => {
         setIsInitializing(false);
         return;
       }
-      
+
       setStatusMessage(`✅ Graph "${graphName}" created and initialized successfully! You can now close this dialog.`);
       setStatusType("success");
-      
+
       // Add the new graph to the available graphs list
       const newGraph = graphName;
       setAvailableGraphs(prev => {
@@ -1180,7 +1178,7 @@ const Setup = () => {
         }
         return prev;
       });
-      
+
       // Set the newly created graph as selected for ingestion
       setIngestGraphName(graphName);
       setRefreshGraphName(graphName);
@@ -1216,7 +1214,7 @@ const Setup = () => {
 
         {/* Three cards displayed horizontally */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Section 1: Initialize Knowledge Graph */}
           <div className="border border-gray-300 dark:border-[#3D3D3D] rounded-lg p-6 bg-white dark:bg-shadeA flex flex-col h-full">
             <div className="mb-4">
@@ -1231,7 +1229,7 @@ const Setup = () => {
               </p>
             </div>
             <div className="mt-auto pt-4 border-t border-gray-300 dark:border-[#3D3D3D]">
-              <Button 
+              <Button
                 className="gradient w-full text-white"
                 onClick={() => setInitializeGraphOpen(true)}
               >
@@ -1255,7 +1253,7 @@ const Setup = () => {
               </p>
             </div>
             <div className="mt-auto pt-4 border-t border-gray-300 dark:border-[#3D3D3D]">
-              <Button 
+              <Button
                 className="gradient w-full text-white"
                 onClick={() => setIngestOpen(true)}
               >
@@ -1279,7 +1277,7 @@ const Setup = () => {
               </p>
             </div>
             <div className="mt-auto pt-4 border-t border-gray-300 dark:border-[#3D3D3D]">
-              <Button 
+              <Button
                 className="gradient w-full text-white"
                 onClick={() => setRefreshOpen(true)}
               >
@@ -1292,7 +1290,7 @@ const Setup = () => {
         </div>
 
         {/* Initialize Graph Dialog */}
-        <Dialog 
+        <Dialog
           open={initializeGraphOpen}
           onOpenChange={(open) => {
             // Prevent closing if confirm dialog is open
@@ -1302,7 +1300,7 @@ const Setup = () => {
             setInitializeGraphOpen(open);
           }}
         >
-          <DialogContent 
+          <DialogContent
             className="sm:max-w-[500px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D]"
             onInteractOutside={(e) => e.preventDefault()}
           >
@@ -1312,7 +1310,7 @@ const Setup = () => {
                 Enter the name of your knowledge graph. The system will create it if necessary and initialize it with the GraphRAG schema.
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="py-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2 text-black dark:text-white">
@@ -1334,13 +1332,12 @@ const Setup = () => {
 
               {statusMessage && (
                 <div
-                  className={`p-3 rounded-lg text-sm ${
-                    statusType === "success"
-                      ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                      : statusType === "error"
+                  className={`p-3 rounded-lg text-sm ${statusType === "success"
+                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                    : statusType === "error"
                       ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
                       : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                  }`}
+                    }`}
                 >
                   {statusMessage}
                 </div>
@@ -1400,8 +1397,8 @@ const Setup = () => {
         </Dialog>
 
         {/* Data Ingest Dialog */}
-        <Dialog 
-          open={ingestOpen} 
+        <Dialog
+          open={ingestOpen}
           onOpenChange={(open) => {
             // Prevent closing if confirm dialog is open
             if (!open && isConfirmDialogOpen) {
@@ -1410,7 +1407,7 @@ const Setup = () => {
             setIngestOpen(open);
           }}
         >
-          <DialogContent 
+          <DialogContent
             className="sm:max-w-[700px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D] max-h-[80vh] overflow-y-auto"
             onInteractOutside={(e) => e.preventDefault()}
           >
@@ -1481,23 +1478,23 @@ const Setup = () => {
                       disabled={isUploading}
                       className="dark:border-[#3D3D3D] dark:bg-shadeA"
                     />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Maximum upload per request: {MAX_UPLOAD_SIZE_MB} MB.
-                  </p>
-                  
-                  {/* Direct Ingestion Checkbox */}
-                  <div className="flex items-center mt-3 mb-2">
-                    <input
-                      type="checkbox"
-                      id="directIngestion"
-                      checked={directIngestion}
-                      onChange={(e) => setDirectIngestion(e.target.checked)}
-                      className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label htmlFor="directIngestion" className="text-sm text-gray-700 dark:text-gray-300">
-                      Direct Ingestion (upload + process + ingest all at once)
-                    </label>
-                  </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Maximum upload per request: {MAX_UPLOAD_SIZE_MB} MB.
+                    </p>
+
+                    {/* Direct Ingestion Checkbox */}
+                    <div className="flex items-center mt-3 mb-2">
+                      <input
+                        type="checkbox"
+                        id="directIngestion"
+                        checked={directIngestion}
+                        onChange={(e) => setDirectIngestion(e.target.checked)}
+                        className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="directIngestion" className="text-sm text-gray-700 dark:text-gray-300">
+                        Direct Ingestion (upload + process + ingest all at once)
+                      </label>
+                    </div>
                   </div>
 
                   <div className="flex gap-2">
@@ -1546,7 +1543,7 @@ const Setup = () => {
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                         Process uploaded files and add them to the knowledge graph
                       </p>
-                      
+
                       <Button
                         onClick={handleRunIngest}
                         disabled={isIngesting || !tempSessionId}
@@ -1565,13 +1562,12 @@ const Setup = () => {
                         )}
                       </Button>
                       {ingestMessage && (
-                        <div className={`p-3 rounded-lg text-sm mt-3 ${
-                          ingestMessage.includes("✅")
-                            ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                            : ingestMessage.includes("❌")
+                        <div className={`p-3 rounded-lg text-sm mt-3 ${ingestMessage.includes("✅")
+                          ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                          : ingestMessage.includes("❌")
                             ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
                             : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                        }`}>
+                          }`}>
                           {ingestMessage}
                         </div>
                       )}
@@ -1806,7 +1802,7 @@ const Setup = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                       Files will be downloaded to: downloaded_files_cloud/{ingestGraphName}/
                     </p>
-                    <Button 
+                    <Button
                       onClick={handleCloudDownload}
                       disabled={isDownloading}
                       className="gradient text-white w-full"
@@ -1826,13 +1822,12 @@ const Setup = () => {
                   </div>
 
                   {downloadMessage && (
-                    <div className={`p-3 rounded-lg text-sm mt-3 ${
-                      downloadMessage.includes("✅")
-                        ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                        : downloadMessage.includes("❌")
+                    <div className={`p-3 rounded-lg text-sm mt-3 ${downloadMessage.includes("✅")
+                      ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                      : downloadMessage.includes("❌")
                         ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
                         : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                    }`}>
+                      }`}>
                       {downloadMessage}
                     </div>
                   )}
@@ -1886,7 +1881,7 @@ const Setup = () => {
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                         Process downloaded files and add them to the knowledge graph
                       </p>
-                      
+
                       <Button
                         onClick={handleRunIngest}
                         disabled={isIngesting || !tempSessionId}
@@ -1905,13 +1900,12 @@ const Setup = () => {
                         )}
                       </Button>
                       {ingestMessage && (
-                        <div className={`p-3 rounded-lg text-sm mt-3 ${
-                          ingestMessage.includes("✅")
-                            ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                            : ingestMessage.includes("❌")
+                        <div className={`p-3 rounded-lg text-sm mt-3 ${ingestMessage.includes("✅")
+                          ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                          : ingestMessage.includes("❌")
                             ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
                             : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                        }`}>
+                          }`}>
                           {ingestMessage}
                         </div>
                       )}
@@ -2048,13 +2042,12 @@ const Setup = () => {
                       )}
                     </Button>
                     {ingestMessage && (
-                      <div className={`p-3 rounded-lg text-sm mt-3 ${
-                        ingestMessage.includes("✅")
-                          ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                          : ingestMessage.includes("❌")
+                      <div className={`p-3 rounded-lg text-sm mt-3 ${ingestMessage.includes("✅")
+                        ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                        : ingestMessage.includes("❌")
                           ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
                           : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                      }`}>
+                        }`}>
                         {ingestMessage}
                       </div>
                     )}
@@ -2079,8 +2072,8 @@ const Setup = () => {
         </Dialog>
 
         {/* Refresh Graph Dialog */}
-        <Dialog 
-          open={refreshOpen} 
+        <Dialog
+          open={refreshOpen}
           onOpenChange={(open) => {
             // Prevent closing if confirm dialog is open
             if (!open && isConfirmDialogOpen) {
@@ -2089,7 +2082,7 @@ const Setup = () => {
             setRefreshOpen(open);
           }}
         >
-          <DialogContent 
+          <DialogContent
             className="sm:max-w-[500px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D]"
             onInteractOutside={(e) => e.preventDefault()}
           >
@@ -2130,19 +2123,18 @@ const Setup = () => {
                   ⚠️ Warning
                 </p>
                 <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                  This operation will rebuild the graph content that will interrupt related queries. 
+                  This operation will rebuild the graph content that will interrupt related queries.
                   Please confirm to proceed.
                 </p>
               </div>
 
               {refreshMessage && (
-                <div className={`p-3 rounded-lg text-sm ${
-                  refreshMessage.includes("✅")
-                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                    : refreshMessage.includes("❌")
+                <div className={`p-3 rounded-lg text-sm ${refreshMessage.includes("✅")
+                  ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                  : refreshMessage.includes("❌")
                     ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
                     : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                }`}>
+                  }`}>
                   {refreshMessage}
                 </div>
               )}
