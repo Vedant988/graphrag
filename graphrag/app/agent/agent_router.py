@@ -32,7 +32,7 @@ class TigerGraphAgentRouter:
         self.llm = llm_model
         self.db_conn = db_conn
 
-    def route_question(self, question: str) -> str:
+    def route_question(self, question: str, conversation: list[dict[str, str]] = None) -> str:
         """Route a question to the appropriate datasource.
 
         Args:
@@ -45,11 +45,11 @@ class TigerGraphAgentRouter:
         v_types = self.db_conn.getVertexTypes()
         e_types = self.db_conn.getEdgeTypes()
 
-        router_parser = PydanticOutputParser(pydantic_object=RouterResponse)
+        router_parser = PydanticOutputParser[RouterResponse](pydantic_object=RouterResponse)
 
         prompt = PromptTemplate(
             template=self.llm.route_response_prompt,
-            input_variables=["question", "v_types", "e_types"],
+            input_variables=["question", "v_types", "e_types", "conversation"],
             partial_variables={
                 "format_instructions": router_parser.get_format_instructions()
             }
@@ -58,7 +58,7 @@ class TigerGraphAgentRouter:
         question_router = prompt | self.llm.model | router_parser
         usage_data = {}
         with get_openai_callback() as cb:
-            res = question_router.invoke({"question": question, "v_types": v_types, "e_types": e_types})
+            res = question_router.invoke({"question": question, "v_types": v_types, "e_types": e_types, "conversation": conversation})
 
             usage_data["input_tokens"] = cb.prompt_tokens
             usage_data["output_tokens"] = cb.completion_tokens

@@ -98,11 +98,29 @@ export const Interactions: FC<Interactions> = ({
             <span className="text-xs">Explain</span>
           </div>
 
-          <div className="w-[28px] h-[28px] bg-shadeA flex items-center justify-center rounded-sm ml-5 mr-1 cursor-pointer" onClick={() => showGraph()}>
+          <div
+            className={`w-[28px] h-[28px] bg-shadeA flex items-center justify-center rounded-sm ml-5 mr-1 ${
+              message.query_sources?.result?.edges ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+            }`}
+            onClick={() => {
+              if (message.query_sources?.result?.edges) {
+                showGraph();
+              }
+            }}
+          >
             <PiGraph className="text-[15px]" />
           </div>
 
-          <div className="w-[28px] h-[28px] bg-shadeA flex items-center justify-center rounded-sm mr-1 cursor-pointer" onClick={() => showTable()}>
+          <div
+            className={`w-[28px] h-[28px] bg-shadeA flex items-center justify-center rounded-sm mr-1 ${
+              message.query_sources?.result ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+            }`}
+            onClick={() => {
+              if (message.query_sources?.result) {
+                showTable();
+              }
+            }}
+          >
             <FaTable className="text-[15px]" />
           </div>
 

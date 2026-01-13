@@ -295,7 +295,7 @@ class TigerGraphEmbeddingStore(EmbeddingStore):
             logger.info(f"Return result {res} for all_has_embeddings({v_type})")
             return res[0]["all_have_embedding"]
         except Exception as e:
-            logger.info(f"Exception {str(e)} when running has_embeddings({v_type}, {v_id}), return False")
+            logger.info(f"Exception {str(e)} when running check_embedding_rebuilt({v_type}), return False")
         return False
 
     def remove_embeddings(
@@ -335,7 +335,7 @@ class TigerGraphEmbeddingStore(EmbeddingStore):
                 }
             )
             end_time = time()
-            logger.info(f"Got {top_k} similar entries: {verts}")
+            # logger.info(f"Got {top_k} similar entries: {verts}")
             similar = []
             for r in verts:
                 if "results" in r:
@@ -402,13 +402,13 @@ class TigerGraphEmbeddingStore(EmbeddingStore):
         output_fields: List[str] = ["*"],
     ):
         if only_custom and graphname:
-            PASS
+            pass
         elif only_custom:
-            PASS
+            pass
         elif graphname:
-            PASS
+            pass
         else:
-            PASS
+            pass
         return []
 
     def query(self, expr: str, output_fields: List[str]):

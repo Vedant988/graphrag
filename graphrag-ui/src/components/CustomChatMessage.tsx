@@ -63,20 +63,30 @@ const AuthenticatedImage: FC<{ src: string; alt: string }> = ({ src, alt }) => {
         // Get credentials from localStorage (same pattern as Interact.tsx and SideMenu.tsx)
         const creds = localStorage.getItem("creds");
         if (!creds) {
+          console.error("No credentials found in localStorage");
           setError(true);
           setLoading(false);
           return;
         }
+
+        console.log("Fetching image:", src);
+        console.log("Using credentials:", creds ? "present" : "missing");
 
         // Fetch image with authentication header
         const response = await fetch(src, {
           headers: {
             Authorization: `Basic ${creds}`,
           },
+          credentials: 'include', // Include credentials in CORS requests
         });
 
+        console.log("Image fetch response status:", response.status);
+
         if (!response.ok) {
-          throw new Error(`Failed to load image: ${response.status}`);
+          const errorText = await response.text().catch(() => 'Unknown error');
+          console.error(`Failed to load image: ${response.status}`, errorText);
+          console.error("Response headers:", Object.fromEntries(response.headers.entries()));
+          throw new Error(`Failed to load image: ${response.status} - ${errorText}`);
         }
 
         // Convert to blob and create object URL
@@ -139,7 +149,7 @@ export const CustomChatMessage: FC<IChatbotMessageProps> = ({
   };
 
   const handleShowTable = () => {
-    if (!message.query_sources?.result && !message.query_sources?.answer) {
+    if (message.response_type == 'history' || !message.query_sources?.result) {
       return false;
     }
     setShowTableVis(prev => !prev);
@@ -163,7 +173,7 @@ export const CustomChatMessage: FC<IChatbotMessageProps> = ({
     <>
       {typeof message === "string" ? (
         <div className="prose dark:prose-invert text-sm max-w-[230px] md:max-w-[80%] mt-7 mb-7">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} className="typewriter">{message}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents} className="typewriter">{message}</ReactMarkdown>
         </div>
       ) : message.key === null ? (
         message
@@ -173,7 +183,7 @@ export const CustomChatMessage: FC<IChatbotMessageProps> = ({
             {message.response_type === "progress" ? (
               <p className="graphrag-thinking typewriter">{message.content}</p>
             ) : (
-              <ReactMarkdown remarkPlugins={[remarkGfm]} className="typewriter">{message.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents} className="typewriter">{message.content}</ReactMarkdown>
             )}
             <Interactions
               message={message} 
@@ -215,8 +225,6 @@ export const CustomChatMessage: FC<IChatbotMessageProps> = ({
             <div className="relative w-full h-[550px] my-10 border border-solid border-[#000] my-10 h-auto">
               {message.query_sources?.result ? (
                 <KnowledgeTablPro data={message.query_sources?.result} />
-              ) : message.query_sources?.answer ? (
-                <KnowledgeTablPro data={message.query_sources?.answer} />
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
                   No table data available

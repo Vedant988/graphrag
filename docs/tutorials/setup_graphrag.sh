@@ -23,28 +23,29 @@ if [[ -z "$tg_version" || ! "$tg_version" =~ ^4\.[23]\. ]]; then
 fi
 
 root_dir=${1:-./graphrag}
-tg_username=$(echo ${2:-tigergraph} | sed 's/[][\/.^$*+?|(){}]/\\&/g')
-tg_password=$(echo ${3:-tigergraph} | sed 's/[][\/.^$*+?|(){}]/\\&/g')
+llm_provider=${2:-openai}
+tg_username=$(echo ${3:-tigergraph} | sed 's/[][\/.^$*+?|(){}]/\\&/g')
+tg_password=$(echo ${4:-tigergraph} | sed 's/[][\/.^$*+?|(){}]/\\&/g')
 
-if [[ -z $OPENAI_API_KEY ]]; then
-  echo "OPENAI_API_KEY is not found in current environment, please set it using 'export OPENAI_API_KEY=xxx'."
-  exit 5
+if [[ -z $LLM_API_KEY ]]; then
+  echo "Warning: LLM_API_KEY is not found in current environment, please set it using 'export LLM_API_KEY=xxx'."
+  echo "Or manaully modify ${root_dir}/configs/server_config.json to set the LLM_API_KEY then re-run 'docker compose up -d'."
 fi
 
 mkdir -p $root_dir || true
-[[ -d $root_dir ]] || (echo "Target dir $root_dir is not found!" && exit 6)
+[[ -d $root_dir ]] || (echo "Target dir $root_dir is not found!" && exit 5)
 
 echo "Entering GraphRAG root dir: $root_dir"
-cd $root_dir || (echo "Cannot switch to $root_dir!" && exit 6)
+cd $root_dir || (echo "Cannot switch to $root_dir!" && exit 5)
 
 echo "Downloading GraphRAG sevice config..."
 mkdir -p configs || true
 curl -sk https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/docker-compose.yml | sed "s/community:4.2.1/community:${tg_version}/g" > docker-compose.yml
 curl -sk https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/nginx.conf -o configs/nginx.conf
-curl -sk https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/server_config.json | sed '/"gsPort": "14240"/a\
+curl -sk "https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/server_config.json.${llm_provider}" | sed '/"gsPort": "14240"/a\
     "username": "'${tg_username}'",\
     "password": "'${tg_password}'",
-' | sed "s/YOUR_OPENAI_API_KEY_HERE/${OPENAI_API_KEY}/g" > configs/server_config.json
+' | sed "s/YOUR_LLM_API_KEY_HERE/${LLM_API_KEY}/g" > configs/server_config.json
 
 echo "Starting GraphRAG sevices.."
 docker compose pull --ignore-pull-failures
@@ -53,10 +54,22 @@ sleep 5
 
 echo "Checking service status..."
 if ! curl -s http://localhost:14240/restpp/version >/dev/null; then
+  echo "Starting TigerGraph instance..."
   docker exec tigergraph /home/tigergraph/tigergraph/app/cmd/gadmin start all >/dev/null
-  docker compose up -d >/dev/null
   sleep 5
 fi
+
+time_out=300
+while [[ $time_out > 0 ]]; do
+  if ! curl -s http://localhost:14240/restpp/version >/dev/null; then
+    echo "Waiting for TigerGraph instance to be ready..."
+    sleep 5
+    time_out=$((timeout-5))
+  else
+    docker compose up -d graphrag >/dev/null
+    break
+  fi
+done
 
 if ! docker ps | grep "tigergraph/graphrag:latest" >/dev/null; then
   echo "Failed to start GraphRAG service."

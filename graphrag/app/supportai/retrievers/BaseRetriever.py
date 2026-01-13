@@ -2,8 +2,8 @@ from common.embeddings.embedding_services import EmbeddingModel
 from common.embeddings.base_embedding_store import EmbeddingStore
 from common.metrics.tg_proxy import TigerGraphConnectionProxy
 from common.llm_services.base_llm import LLM_Model
-from common.py_schemas import CandidateScore, CandidateGenerator
-from common.utils.token_calculator import TokenCalculator
+from common.py_schemas import CandidateScore, CandidateGenerator, GraphRAGAnswerOutput
+from common.utils.token_calculator import get_token_calculator
 from common.config import completion_config
 
 from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser
@@ -29,7 +29,7 @@ class BaseRetriever:
         self.embedding_store = embedding_store
         self.embedding_store.set_graphname(connection.graphname)
         self.logger = logging.getLogger(__name__)
-        self.token_calculator = TokenCalculator(token_limit=completion_config.get("token_limit"), model_name=completion_config.get("llm_model"))
+        self.token_calculator = get_token_calculator(token_limit=completion_config.get("token_limit"), model_name=completion_config.get("llm_model"))
 
     def _install_query(self, query_name):
         self.logger.info(f"Installing query {query_name}")
@@ -128,7 +128,7 @@ class BaseRetriever:
 
         return questions
 
-    def _generate_response(self, question, retrieved, verbose):
+    def _generate_response(self, question, retrieved, query = "", verbose = False):
         # Truncate retrieved sources to fit within token limit
         if not self.token_calculator.is_unlimited_tokens():
             # Reserve tokens for question, query, and format instructions (approximately 1000 tokens)
@@ -141,19 +141,17 @@ class BaseRetriever:
                     self.logger.info(f"Truncated retrieved text from {retrieved_tokens} to {max_context_tokens} tokens")
 
         model = self.llm_service.llm
-        prompt = self.llm_service.supportai_response_prompt
-
-        prompt = ChatPromptTemplate.from_template(prompt)
-        output_parser = StrOutputParser()
+        prompt = ChatPromptTemplate.from_template(self.llm_service.chatbot_response_prompt)
+        output_parser = PydanticOutputParser(pydantic_object=GraphRAGAnswerOutput)
 
         if verbose:
-            self.logger.info("Prompt to LLM:\n" + prompt.invoke({"question": question, "sources": retrieved}).to_string())
+            self.logger.info("Prompt to LLM:\n" + prompt.invoke({"question": question, "context": retrieved, "query": query, "format_instructions": output_parser.get_format_instructions()}).to_string())
 
         chain = prompt | model | output_parser
 
         usage_data = {}
         with get_openai_callback() as cb:
-            generated = chain.invoke({"question": question, "sources": retrieved})
+            generated = chain.invoke({"question": question, "context": retrieved, "query": query, "format_instructions": output_parser.get_format_instructions()})
 
             usage_data["input_tokens"] = cb.prompt_tokens
             usage_data["output_tokens"] = cb.completion_tokens
@@ -161,7 +159,7 @@ class BaseRetriever:
             usage_data["cost"] = cb.total_cost
             self.logger.info(f"generate_response usage: {usage_data}")
 
-        return {"response": generated, "retrieved": retrieved}
+        return {"response": generated.generated_answer, "retrieved": retrieved}
 
     def _generate_embedding(self, text, str_mode: bool = False) -> str:
         embedding = self.emb_service.embed_query(text)

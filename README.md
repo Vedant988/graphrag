@@ -22,7 +22,12 @@
 - [Use TigerGraph GraphRAG](#use-tigergraph-graphrag)
   - [Run Demo with Preloaded GraphRAG](#run-demo-with-preloaded-graphrag)
   - [Manually Build GraphRAG From Scratch](#manually-build-graphrag-from-scratch)
-- [Detailed Data Ingestion Methods](#detailed-data-ingestion-methods)
+- [Document Ingestion for Knowledge Graph](#document-ingestion-for-knowledge-graph)
+  - [Ingest Documents from the UI](#ingest-documents-from-the-ui)
+    - [Local File Upload](#local-file-upload)
+    - [Download from Cloud](#download-from-cloud)
+    - [Use Amazon BDA](#use-amazon-bda)
+  - [Ingest Documents via API](#ingest-documents-via-api)
 - [More Detailed Configurations](#more-detailed-configurations)
   - [DB configuration](#db-configuration)
   - [GraphRAG configuration](#graphrag-configuration)
@@ -45,18 +50,23 @@
     - [Configure Testing Graphs](#configure-testing-graphs)
     - [Configure Weights and Biases](#configure-weights-and-biases)
 
+---
+
 ## Releases
+* **11/20/2025: GraphRAG is available now officially v1.2 (v1.2.0). Admin UI is added to support initialize/ingest/refresh knowledge graph directly with raw document files.
 * **9/22/2025: GraphRAG is available now officially v1.1 (v1.1.0). AWS Bedrock support is completed with BDA integration for multimodal document ingestion.
 * **6/18/2025: GraphRAG is available now officially v1.0 (v1.0.0). TigerGraph database is the only graph and vector storagge supported.
 Please see [Release Notes](https://docs.tigergraph.com/tg-graphrag/current/release-notes/) for details.
+
+---
 
 ## Overview
 
 ![GraphRAG Overview](./docs/img/TG-GraphRAG-Overview.png)
 
 TigerGraph GraphRAG is an AI assistant that is meticulously designed to combine the powers of vector store, graph databases and generative AI to draw the most value from data and to enhance productivity across various business functions, including analytics, development, and administration tasks. It is one AI assistant with two core component services:
-* A natural language assistant for graph-powered solutions
-* A knowledge Q&A assistant for documents and graphs
+* A natural language assistant for Q&A with graph-powered solutions
+* A knowledge graph builder for managing documents and graphs
 
 You can interact with GraphRAG through the built-in chat interface and APIs. For now, your own LLM services (from OpenAI, Azure, GCP, AWS Bedrock, Ollama, Hugging Face and Groq.) are required to use GraphRAG, but in future releases you can use TigerGraph’s LLMs.
 
@@ -80,6 +90,7 @@ Organizing the data as a knowledge graph allows a chatbot to access accurate, fa
 
 [Go back to top](#top)
 
+---
 
 ## Getting Started
 
@@ -92,23 +103,24 @@ Organizing the data as a knowledge graph allows a chatbot to access accurate, fa
 ### Quick Start
 
 #### Use TigerGraph Docker-Based Instance
-Set your OpenAI api key as environment varabiel OPENAI_API_KEY and use the following command for a one-step quick deployment with TigerGraph Community Edition and default configurations:
+Set your LLM Provider (supported `openai` or `gemini`) api key as environment varabiel LLM_API_KEY and use the following command for a one-step quick deployment with TigerGraph Community Edition and default configurations:
 ```
-curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag.sh | sh
+curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag.sh | bash
 ```
 
 The GraphRAG instances will be deployed at `./graphrag` folder and TigerGraph instance will be available at `http://localhost:14240`.
-To change installation folder, use `sh -s -- <graphrag_folder>` instead of `sh` at the end of the above command.
+To change installation folder, use `bash -s -- <graphrag_folder> <llm_provider>` instead of `bash` at the end of the above command.
+
+> Note: for other LLM providers, manually update `configs/server_config.json` accordingly and re-run `docker compose up -d`
 
 #### Use Pre-Installed TigerGraph Instance
-
-Using the following command for a one-step quick deployment with TigerGraph Community Edition and default configurations:
+Similar to the above setup, and use the following command for a one-step quick deployment connecting to a pre-installed TigerGraph with default configurations:
 ```
-curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag_tg.sh | sh
+curl -k https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/setup_graphrag_tg.sh | bash
 ```
 
 The GraphRAG instances will be deployed at `./graphrag` folder and connect to TigerGraph instance at `http://localhost:14240` by default.
-To change installation folder, TigerGraph instance location or username/password, use `sh -s -- <graphrag_loc> <tg_host> <tg_port> <tg_username> <tg_password>` instead of `sh` at the end of the above command.
+To change installation folder, TigerGraph instance location or username/password, use `bash -s -- <graphrag_folder> <llm_provider> <tg_host> <tg_port> <tg_username> <tg_password>` instead of `bash` at the end of the above command.
 
 [Go back to top](#top)
 
@@ -140,7 +152,7 @@ Here’s what the folder structure looks like:
 
 ##### Step 3: Adjust configurations
 
-Edit `llm_config` section of `configs/server_config.json` and replace `<YOUR_OPENAI_API_KEY>` to your own OPENAI_API_KEY. 
+Edit `llm_config` section of `configs/server_config.json` and replace `<YOUR_LLM_API_KEY>` to your own LLM_API_KEY for the LLM provider. 
  
 > If desired, you can also change the model to be used for the embedding service and completion service to your preferred models to adjust the output from the LLM service.
 
@@ -237,6 +249,7 @@ gadmin stop all
 
 [Go back to top](#top)
 
+---
 
 ## Use TigerGraph GraphRAG
 
@@ -332,12 +345,68 @@ The script will:
 
 [Go back to top](#top)
 
+---
 
-## Detailed Data Ingestion Methods
-For more examples of data ingestion, please follow the [GraphRAG Demo Notebook](./docs/notebooks/GraphRAGDemo.ipynb)
+## Document Ingestion for Knowledge Graph
+
+Documents can be ingested into the knowledge graph either through the UI Admin page or manually via backend APIs.
+
+> **Import Note**: Knowledge Graph needs to be initialized before document ingestion and should be refreshed after document ingestion to update graph content
+
+![Document Processing Workflow](./docs/img/IngestionWorkflow.png)
+
+### Ingest Documents from the UI
+
+You can upload local files, download files from cloud storage, or use **Amazon Bedrock Data Automation (BDA)** as an external pre-processor for document ingestion.
+
+#### Local File Upload
+
+Local file ingestion follows a two-step process:
+
+1. **Upload local files to the server**  
+   Files are first uploaded to the GraphRAG server for pre-processing.  
+   - Multimodal files (e.g., PDFs) are converted into text along with extracted images.  
+   - Each image receives a generated description and a reference inside the converted text file.  
+   - Uploaded files may be manually deleted before ingestion if they are no longer needed.
+
+2. **Ingest files into your knowledge graph**  
+   The pre-processed documents are loaded into the graph database as vertices using a dedicated ingestion job.
+
+![Upload Files](./docs/img/LocalFileUpload.png)
+
+#### Download from Cloud
+
+Cloud ingestion works similarly to local uploads and also follows a two-step process:
+
+1. **Download files from cloud storage**  
+   Instead of selecting local files, you can connect to a cloud provider (S3, GCS, Azure) using the appropriate credentials.  
+   - Files are downloaded to the GraphRAG server for pre-processing.  
+   - Multimodal files (e.g., PDFs) are converted to text with extracted images, each with descriptive references.  
+   - Downloaded files can be manually deleted before ingestion if no longer needed.
+
+2. **Ingest files into your knowledge graph**  
+   After pre-processing, the documents are loaded into the graph database as vertices via a dedicated ingestion job.
+
+![Download from Cloud](./docs/img/DownloadFromCloud.png)
+
+#### Use Amazon BDA
+
+You may choose **Amazon Bedrock Data Automation (BDA)** as the external document pre-processor instead of the built-in GraphRAG processor.  
+- Amazon BDA processes multimodal documents stored in an S3 bucket.  
+- It writes the converted outputs to a separate S3 bucket.  
+- These processed documents can then be ingested directly into your knowledge graph.  
+- This method is a **single-step ingestion workflow** since pre-processing is completed by BDA.
+
+![Use Amazon BDA](./docs/img/UseAmazonBDA.png)
+
+### Ingest Documents via API
+
+For examples of how to ingest documents through the backend API, refer to the **[GraphRAG Demo Notebook](./docs/notebooks/GraphRAGDemo.ipynb)**.
+
 
 [Go back to top](#top)
 
+---
 
 ## More Detailed Configurations
 
@@ -417,7 +486,7 @@ In addition to the `OPENAI_API_KEY`, `llm_model` and `model_name` can be edited 
             "model_kwargs": {
                 "temperature": 0
             },
-            "prompt_path": "./app/prompts/openai_gpt4/"
+            "prompt_path": "./common/prompts/openai_gpt4/"
         }
     }
 }
@@ -477,7 +546,7 @@ And your JSON config should follow as:
             "model_kwargs": {
                 "temperature": 0
             },
-            "prompt_path": "./app/prompts/gcp_vertexai_palm/"
+            "prompt_path": "./common/prompts/gcp_vertexai_palm/"
         }
     }
 }
@@ -514,7 +583,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
             "model_kwargs": {
                 "temperature": 0
             },
-            "prompt_path": "./app/prompts/azure_open_ai_gpt35_turbo_instruct/"
+            "prompt_path": "./common/prompts/azure_open_ai_gpt35_turbo_instruct/"
         }
     }
 }
@@ -545,7 +614,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
             "model_kwargs": {
                 "temperature": 0,
             },
-            "prompt_path": "./app/prompts/aws_bedrock_claude3haiku/"
+            "prompt_path": "./common/prompts/aws_bedrock_claude3haiku/"
         }
     }
 }
@@ -571,7 +640,7 @@ In addition to the `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `azure_d
             "model_kwargs": {
                 "temperature": 0.0000001
             },
-            "prompt_path": "./app/prompts/openai_gpt4/"
+            "prompt_path": "./common/prompts/openai_gpt4/"
         }
     }
 }
@@ -601,7 +670,7 @@ Example configuration for a model on Hugging Face with a dedicated endpoint is s
             "model_kwargs": {
                 "temperature": 0.1
             },
-            "prompt_path": "./app/prompts/openai_gpt4/"
+            "prompt_path": "./common/prompts/openai_gpt4/"
         }
     }
 }
@@ -628,7 +697,7 @@ Example configuration for a model on Hugging Face with a serverless endpoint is 
             "model_kwargs": {
                 "temperature": 0.1
             },
-            "prompt_path": "./app/prompts/llama_70b/"
+            "prompt_path": "./common/prompts/llama_70b/"
         }
     }
 }
@@ -655,7 +724,7 @@ Example configuration for a model on Hugging Face with a serverless endpoint is 
             "model_kwargs": {
                 "temperature": 0.1
             },
-            "prompt_path": "./app/prompts/openai_gpt4/"
+            "prompt_path": "./common/prompts/openai_gpt4/"
         }
     }
 }
@@ -663,6 +732,7 @@ Example configuration for a model on Hugging Face with a serverless endpoint is 
 
 [Go back to top](#top)
 
+---
 
 ## Customization and Extensibility
 TigerGraph GraphRAG is designed to be easily extensible. The service can be configured to use different LLM providers, different graph schemas, and different LangChain tools. The service can also be extended to use different embedding services, different LLM generation services, and different LangChain tools. For more information on how to extend the service, see the [Developer Guide](./docs/DeveloperGuide.md).

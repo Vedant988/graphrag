@@ -74,8 +74,9 @@ class GenerateGSQL(BaseTool):
             ]
         )
 
+        LogWriter.info(f"request_id={req_id_cv.get()} ENTRY generate_gsql with {question}")
         schema = self._generate_schema_rep()
-    
+
         logger.debug_pii("Prompt to LLM:\n" + PROMPT.invoke({"question": question, "schema": schema, "history": history}).to_string())
 
         chain = PROMPT | self.llm.model | StrOutputParser()
@@ -89,10 +90,10 @@ class GenerateGSQL(BaseTool):
             usage_data["cost"] = cb.total_cost
             logger.info(f"generate_gsql usage: {usage_data}")
 
-        query_header = "USE GRAPH " + self.conn.graphname + " "+ "\n" + "INTERPRET QUERY () FOR GRAPH " + self.conn.graphname + " {" + "\n"
-        query_footer = "\n}"
-        return query_header + out + query_footer
-    
+        gsql = "USE GRAPH " + self.conn.graphname + " "+ "\n" + out + "\n"
+        LogWriter.info(f"request_id={req_id_cv.get()} EXIT generate_gsql with:\n{gsql}")
+        return gsql
+
     def _run(self, question: str, history: Iterable[str]):
         """Run the GenerateGSQL tool.
         Args:
@@ -105,6 +106,6 @@ class GenerateGSQL(BaseTool):
                 GSQL query for the question.
         """
         return self.generate_gsql(question, history)
-    
+
     def _arun(self, question: str, history: Iterable[str]):
         raise NotImplementedError("Asynchronous execution is not supported for this tool.") 

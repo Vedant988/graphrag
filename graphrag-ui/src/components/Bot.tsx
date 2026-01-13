@@ -32,10 +32,11 @@ const Bot = ({ layout, getConversationId }: { layout?: string | undefined, getCo
     const loadStore = () => {
       const parseStore = JSON.parse(localStorage.getItem("site") || "{}");
       setStore(parseStore);
+      return parseStore;
     };
 
     // Initial load
-    loadStore();
+    const parseStore = loadStore();
 
     // Set default selectedGraph to first graph if no value in localStorage
     if (!localStorage.getItem("selectedGraph") && parseStore?.graphs?.length > 0) {

@@ -41,10 +41,11 @@ def describe_image_with_llm(image_input):
                 {
                     "type": "text",
                     "text": (
-                         "Please describe what you see in this image and "
+                        "Please describe what you see in this image and "
                         "if the image has scanned text then extract all the text. "
+                        "if the image has any logo, icon, or branding element, try to describe it with text. "
                         "Focus on any text, diagrams, charts, or other visual elements."
-                        "If this is a logo, icon, or branding element, start your response with 'LOGO:' or 'ICON:'."
+                        "If the image is purely a logo, icon, or branding element, start your response with 'LOGO:' or 'ICON:'."
                     ),
                 },
                  {

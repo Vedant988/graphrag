@@ -107,14 +107,6 @@ class OpenAI(LLM_Model):
             return super().question_expansion_prompt
 
     @property
-    def supportai_response_prompt(self):
-        filepath = self.prompt_path + "supportai_response.txt"
-        if os.path.exists(filepath):
-            return self._read_prompt_file(filepath)
-        else:
-            return super().supportai_response_prompt
-
-    @property
     def chatbot_response_prompt(self):
         filepath = self.prompt_path + "chatbot_response.txt"
         if os.path.exists(filepath):

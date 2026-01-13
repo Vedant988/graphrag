@@ -46,6 +46,7 @@ from common.py_schemas.schemas import SupportAIMethod
 
 logger = logging.getLogger(__name__)
 consistency_checkers = {}
+running_tasks = {}  # Track running graphrag rebuild tasks
 
 
 @asynccontextmanager
@@ -167,8 +168,74 @@ def root():
     return {"status": "ok"}
 
 
+@app.get("/{graphname}/{ecc_method}/rebuild_status")
+def rebuild_status(
+    graphname: str,
+    ecc_method: str,
+    response: Response,
+    credentials = Depends(auth_credentials),
+):
+    """
+    Check if a rebuild is currently running for the specified graph and method.
+    Returns the status without triggering a new rebuild.
+    """
+    task_key = f"{graphname}:{ecc_method}"
+    
+    if ecc_method not in [SupportAIMethod.SUPPORTAI, SupportAIMethod.GRAPHRAG]:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {
+            "error": f"Method unsupported, must be {SupportAIMethod.SUPPORTAI} or {SupportAIMethod.GRAPHRAG}"
+        }
+    
+    if task_key in running_tasks:
+        task_info = running_tasks[task_key]
+        return {
+            "graphname": graphname,
+            "method": ecc_method,
+            "is_running": task_info.get("status") == "running",
+            "status": task_info.get("status"),
+            "started_at": task_info.get("started_at"),
+            "completed_at": task_info.get("completed_at"),
+            "failed_at": task_info.get("failed_at"),
+            "error": task_info.get("error")
+        }
+    
+    return {
+        "graphname": graphname,
+        "method": ecc_method,
+        "is_running": False,
+        "status": "idle"
+    }
+
+
+async def run_with_tracking(task_key: str, run_func, graphname: str, conn):
+    """Wrapper to track running tasks"""
+    try:
+        running_tasks[task_key] = {"status": "running", "started_at": time.time()}
+        LogWriter.info(f"Starting ECC task: {task_key}")
+        await run_func(graphname, conn)
+        running_tasks[task_key] = {"status": "completed", "completed_at": time.time()}
+        LogWriter.info(f"Completed ECC task: {task_key}")
+    except Exception as e:
+        running_tasks[task_key] = {"status": "failed", "error": str(e), "failed_at": time.time()}
+        LogWriter.error(f"Failed ECC task {task_key}: {str(e)}")
+        raise
+    finally:
+        # Clean up completed/failed tasks after 5 minutes
+        asyncio.create_task(cleanup_task_status(task_key, delay=300))
+
+
+async def cleanup_task_status(task_key: str, delay: int):
+    """Remove task status after delay"""
+    await asyncio.sleep(delay)
+    if task_key in running_tasks and running_tasks[task_key]["status"] != "running":
+        del running_tasks[task_key]
+        LogWriter.info(f"Cleaned up task status for: {task_key}")
+
+
+@app.get("/{graphname}/{ecc_method}/consistency_update")
 @app.get("/{graphname}/{ecc_method}/consistency_status")
-def consistency_status(
+def consistency_update(
     graphname: str,
     ecc_method: str,
     background: BackgroundTasks,
@@ -198,17 +265,25 @@ def consistency_status(
 
     logger.info(f"Connection timeout set is {conn.responseConfigHeader}")
     
+    # Check if already running
+    task_key = f"{graphname}:{ecc_method}"
+    if task_key in running_tasks and running_tasks[task_key].get("status") == "running":
+        LogWriter.warning(f"ECC task already running for {task_key}")
+        return {
+            "status": "already_running",
+            "message": f"A rebuild is already in progress for {graphname}",
+            "started_at": running_tasks[task_key].get("started_at")
+        }
+    
     match ecc_method:
         case SupportAIMethod.SUPPORTAI:
-            background.add_task(supportai.run, graphname, conn)
-
+            background.add_task(run_with_tracking, task_key, supportai.run, graphname, conn)
             ecc_status = f"SupportAI initialization on {graphname} {time.ctime()}"       
         case SupportAIMethod.GRAPHRAG:
-            background.add_task(graphrag.run, graphname, conn)
-
+            background.add_task(run_with_tracking, task_key, graphrag.run, graphname, conn)
             ecc_status = f"GraphRAG initialization on {conn.graphname} {time.ctime()}"
         case _:
             response.status_code = status.HTTP_404_NOT_FOUND
             return f"Method unsupported, must be {SupportAIMethod.SUPPORTAI}, {SupportAIMethod.GRAPHRAG}"
 
-    return ecc_status
+    return {"status": "submitted", "message": ecc_status}

@@ -12,14 +12,15 @@ if ! docker compose >/dev/null; then
 fi
 
 root_dir=${1:-./graphrag}
-tg_host=${2:-http://tigergraph}
-tg_port=${3:-14240}
-tg_username=$(echo ${4:-tigergraph} | sed 's/[][\/.^$*+?|(){}]/\\&/g')
-tg_password=$(echo ${5:-tigergraph} | sed 's/[][\/.^$*+?|(){}]/\\&/g')
+llm_provider=${2:-openai}
+tg_host=${3:-http://tigergraph}
+tg_port=${4:-14240}
+tg_username=$(echo ${5:-tigergraph} | sed 's/[][\/.^$*+?|(){}]/\\&/g')
+tg_password=$(echo ${6:-tigergraph} | sed 's/[][\/.^$*+?|(){}]/\\&/g')
 
-if [[ -z $OPENAI_API_KEY ]]; then
-  echo "OPENAI_API_KEY is not found in current environment, please set it using 'export OPENAI_API_KEY=xxx'."
-  exit 5
+if [[ -z $LLM_API_KEY ]]; then
+  echo "Warning: LLM_API_KEY is not found in current environment, please set it using 'export LLM_API_KEY=xxx'."
+  echo "Or manaully modify ${root_dir}/configs/server_config.json to set the LLM_API_KEY then re-run 'docker compose up -d'."
 fi
 
 if ! [[ "$tg_host" =~ ^http[s]?:// ]]; then
@@ -40,19 +41,19 @@ if ! [[ "$tg_host" =~ ^http[s]?://tigergraph ]]; then
 fi
 
 mkdir -p $root_dir || true
-[[ -d $root_dir ]] || (echo "Target dir $root_dir is not found!" && exit 6)
+[[ -d $root_dir ]] || (echo "Target dir $root_dir is not found!" && exit 5)
 
 echo "Entering GraphRAG root dir: $root_dir"
-cd $root_dir || (echo "Cannot switch to $root_dir!" && exit 6)
+cd $root_dir || (echo "Cannot switch to $root_dir!" && exit 5)
 
 echo "Downloading GraphRAG sevice config..."
 mkdir -p configs || true
 curl -sk https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/docker-compose-tg.yml | sed "s/community:4.2.1/community:${tg_version}/g" > docker-compose.yml
 curl -sk https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/nginx.conf -o configs/nginx.conf
-curl -sk https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/server_config.json | sed '/"gsPort": "14240"/a\
+curl -sk "https://raw.githubusercontent.com/tigergraph/graphrag/refs/heads/main/docs/tutorials/configs/server_config.json.${llm_provider}" | sed '/"gsPort": "14240"/a\
     "username": "'${tg_username}'",\
     "password": "'${tg_password}'",
-' | sed "s#http://tigergraph#${tg_host}#g; s/14240/${tg_port}/g" | sed "s/YOUR_OPENAI_API_KEY_HERE/${OPENAI_API_KEY}/g"> configs/server_config.json
+' | sed "s#http://tigergraph#${tg_host}#g; s/14240/${tg_port}/g" | sed "s/YOUR_LLM_API_KEY_HERE/${LLM_API_KEY}/g"> configs/server_config.json
 
 exit
 echo "Starting GraphRAG sevices.."

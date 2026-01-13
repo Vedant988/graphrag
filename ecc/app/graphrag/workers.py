@@ -99,7 +99,7 @@ async def chunk_doc(
             await upsert_chan.put((upsert_doc, (conn, v_id, chunker_type, doc["attributes"]["text"])))
         
         # Use get_chunker for all types (including images)
-        # For images, get_chunker returns SingleChunker which preserves [IMAGE_REF:] markers
+        # For images, get_chunker returns SingleChunker which preserves markdown image references
         chunker = ecc_util.get_chunker(chunker_type)
         # decode the text return from tigergraph as it was encoded when written into jsonl file for uploading
         chunks = chunker.chunk(doc["attributes"]["text"].encode('utf-8').decode('unicode_escape'))

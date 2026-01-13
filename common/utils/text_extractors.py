@@ -197,7 +197,7 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
         for page_num, page in enumerate(doc, start=1):
             if page_num > 1:
                 markdown_parts.append("\n\n")
-            markdown_parts.append(f"--- Page {page_num} ---\n\n")
+            markdown_parts.append(f"--- Page {page_num} ---\n") #Avoid to be splitted as a single chunk
 
             blocks = page.get_text("blocks", sort=True)
             text_blocks_with_pos = []
@@ -269,9 +269,9 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
                     markdown_parts.append(element['content'])
                     markdown_parts.append("\n\n")
                 else:
-                    markdown_parts.append("### Image Description\n\n")
-                    markdown_parts.append(element['description'])
-                    markdown_parts.append(f"\n\n[IMAGE_REF:{element['image_doc_id']}]\n\n")
+                    # Add image description as text, then markdown image reference
+                    # Use short alt text in markdown, full description as regular text
+                    markdown_parts.append(f"![{element['description']}](tg://{element['image_doc_id']})\n\n")
 
                     image_entries.append({
                         "doc_id": element['image_doc_id'],
@@ -288,10 +288,13 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
 
         doc.close()
 
-        markdown_content = "".join(markdown_parts) if markdown_parts else "[No content extracted from PDF]"
+        markdown_content = "".join(markdown_parts) if markdown_parts else "" #No content extracted from PDF
+        if not markdown_content:
+            return []
+
         result = [{
             "doc_id": base_doc_id,
-            "doc_type": "markdown",
+            "doc_type": "",
             "content": markdown_content,
             "position": 0
         }]
@@ -302,7 +305,7 @@ def _extract_pdf_with_images_as_docs(file_path, base_doc_id, graphname=None):
         logger.error("PyMuPDF not available")
         return [{
             "doc_id": base_doc_id,
-            "doc_type": "markdown",
+            "doc_type": "",
             "content": "[PDF extraction requires PyMuPDF]",
             "position": 0
         }]
@@ -323,7 +326,7 @@ def _extract_standalone_image_as_doc(file_path, base_doc_id, graphname=None):
         if pil_image.width < 100 or pil_image.height < 100:
             return [{
                 "doc_id": base_doc_id,
-                "doc_type": "markdown",
+                "doc_type": "",
                 "content": f"[Skipped small image: {file_path.name}]",
                 "position": 0
             }]
@@ -336,7 +339,7 @@ def _extract_standalone_image_as_doc(file_path, base_doc_id, graphname=None):
         if any(indicator in description_lower for indicator in logo_indicators):
             return [{
                 "doc_id": base_doc_id,
-                "doc_type": "markdown",
+                "doc_type": "",
                 "content": f"[Skipped logo/icon: {file_path.name}]",
                 "position": 0
             }]
@@ -348,7 +351,8 @@ def _extract_standalone_image_as_doc(file_path, base_doc_id, graphname=None):
         image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
         image_id = f"{base_doc_id}_image_1"
-        content = f"{description}\n\n[IMAGE_REF:{image_id}]"
+        # Put description as text, then markdown image reference with short alt text
+        content = f"![{description}](tg://{image_id})"
 
         return [
             {
@@ -375,7 +379,7 @@ def _extract_standalone_image_as_doc(file_path, base_doc_id, graphname=None):
         logger.error(f"Error extracting image: {e}")
         return [{
             "doc_id": base_doc_id,
-            "doc_type": "markdown",
+            "doc_type": "",
             "content": f"[Image extraction failed: {str(e)}]",
             "position": 0
         }]
@@ -437,10 +441,12 @@ def get_doc_type_from_extension(extension):
 
     if extension in ['.html', '.htm']:
         return 'html'
+    elif extension in ['.md']:
+        return 'markdown'
     elif extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp']:
         return 'image'
     else:
-        return 'markdown'
+        return ''
 
 
 def get_supported_extensions():

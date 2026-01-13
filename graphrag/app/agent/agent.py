@@ -118,7 +118,7 @@ class TigerGraphAgent:
         try:
             LogWriter.info(f"request_id={req_id_cv.get()} ENTRY question_for_agent")
             logger.debug_pii(
-                f"request_id={req_id_cv.get()} question_for_agent question={question}"
+                f"request_id={req_id_cv.get()} question_for_agent question={question}, conversation={conversation}"
             )
 
             input_data = {}

@@ -1,6 +1,6 @@
 """
 Single Chunker - Always returns the entire content as ONE chunk.
-Used for images to preserve [IMAGE_REF:] markers and prevent splitting.
+Used for images to preserve markdown image references and prevent splitting.
 """
 from common.chunkers.base_chunker import BaseChunker
 
@@ -10,7 +10,7 @@ class SingleChunker(BaseChunker):
     Chunker that NEVER splits content - always returns ONE chunk.
     
     This is critical for image descriptions to:
-    1. Keep [IMAGE_REF:] markers intact
+    1. Keep markdown image references (e.g., ![desc](tg://id)) intact
     2. Prevent losing image references when displayed in UI
     3. Maintain semantic integrity of image descriptions
     """

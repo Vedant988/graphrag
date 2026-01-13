@@ -169,7 +169,7 @@ class CommunityRetriever(BaseRetriever):
         new_context = [{"candidate_answer": x.answer,
                         "score": x.quality_score} for x in res[:top_k]]
         
-        resp = self._generate_response(question, new_context, verbose)
+        resp = self._generate_response(question, new_context, verbose=verbose)
 
         if verbose and len(retrieved) > 1 and "verbose" in retrieved[1]:
             resp["verbose"] = retrieved[1]["verbose"]

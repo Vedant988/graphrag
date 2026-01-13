@@ -19,10 +19,37 @@ from typing import List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+# Cache for TokenCalculator instances to avoid re-initialization
+_token_calculator_cache: dict[tuple[str, int], 'TokenCalculator'] = {}
+
+def get_token_calculator(token_limit: int = 0, model_name: str = None) -> 'TokenCalculator':
+    """
+    Factory function to get or create a TokenCalculator instance.
+    Reuses existing instances with the same model_name and token_limit to avoid re-initialization.
+
+    Args:
+        token_limit: Maximum number of tokens allowed for retrieved context
+        model_name: Name of the model to use for token counting
+
+    Returns:
+        TokenCalculator instance (cached if parameters match)
+    """
+    model_name = model_name if model_name else "gpt-4"
+    token_limit = token_limit if token_limit else 0
+    cache_key = (model_name, token_limit)
+
+    if cache_key not in _token_calculator_cache:
+        _token_calculator_cache[cache_key] = TokenCalculator(token_limit=token_limit, model_name=model_name)
+        logger.debug(f"Created new TokenCalculator instance for model={model_name}, token_limit={token_limit}")
+    else:
+        logger.debug(f"Reusing cached TokenCalculator instance for model={model_name}, token_limit={token_limit}")
+
+    return _token_calculator_cache[cache_key]
+
 class TokenCalculator:
     """Utility class for token counting and text truncation operations."""
 
-    def __init__(self, token_limit: int = 0, model_name: str = "gpt-4"):
+    def __init__(self, token_limit: int = 0, model_name: str = None):
         """
         Initialize the token calculator.
 
@@ -31,8 +58,8 @@ class TokenCalculator:
             model_name: Name of the model to use for token counting
                                Use <= 0 for unlimited tokens (no truncation).
         """
-        self.max_context_tokens = token_limit
-        self.model_name = model_name
+        self.max_context_tokens = token_limit if token_limit else 0
+        self.model_name = model_name if model_name else "gpt-4"
         try:
             self.token_encoding = tiktoken.encoding_for_model(self.model_name)
         except Exception as e:

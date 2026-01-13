@@ -47,7 +47,7 @@ def get_chunker(chunker_type: str = ""):
         )
     elif chunker_type == "single" or chunker_type == "image":
         # Single chunker: NEVER splits, always returns 1 chunk
-        # Used for images to preserve [IMAGE_REF:] markers
+        # Used for images to preserve markdown image references
         chunker = single_chunker.SingleChunker()
     else:
         raise ValueError(f"Invalid chunker type: {chunker_type}")

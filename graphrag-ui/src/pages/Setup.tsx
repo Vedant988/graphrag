@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Database, Upload, RefreshCw, Loader2, Trash2, FolderUp, Cloud, ArrowLeft, CloudDownload } from "lucide-react";
+import { Database, Upload, RefreshCw, Loader2, Trash2, FolderUp, Cloud, ArrowLeft, CloudDownload, CloudLightning } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,14 +19,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useConfirm } from "@/hooks/useConfirm";
+
+const DEFAULT_MAX_UPLOAD_SIZE_MB = 100;
+const envUploadLimit = Number(import.meta.env.VITE_MAX_UPLOAD_SIZE_MB);
+const MAX_UPLOAD_SIZE_MB =
+  Number.isFinite(envUploadLimit) && envUploadLimit > 0 ? envUploadLimit : DEFAULT_MAX_UPLOAD_SIZE_MB;
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+
+const formatBytes = (bytes: number) => {
+  if (bytes === 0) return "0 Bytes";
+  const units = ["Bytes", "KB", "MB", "GB", "TB"];
+  const exponent = Math.floor(Math.log(bytes) / Math.log(1024));
+  const value = bytes / Math.pow(1024, exponent);
+  const rounded = value >= 10 || exponent === 0 ? value.toFixed(0) : value.toFixed(1);
+  return `${rounded} ${units[exponent]}`;
+};
 
 const Setup = () => {
   const navigate = useNavigate();
+  const [confirm, confirmDialog, isConfirmDialogOpen] = useConfirm();
   const [availableGraphs, setAvailableGraphs] = useState<string[]>([]);
   
-  const [createGraphOpen, setCreateGraphOpen] = useState(false);
+  const [initializeGraphOpen, setInitializeGraphOpen] = useState(false);
   const [graphName, setGraphName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState<"success" | "error" | "">("");
 
@@ -39,21 +56,23 @@ const Setup = () => {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestMessage, setIngestMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("upload");
 
   // Refresh state
   const [refreshOpen, setRefreshOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
   const [refreshGraphName, setRefreshGraphName] = useState("");
+  const [isRebuildRunning, setIsRebuildRunning] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   
   // S3 state
-  const [fileFormat, setFileFormat] = useState<"json" | "multi">("json");
   const [awsAccessKey, setAwsAccessKey] = useState("");
   const [awsSecretKey, setAwsSecretKey] = useState("");
-  const [dataPath, setDataPath] = useState("");
   const [inputBucket, setInputBucket] = useState("");
   const [outputBucket, setOutputBucket] = useState("");
   const [regionName, setRegionName] = useState("");
+  const [skipBDAProcessing, setSkipBDAProcessing] = useState(false);
 
   // Cloud Download state
   const [cloudProvider, setCloudProvider] = useState<"s3" | "gcs" | "azure">("s3");
@@ -102,15 +121,35 @@ const Setup = () => {
       return;
     }
 
+    const filesArray = Array.from(selectedFiles);
+    
+    // Check if any single file exceeds the server limit
+    const oversizedFiles = filesArray.filter((file) => file.size > MAX_UPLOAD_SIZE_BYTES);
+    if (oversizedFiles.length > 0) {
+      const names = oversizedFiles.map((file) => `${file.name} (${formatBytes(file.size)})`).join(", ");
+      setUploadMessage(
+        `❌ ${names} ${oversizedFiles.length === 1 ? "exceeds" : "exceed"} the ${MAX_UPLOAD_SIZE_MB} MB limit per file. ` +
+        `Please split or compress ${oversizedFiles.length === 1 ? "this file" : "these files"}.`
+      );
+      return;
+    }
+
+    const totalSize = filesArray.reduce((sum, file) => sum + file.size, 0);
+
+    // If total size exceeds limit and we have multiple files, upload one by one
+    if (totalSize > MAX_UPLOAD_SIZE_BYTES && filesArray.length > 1) {
+      await handleBatchUpload(filesArray);
+      return;
+    }
+
+    // Single file or files within limit - upload normally
     setIsUploading(true);
     setUploadMessage("Uploading files...");
 
     try {
       const creds = localStorage.getItem("creds");
       const formData = new FormData();
-      for (let i = 0; i < selectedFiles.length; i++) {
-        formData.append("files", selectedFiles[i]);
-      }
+      filesArray.forEach((file) => formData.append("files", file));
 
       const response = await fetch(`/ui/${ingestGraphName}/uploads?overwrite=true`, {
         method: "POST",
@@ -128,6 +167,67 @@ const Setup = () => {
       }
     } catch (error: any) {
       setUploadMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle batch upload when total size exceeds limit - upload one file at a time
+  const handleBatchUpload = async (filesArray: File[]) => {
+    setIsUploading(true);
+    setUploadMessage("Total size exceeds limit. Uploading files one by one...");
+
+    try {
+      const creds = localStorage.getItem("creds");
+      let uploadedCount = 0;
+      let failedCount = 0;
+      const totalFiles = filesArray.length;
+
+      // Upload files one at a time to avoid 413 errors
+      for (let i = 0; i < filesArray.length; i++) {
+        const file = filesArray[i];
+        const fileNumber = i + 1;
+        
+        setUploadMessage(`Uploading file ${fileNumber}/${totalFiles}: ${file.name} (${formatBytes(file.size)})...`);
+        
+        const formData = new FormData();
+        formData.append("files", file);
+
+        try {
+          const response = await fetch(`/ui/${ingestGraphName}/uploads?overwrite=true`, {
+            method: "POST",
+            headers: { Authorization: `Basic ${creds}` },
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(`Upload failed with status ${response.status}`);
+          }
+
+          const data = await response.json();
+          if (data.status === "success") {
+            uploadedCount++;
+          } else {
+            failedCount++;
+            console.error(`File ${file.name} failed:`, data);
+          }
+        } catch (err) {
+          console.error(`File ${file.name} error:`, err);
+          failedCount++;
+        }
+      }
+
+      // Show final result
+      if (failedCount === 0) {
+        setUploadMessage(`✅ Successfully uploaded all ${uploadedCount} files (uploaded individually).`);
+      } else {
+        setUploadMessage(`⚠️ Uploaded ${uploadedCount} files successfully, ${failedCount} failed.`);
+      }
+      
+      setSelectedFiles(null);
+      await fetchUploadedFiles();
+    } catch (error: any) {
+      setUploadMessage(`❌ Batch upload error: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
@@ -158,7 +258,8 @@ const Setup = () => {
   const handleDeleteAllFiles = async () => {
     if (!ingestGraphName) return;
 
-    if (!confirm("Are you sure you want to delete all uploaded files?")) return;
+    const shouldDelete = await confirm("Are you sure you want to delete all uploaded files?");
+    if (!shouldDelete) return;
 
     try {
       const creds = localStorage.getItem("creds");
@@ -298,7 +399,8 @@ const Setup = () => {
   const handleDeleteAllDownloadedFiles = async () => {
     if (!ingestGraphName) return;
 
-    if (!confirm("Are you sure you want to delete all downloaded files?")) return;
+    const shouldDelete = await confirm("Are you sure you want to delete all downloaded files?");
+    if (!shouldDelete) return;
 
     try {
       const creds = localStorage.getItem("creds");
@@ -315,7 +417,7 @@ const Setup = () => {
   };
 
   // Ingest files into knowledge graph (uploaded or downloaded)
-  const handleIngestData = async (sourceType: "uploaded" | "downloaded" = "uploaded") => {
+  const handleIngestDocuments = async (sourceType: "uploaded" | "downloaded" = "uploaded") => {
     if (!ingestGraphName) {
       setIngestMessage("Please select a graph");
       return;
@@ -341,7 +443,7 @@ const Setup = () => {
         file_format: "multi"
       };
 
-      const createResponse = await fetch(`/${ingestGraphName}/graphrag/create_ingest`, {
+      const createResponse = await fetch(`/ui/${ingestGraphName}/create_ingest`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -356,7 +458,7 @@ const Setup = () => {
       }
 
       const createData = await createResponse.json();
-      console.log("Create ingest response:", createData);
+      //console.log("Create ingest response:", createData);
 
       // Step 2: Run ingest
       setIngestMessage("Step 2/2: Running document ingest...");
@@ -367,7 +469,7 @@ const Setup = () => {
         file_path: createData.data_path || createData.file_path, // Handle both field names
       };
 
-      const ingestResponse = await fetch(`/${ingestGraphName}/graphrag/ingest`, {
+      const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -382,7 +484,7 @@ const Setup = () => {
       }
 
       const ingestData = await ingestResponse.json();
-      console.log("Ingest response:", ingestData);
+      //console.log("Ingest response:", ingestData);
 
       setIngestMessage(`✅ Data ingested successfully! Processed documents from ${folderPath}/`);
     } catch (error: any) {
@@ -393,6 +495,206 @@ const Setup = () => {
     }
   };
 
+  // Ingest files from S3 with Amazon BDA
+  const handleAmazonBDAIngest = async () => {
+    if (!ingestGraphName) {
+      setIngestMessage("Please select a graph");
+      return;
+    }
+
+    // Validate inputs based on file format
+    if (!awsAccessKey || !awsSecretKey) {
+      setIngestMessage("❌ Please provide AWS Access Key and Secret Key");
+      return;
+    }
+
+    if (skipBDAProcessing) {
+      // When skipping BDA, only output bucket and region are required
+      if (!outputBucket || !regionName) {
+        setIngestMessage("❌ Please provide Output Bucket and Region Name");
+        return;
+      }
+    } else {
+      // When using BDA, all fields are required
+      if (!inputBucket || !outputBucket || !regionName) {
+        setIngestMessage("❌ Please provide Input Bucket, Output Bucket, and Region Name");
+        return;
+      }
+    }
+
+    // Ask for confirmation
+    const confirmMessage = skipBDAProcessing
+      ? `You're skipping Amazon BDA processing and will ingest directly from the output bucket (${outputBucket}). Please confirm to proceed.`
+      : `You're using Amazon BDA for multimodal document processing. This will trigger Amazon BDA to process your documents from the input bucket (${inputBucket}) and store the results in the output bucket (${outputBucket}) and then ingest them into your knowledge graph. Please confirm to proceed.`;
+    
+    const shouldProceed = await confirm(confirmMessage);
+    if (!shouldProceed) {
+      setIngestMessage("Operation cancelled by user.");
+      return;
+    }
+
+    setIsIngesting(true);
+
+    try {
+      const creds = localStorage.getItem("creds");
+      let loadingInfo: any = {};
+
+      if (skipBDAProcessing) {
+        // Skip BDA processing - create ingest job that reads directly from output bucket
+        const runIngestConfig: any = {
+          data_source: "bda",
+          aws_access_key: awsAccessKey,
+          aws_secret_key: awsSecretKey,
+          output_bucket: outputBucket,
+          region_name: regionName,
+          bda_jobs:[],
+          loader_config: {
+            doc_id_field: "doc_id",
+            content_field: "content",
+            doc_type: "markdown",
+          },
+          file_format: "multi"
+        };
+
+        setIngestMessage("Step 1/2: Creating ingest job from output bucket...");
+
+        // Run ingest directly
+        loadingInfo = {
+          load_job_id: "load_documents_content_json",
+          data_source_id: runIngestConfig,
+          file_path: outputBucket,
+        };
+        setIngestMessage(`Step 2/2: Running document ingestion for all files in ${outputBucket}...`);
+      } else {
+        // Step 1: Create ingest job with BDA processing
+        const createIngestConfig: any = {
+          data_source: "bda",
+          data_source_config: {
+            aws_access_key: awsAccessKey,
+            aws_secret_key: awsSecretKey,
+            input_bucket: inputBucket,
+            output_bucket: outputBucket,
+            region_name: regionName,
+          },
+          loader_config: {
+            doc_id_field: "doc_id",
+            content_field: "content",
+            doc_type: "markdown",
+          },
+          file_format: "multi"
+        };
+
+        setIngestMessage("Step 1/2: Triggering Amazon BDA processing and creating ingest job...");
+
+        const createResponse = await fetch(`/ui/${ingestGraphName}/create_ingest`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Basic ${creds}`,
+          },
+          body: JSON.stringify(createIngestConfig),
+        });
+
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json();
+          throw new Error(errorData.detail || `Failed to create ingest job: ${createResponse.statusText}`);
+        }
+
+        const createData = await createResponse.json();
+        //console.log("Create ingest response:", createData);
+
+        // Step 2: Run ingest
+        loadingInfo = {
+          load_job_id: createData.load_job_id,
+          data_source_id: createData.data_source_id,
+          file_path: outputBucket,
+        };
+
+        const filesToIngest = createData.data_source_id.bda_jobs.map((job: any) => job.jobId.split("/")[-1]);
+        setIngestMessage(`Step 2/2: Running document ingest for ${filesToIngest.length} files in ${outputBucket}...`);
+      }
+
+      const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${creds}`,
+        },
+        body: JSON.stringify(loadingInfo),
+      });
+
+      if (!ingestResponse.ok) {
+        const errorData = await ingestResponse.json();
+        throw new Error(errorData.detail || `Failed to run ingest: ${ingestResponse.statusText}`);
+      }
+
+      const ingestData = await ingestResponse.json();
+      //console.log("Ingest response:", ingestData);
+      const filesIngested = ingestData.summary.map((file: any) => file.file_path);
+
+      setIngestMessage(`✅ Document ingestion completed successfully! Ingested ${filesIngested.length} into your knowledge graph.`);
+
+    } catch (error: any) {
+      console.error("Error ingesting files:", error);
+      setIngestMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setIsIngesting(false);
+    }
+  };
+
+  // Check rebuild status
+  const checkRebuildStatus = async (graphName: string, showLoadingMessage: boolean = false) => {
+    if (!graphName) return;
+
+    setIsCheckingStatus(true);
+    if (showLoadingMessage) {
+      setRefreshMessage("Checking rebuild status...");
+    }
+
+    try {
+      const creds = localStorage.getItem("creds");
+      const statusResponse = await fetch(`/ui/${graphName}/rebuild_status`, {
+        method: "GET",
+        headers: {
+          Authorization: `Basic ${creds}`,
+        },
+      });
+
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        const wasRunning = isRebuildRunning;
+        const isCurrentlyRunning = statusData.is_running || false;
+        
+        setIsRebuildRunning(isCurrentlyRunning);
+        
+        if (isCurrentlyRunning) {
+          const startTime = statusData.started_at ? new Date(statusData.started_at * 1000).toLocaleString() : "unknown time";
+          setRefreshMessage(`⚠️ A rebuild is already in progress for "${graphName}" (started at ${startTime}). Please wait for it to complete.`);
+        } else {
+          // Rebuild is not running anymore
+          if (wasRunning && statusData.status === "completed") {
+            // Just finished
+            setRefreshMessage(`✅ Rebuild completed successfully for "${graphName}".`);
+          } else if (statusData.status === "failed") {
+            setRefreshMessage(`❌ Previous rebuild failed: ${statusData.error || "Unknown error"}`);
+          } else {
+            // Clear message only if we're not showing loading message
+            if (!showLoadingMessage) {
+              setRefreshMessage("");
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("Error checking rebuild status:", error);
+      // On error, assume it's safe to proceed
+      setIsRebuildRunning(false);
+      setRefreshMessage("");
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
   // Handle refresh knowledge graph
   const handleRefreshGraph = async () => {
     if (!refreshGraphName) {
@@ -400,13 +702,29 @@ const Setup = () => {
       return;
     }
 
+    // Double-check status one more time before submitting
+    if (isRebuildRunning) {
+      setRefreshMessage(`⚠️ A rebuild is already in progress. Please wait for it to complete.`);
+      return;
+    }
+
+    // Ask user to confirm before proceeding with refresh
+    const shouldRefresh = await confirm(
+      `Are you sure you want to refresh the knowledge graph "${refreshGraphName}"? This will rebuild the graph content.`
+    );
+    if (!shouldRefresh) {
+      setRefreshMessage("Operation cancelled by user.");
+      return;
+    }
+
     setIsRefreshing(true);
-    setRefreshMessage("Rebuilding community...");
+    setRefreshMessage("Submitting rebuild request...");
 
     try {
       const creds = localStorage.getItem("creds");
-      const response = await fetch(`/${refreshGraphName}/graphrag/forceupdate`, {
-        method: "GET",
+      
+      const response = await fetch(`/ui/${refreshGraphName}/rebuild_graph`, {
+        method: "POST",
         headers: {
           Authorization: `Basic ${creds}`,
         },
@@ -421,6 +739,7 @@ const Setup = () => {
       console.log("Refresh response:", data);
 
       setRefreshMessage(`✅ Refresh submitted successfully! The knowledge graph "${refreshGraphName}" is being rebuilt.`);
+      setIsRebuildRunning(true);
     } catch (error: any) {
       console.error("Error refreshing graph:", error);
       setRefreshMessage(`❌ Error: ${error.message}`);
@@ -428,6 +747,21 @@ const Setup = () => {
       setIsRefreshing(false);
     }
   };
+
+  // Check rebuild status when graph selection or dialog state changes
+  useEffect(() => {
+    if (refreshOpen && refreshGraphName) {
+      // Check status immediately when dialog opens
+      checkRebuildStatus(refreshGraphName, true);
+      
+      // Set up polling to check status every 5 seconds while dialog is open
+      const intervalId = setInterval(() => {
+        checkRebuildStatus(refreshGraphName, false);
+      }, 5000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [refreshOpen, refreshGraphName]);
 
   // Load available graphs from localStorage on mount
   useEffect(() => {
@@ -453,14 +787,14 @@ const Setup = () => {
     }
   }, [ingestOpen, ingestGraphName]);
 
-  const handleCreateGraph = async () => {
+  const handleInitializeGraph = async () => {
     if (!graphName.trim()) {
       setStatusMessage("Please enter a graph name");
       setStatusType("error");
       return;
     }
 
-    setIsCreating(true);
+    setIsInitializing(true);
     setStatusMessage("Creating graph and initializing GraphRAG schema...");
     setStatusType("");
 
@@ -473,7 +807,7 @@ const Setup = () => {
 
       // Step 1: Create the graph
       setStatusMessage("Step 1/2: Creating graph...");
-      const createResponse = await fetch(`/${graphName}/graphrag/create_graph`, {
+      const createResponse = await fetch(`/ui/${graphName}/create_graph`, {
         method: "POST",
         headers: {
           Authorization: `Basic ${creds}`,
@@ -486,13 +820,26 @@ const Setup = () => {
         throw new Error(createData.detail || createData.message || `Failed to create graph: ${createResponse.statusText}`);
       }
 
-      if (createData.status === "error") {
-        throw new Error(createData.message || "Failed to create graph");
+      if (createData.status !== "success") {
+        if (createData.message && createData.message.includes("already exists")) {
+          // Ask user to confirm before proceeding with initialization
+          const shouldInitialize = await confirm(
+            `Graph "${graphName}" already exists. Do you want to initialize it with GraphRAG schema?`
+          );
+          if (!shouldInitialize) {
+            setStatusMessage("Operation cancelled by user.");
+            setStatusType("error");
+            setIsInitializing(false);
+            return;
+          }
+        } else {
+          throw new Error(createData.message || `Failed to create graph: ${createData.details}`);
+        }
       }
 
       // Step 2: Initialize the graph with GraphRAG schema
       setStatusMessage("Step 2/2: Initializing GraphRAG schema...");
-      const initResponse = await fetch(`/${graphName}/graphrag/initialize`, {
+      const initResponse = await fetch(`/ui/${graphName}/initialize_graph`, {
         method: "POST",
         headers: {
           Authorization: `Basic ${creds}`,
@@ -505,6 +852,13 @@ const Setup = () => {
         throw new Error(initData.detail || `Failed to initialize graph: ${initResponse.statusText}`);
       }
 
+      if (initData.status !== "success") {
+        setStatusMessage(initData.message || `Failed to initialize graph: ${initData.details}`);
+        setStatusType("error");
+        setIsInitializing(false);
+        return;
+      }
+      
       setStatusMessage(`✅ Graph "${graphName}" created and initialized successfully! You can now close this dialog.`);
       setStatusType("success");
       
@@ -531,7 +885,7 @@ const Setup = () => {
       setStatusMessage(`❌ Error: ${error.message}`);
       setStatusType("error");
     } finally {
-      setIsCreating(false);
+      setIsInitializing(false);
     }
   };
 
@@ -548,7 +902,7 @@ const Setup = () => {
             Back to Chat
           </Button>
           <h1 className="text-2xl font-bold mb-2 text-black dark:text-white">
-            Knowledge Graph Setup
+            Knowledge Graph Administration
           </h1>
           <p className="text-sm text-gray-600 dark:text-[#D9D9D9]">
             Configure and manage your knowledge graphs
@@ -558,26 +912,26 @@ const Setup = () => {
         {/* Three cards displayed horizontally */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Section 1: Add New Knowledge Graph */}
+          {/* Section 1: Initialize Knowledge Graph */}
           <div className="border border-gray-300 dark:border-[#3D3D3D] rounded-lg p-6 bg-white dark:bg-shadeA flex flex-col h-full">
             <div className="mb-4">
               <div className="w-12 h-12 rounded-full bg-tigerOrange/10 flex items-center justify-center mb-4">
                 <Database className="h-6 w-6 text-tigerOrange" />
               </div>
               <h2 className="text-lg font-semibold mb-2 text-black dark:text-white">
-                Add New Knowledge Graph
+                Initialize Knowledge Graph
               </h2>
               <p className="text-sm text-gray-600 dark:text-[#D9D9D9] mb-4">
-                Create a new knowledge graph for your data
+                Create the knowledge graph schema and queries for future document ingestion.
               </p>
             </div>
             <div className="mt-auto pt-4 border-t border-gray-300 dark:border-[#3D3D3D]">
               <Button 
                 className="gradient w-full text-white"
-                onClick={() => setCreateGraphOpen(true)}
+                onClick={() => setInitializeGraphOpen(true)}
               >
                 <Database className="h-4 w-4 mr-2" />
-                Create Graph
+                Initialize Graph
               </Button>
             </div>
           </div>
@@ -589,10 +943,10 @@ const Setup = () => {
                 <Upload className="h-6 w-6 text-tigerOrange" />
               </div>
               <h2 className="text-lg font-semibold mb-2 text-black dark:text-white">
-                Data Ingest for a KG
+                Ingest to Knowledge Graph
               </h2>
               <p className="text-sm text-gray-600 dark:text-[#D9D9D9] mb-4">
-                Upload and process data into your knowledge graph
+                Upload and ingest documents into your knowledge graph for future content processing.
               </p>
             </div>
             <div className="mt-auto pt-4 border-t border-gray-300 dark:border-[#3D3D3D]">
@@ -601,7 +955,7 @@ const Setup = () => {
                 onClick={() => setIngestOpen(true)}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Ingest Data
+                Ingest Document
               </Button>
             </div>
           </div>
@@ -616,7 +970,7 @@ const Setup = () => {
                 Refresh Knowledge Graph
               </h2>
               <p className="text-sm text-gray-600 dark:text-[#D9D9D9] mb-4">
-                Rebuild and refresh your knowledge graph
+                Process new documents in your knowledge graph to refresh its content.
               </p>
             </div>
             <div className="mt-auto pt-4 border-t border-gray-300 dark:border-[#3D3D3D]">
@@ -632,30 +986,42 @@ const Setup = () => {
 
         </div>
 
-        {/* Create Graph Dialog */}
-        <Dialog open={createGraphOpen} onOpenChange={setCreateGraphOpen}>
-          <DialogContent className="sm:max-w-[500px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D]">
+        {/* Initialize Graph Dialog */}
+        <Dialog 
+          open={initializeGraphOpen}
+          onOpenChange={(open) => {
+            // Prevent closing if confirm dialog is open
+            if (!open && isConfirmDialogOpen) {
+              return;
+            }
+            setInitializeGraphOpen(open);
+          }}
+        >
+          <DialogContent 
+            className="sm:max-w-[500px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D]"
+            onInteractOutside={(e) => e.preventDefault()}
+          >
             <DialogHeader>
-              <DialogTitle className="text-black dark:text-white">Create New Knowledge Graph</DialogTitle>
+              <DialogTitle className="text-black dark:text-white">Initialize Knowledge Graph</DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-[#D9D9D9]">
-                Enter a name for your new knowledge graph. This will create the graph and initialize the GraphRAG schema.
+                Enter the name of your knowledge graph. The system will create it if necessary and initialize it with the GraphRAG schema.
               </DialogDescription>
             </DialogHeader>
             
             <div className="py-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2 text-black dark:text-white">
-                  Graph Name
+                  Knowledge Graph Name
                 </label>
                 <Input
                   placeholder="e.g., MyKnowledgeGraph"
                   value={graphName}
                   onChange={(e) => setGraphName(e.target.value)}
-                  disabled={isCreating}
+                  disabled={isInitializing}
                   className="dark:border-[#3D3D3D] dark:bg-shadeA"
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !isCreating) {
-                      handleCreateGraph();
+                    if (e.key === "Enter" && !isInitializing) {
+                      handleInitializeGraph();
                     }
                   }}
                 />
@@ -681,7 +1047,7 @@ const Setup = () => {
                 <Button
                   className="gradient text-white w-full"
                   onClick={() => {
-                    setCreateGraphOpen(false);
+                    setInitializeGraphOpen(false);
                     setGraphName("");
                     setStatusMessage("");
                     setStatusType("");
@@ -695,22 +1061,22 @@ const Setup = () => {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setCreateGraphOpen(false);
+                      setInitializeGraphOpen(false);
                       setGraphName("");
                       setStatusMessage("");
                       setStatusType("");
                     }}
-                    disabled={isCreating}
+                    disabled={isInitializing}
                     className="dark:border-[#3D3D3D]"
                   >
                     Cancel
                   </Button>
                   <Button
-                    onClick={handleCreateGraph}
-                    disabled={isCreating || !graphName.trim()}
+                    onClick={handleInitializeGraph}
+                    disabled={isInitializing || !graphName.trim()}
                     className="gradient text-white"
                   >
-                    {isCreating ? (
+                    {isInitializing ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Creating...
@@ -729,12 +1095,24 @@ const Setup = () => {
         </Dialog>
 
         {/* Data Ingest Dialog */}
-        <Dialog open={ingestOpen} onOpenChange={setIngestOpen}>
-          <DialogContent className="sm:max-w-[700px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D] max-h-[80vh] overflow-y-auto">
+        <Dialog 
+          open={ingestOpen} 
+          onOpenChange={(open) => {
+            // Prevent closing if confirm dialog is open
+            if (!open && isConfirmDialogOpen) {
+              return;
+            }
+            setIngestOpen(open);
+          }}
+        >
+          <DialogContent 
+            className="sm:max-w-[700px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D] max-h-[80vh] overflow-y-auto"
+            onInteractOutside={(e) => e.preventDefault()}
+          >
             <DialogHeader>
-              <DialogTitle className="text-black dark:text-white">Data Ingest for Knowledge Graph</DialogTitle>
+              <DialogTitle className="text-black dark:text-white">Document Ingestion for Knowledge Graph</DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-[#D9D9D9]">
-                Upload files locally, download from cloud storage, or configure S3 Bedrock for data ingestion
+                Upload files locally, download from cloud storage, or configure Amazon Bedrock Data Automation for document ingestion
               </DialogDescription>
             </DialogHeader>
 
@@ -743,8 +1121,8 @@ const Setup = () => {
               <label className="block text-sm font-medium mb-2 text-black dark:text-white">
                 Target Graph Name
               </label>
-              <Select value={ingestGraphName} onValueChange={setIngestGraphName}>
-                <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA">
+              <Select value={ingestGraphName} onValueChange={setIngestGraphName} disabled={isIngesting}>
+                <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA" disabled={isIngesting}>
                   <SelectValue placeholder="Select a graph" />
                 </SelectTrigger>
                 <SelectContent>
@@ -761,32 +1139,35 @@ const Setup = () => {
                   )}
                 </SelectContent>
               </Select>
-              {ingestGraphName && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Files will be uploaded to: uploads/{ingestGraphName}/
-                </p>
-              )}
             </div>
 
-            <Tabs defaultValue="upload" className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => {
+              // Block tab switching when ingesting
+              if (!isIngesting) {
+                setActiveTab(value);
+              }
+            }} className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="upload">
+                <TabsTrigger value="upload" disabled={isIngesting}>
                   <FolderUp className="h-4 w-4 mr-2" />
-                  Upload Data
+                  Upload Files
                 </TabsTrigger>
-                <TabsTrigger value="cloudDownload">
+                <TabsTrigger value="cloudDownload" disabled={isIngesting}>
                   <CloudDownload className="h-4 w-4 mr-2" />
                   Download from Cloud
                 </TabsTrigger>
-                <TabsTrigger value="s3">
-                  <Cloud className="h-4 w-4 mr-2" />
-                  S3 Bedrock Configuration
+                <TabsTrigger value="AmazonBDA" disabled={isIngesting}>
+                  <CloudLightning className="h-4 w-4 mr-2" />
+                  Use Amazon BDA
                 </TabsTrigger>
               </TabsList>
 
               {/* Upload Data Tab */}
               <TabsContent value="upload" className="space-y-4">
                 <div className="space-y-4">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                    Upload local files to the server and ingest them into your knowledge graph.
+                  </p>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-black dark:text-white">
                       Select Files
@@ -798,6 +1179,9 @@ const Setup = () => {
                       disabled={isUploading}
                       className="dark:border-[#3D3D3D] dark:bg-shadeA"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Maximum upload per request: {MAX_UPLOAD_SIZE_MB} MB. {ingestGraphName ? `Upload destination: uploads/${ingestGraphName}/` : ""}
+                    </p>
                   </div>
 
                   <div className="flex gap-2">
@@ -841,13 +1225,13 @@ const Setup = () => {
                   {uploadedFiles.length > 0 && (
                     <div className="border-t border-gray-300 dark:border-[#3D3D3D] pt-4 mt-4">
                       <h3 className="text-sm font-medium mb-2 text-black dark:text-white">
-                        Ingest Data into Knowledge Graph
+                        Ingest Documents into Knowledge Graph
                       </h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                         Process uploaded files and add them to the knowledge graph
                       </p>
                       <Button
-                        onClick={() => handleIngestData("uploaded")}
+                        onClick={() => handleIngestDocuments("uploaded")}
                         disabled={isIngesting}
                         className="gradient text-white w-full"
                       >
@@ -859,7 +1243,7 @@ const Setup = () => {
                         ) : (
                           <>
                             <Database className="h-4 w-4 mr-2" />
-                            Ingest Data into {ingestGraphName}
+                            Ingest Documents into {ingestGraphName}
                           </>
                         )}
                       </Button>
@@ -911,6 +1295,9 @@ const Setup = () => {
               {/* Download from Cloud Storage Tab */}
               <TabsContent value="cloudDownload" className="space-y-4">
                 <div className="space-y-4">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                    Download files from cloud storage and ingest them into your knowledge graph.
+                  </p>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-black dark:text-white">
                       Cloud Storage Provider
@@ -1100,11 +1487,13 @@ const Setup = () => {
                       </div>
                     </>
                   )}
+                  {ingestGraphName && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      Download destination: downloaded_files_cloud/{ingestGraphName}/
+                    </p>
+                  )}
 
                   <div className="pt-4 border-t border-gray-300 dark:border-[#3D3D3D]">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                      Files will be downloaded to: downloaded_files_cloud/{ingestGraphName}/
-                    </p>
                     <Button 
                       onClick={handleCloudDownload}
                       disabled={isDownloading}
@@ -1180,13 +1569,13 @@ const Setup = () => {
                   {downloadedFiles.length > 0 && (
                     <div className="border-t border-gray-300 dark:border-[#3D3D3D] pt-4 mt-4">
                       <h3 className="text-sm font-medium mb-2 text-black dark:text-white">
-                        Ingest Downloaded Data into Knowledge Graph
+                        Ingest Documents into Knowledge Graph
                       </h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                         Process downloaded files and add them to the knowledge graph
                       </p>
                       <Button
-                        onClick={() => handleIngestData("downloaded")}
+                        onClick={() => handleIngestDocuments("downloaded")}
                         disabled={isIngesting}
                         className="gradient text-white w-full"
                       >
@@ -1198,7 +1587,7 @@ const Setup = () => {
                         ) : (
                           <>
                             <Database className="h-4 w-4 mr-2" />
-                            Ingest Downloaded Data into {ingestGraphName}
+                            Ingest Documents into {ingestGraphName}
                           </>
                         )}
                       </Button>
@@ -1218,23 +1607,12 @@ const Setup = () => {
                 </div>
               </TabsContent>
 
-              {/* S3 Bedrock Configuration Tab */}
-              <TabsContent value="s3" className="space-y-4">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
-                      File Format
-                    </label>
-                    <Select value={fileFormat} onValueChange={(value: "json" | "multi") => setFileFormat(value)}>
-                      <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA">
-                        <SelectValue placeholder="Select file format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="json">JSON</SelectItem>
-                        <SelectItem value="multi">Multi</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              {/* Amazon BDA Configuration Tab */}
+              <TabsContent value="AmazonBDA" className="space-y-4">
+                <div className="space-y-4">              
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                    Process multimodal documents stored in S3 with Amazon Bedrock Data Automation and ingest them into your knowledge graph.
+                  </p>
 
                   {/* Common fields */}
                   <div>
@@ -1247,6 +1625,7 @@ const Setup = () => {
                       onChange={(e) => setAwsAccessKey(e.target.value)}
                       placeholder="Enter AWS access key"
                       className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                      disabled={isIngesting}
                     />
                   </div>
 
@@ -1260,65 +1639,101 @@ const Setup = () => {
                       onChange={(e) => setAwsSecretKey(e.target.value)}
                       placeholder="Enter AWS secret key"
                       className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                      disabled={isIngesting}
                     />
                   </div>
 
-                  {/* Conditional fields based on file format */}
-                  {fileFormat === "json" ? (
-                    <div>
-                      <label className="block text-sm font-medium mb-2 text-black dark:text-white">
-                        Data Path
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-black dark:text-white">
+                        Input Bucket
                       </label>
-                      <Input
-                        type="text"
-                        value={dataPath}
-                        onChange={(e) => setDataPath(e.target.value)}
-                        placeholder="s3://bucket-name/path/to/data"
-                        className="dark:border-[#3D3D3D] dark:bg-shadeA"
-                      />
+                      <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={skipBDAProcessing}
+                          onChange={(e) => setSkipBDAProcessing(e.target.checked)}
+                          disabled={isIngesting}
+                          className="h-4 w-4 rounded border-gray-300 dark:border-gray-600"
+                        />
+                        <span>Skip BDA (ingest existing BDA output bucket directly)</span>
+                      </label>
                     </div>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-black dark:text-white">
-                          Input Bucket
-                        </label>
-                        <Input
-                          type="text"
-                          value={inputBucket}
-                          onChange={(e) => setInputBucket(e.target.value)}
-                          placeholder="Enter input bucket name"
-                          className="dark:border-[#3D3D3D] dark:bg-shadeA"
-                        />
-                      </div>
+                    <Input
+                      type="text"
+                      value={inputBucket}
+                      onChange={(e) => setInputBucket(e.target.value)}
+                      placeholder="Enter input bucket name"
+                      className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                      disabled={isIngesting || skipBDAProcessing}
+                    />
+                  </div>
 
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-black dark:text-white">
-                          Output Bucket
-                        </label>
-                        <Input
-                          type="text"
-                          value={outputBucket}
-                          onChange={(e) => setOutputBucket(e.target.value)}
-                          placeholder="Enter output bucket name"
-                          className="dark:border-[#3D3D3D] dark:bg-shadeA"
-                        />
-                      </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                      Output Bucket
+                    </label>
+                    <Input
+                      type="text"
+                      value={outputBucket}
+                      onChange={(e) => setOutputBucket(e.target.value)}
+                      placeholder="Enter output bucket name"
+                      className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                      disabled={isIngesting}
+                    />
+                  </div>
 
-                      <div>
-                        <label className="block text-sm font-medium mb-2 text-black dark:text-white">
-                          Region Name
-                        </label>
-                        <Input
-                          type="text"
-                          value={regionName}
-                          onChange={(e) => setRegionName(e.target.value)}
-                          placeholder="e.g., us-east-1"
-                          className="dark:border-[#3D3D3D] dark:bg-shadeA"
-                        />
-                      </div>
-                    </>
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-black dark:text-white">
+                      Region Name
+                    </label>
+                    <Input
+                      type="text"
+                      value={regionName}
+                      onChange={(e) => setRegionName(e.target.value)}
+                      placeholder="e.g., us-east-1"
+                      className="dark:border-[#3D3D3D] dark:bg-shadeA"
+                      disabled={isIngesting}
+                    />
+                  </div>
+
+                  {ingestGraphName && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      Processing destination: Input bucket ({inputBucket || "not specified"}) → Output bucket ({outputBucket || "not specified"}) → Knowledge graph ({ingestGraphName})
+                    </p>
                   )}
+
+                  {/* Ingest S3 Files with Amazon BDA Section */}
+                  <div className="border-t border-gray-300 dark:border-[#3D3D3D] pt-4 mt-4">
+                    <Button
+                      onClick={handleAmazonBDAIngest}
+                      disabled={isIngesting}
+                      className="gradient text-white w-full"
+                    >
+                      {isIngesting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Ingesting...
+                        </>
+                      ) : (
+                        <>
+                          <Database className="h-4 w-4 mr-2" />
+                          Ingest from S3 Bucket into {ingestGraphName}
+                        </>
+                      )}
+                    </Button>
+                    {ingestMessage && (
+                      <div className={`p-3 rounded-lg text-sm mt-3 ${
+                        ingestMessage.includes("✅")
+                          ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                          : ingestMessage.includes("❌")
+                          ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
+                          : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                      }`}>
+                        {ingestMessage}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>
@@ -1339,12 +1754,24 @@ const Setup = () => {
         </Dialog>
 
         {/* Refresh Graph Dialog */}
-        <Dialog open={refreshOpen} onOpenChange={setRefreshOpen}>
-          <DialogContent className="sm:max-w-[500px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D]">
+        <Dialog 
+          open={refreshOpen} 
+          onOpenChange={(open) => {
+            // Prevent closing if confirm dialog is open
+            if (!open && isConfirmDialogOpen) {
+              return;
+            }
+            setRefreshOpen(open);
+          }}
+        >
+          <DialogContent 
+            className="sm:max-w-[500px] bg-white dark:bg-background border-gray-300 dark:border-[#3D3D3D]"
+            onInteractOutside={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle className="text-black dark:text-white">Refresh Knowledge Graph</DialogTitle>
               <DialogDescription className="text-gray-600 dark:text-[#D9D9D9]">
-                Rebuild the community structure of your knowledge graph
+                Rebuild the graph content and rerun community detection for your knowledge graph
               </DialogDescription>
             </DialogHeader>
 
@@ -1353,8 +1780,8 @@ const Setup = () => {
                 <label className="block text-sm font-medium mb-2 text-black dark:text-white">
                   Select Graph to Refresh
                 </label>
-                <Select value={refreshGraphName} onValueChange={setRefreshGraphName}>
-                  <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA">
+                <Select value={refreshGraphName} onValueChange={setRefreshGraphName} disabled={isRefreshing || isRebuildRunning || isCheckingStatus}>
+                  <SelectTrigger className="dark:border-[#3D3D3D] dark:bg-shadeA" disabled={isRefreshing || isRebuildRunning || isCheckingStatus}>
                     <SelectValue placeholder="Select a graph" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1378,7 +1805,7 @@ const Setup = () => {
                   ⚠️ Warning
                 </p>
                 <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                  This operation will rebuild community that will interrupt related queries. 
+                  This operation will process new documents and rerun community detection that will interrupt related queries.
                   Please confirm to proceed.
                 </p>
               </div>
@@ -1401,22 +1828,31 @@ const Setup = () => {
                 variant="outline"
                 onClick={() => {
                   setRefreshOpen(false);
-                  setRefreshMessage("");
                 }}
                 disabled={isRefreshing}
                 className="dark:border-[#3D3D3D]"
               >
-                Cancel
+                Close
               </Button>
               <Button
                 onClick={handleRefreshGraph}
-                disabled={isRefreshing || !refreshGraphName}
+                disabled={isRefreshing || !refreshGraphName || isRebuildRunning || isCheckingStatus}
                 className="gradient text-white"
               >
                 {isRefreshing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Refreshing...
+                    Submitting...
+                  </>
+                ) : isCheckingStatus ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Checking Status...
+                  </>
+                ) : isRebuildRunning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Rebuild In Progress...
                   </>
                 ) : (
                   <>
@@ -1428,6 +1864,9 @@ const Setup = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* User Confirmation Dialog */}
+        {confirmDialog}
       </div>
     </div>
   );

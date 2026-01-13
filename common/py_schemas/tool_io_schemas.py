@@ -118,6 +118,10 @@ class CommunitySummary(BaseModel):
         ..., description="The community summary derived from the input documents"
     )
 
+class GraphRAGAnswerOutput(BaseModel):
+    generated_answer: str = Field(description="The generated answer to the question. Make sure maintain a professional tone.")
+    citation: Optional[list[str]] = Field(description="The citation for the answer. List the metadata, mostly the keys, of the parts of the context used.", default=[])
+
 
 class CandidateScore(BaseModel):
     candidate: str = Field(description="The candidate answer according to the prompt.")

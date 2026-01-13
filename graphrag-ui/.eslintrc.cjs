@@ -15,5 +15,6 @@ module.exports = {
       "warn",
       { allowConstantExport: true },
     ],
+    "no-trailing-spaces": ["error", { "skipBlankLines": false }],
   },
 };

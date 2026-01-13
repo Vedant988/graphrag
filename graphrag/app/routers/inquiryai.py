@@ -58,7 +58,7 @@ def retrieve_answer(
     )
     try:
         resp = agent.question_for_agent(query.query)
-        # Note: IMAGE_REF conversion happens in agent_graph.py
+        # Note: tg:// protocol conversion happens in agent_graph.py
         pmetrics.llm_success_response_total.labels(embedding_service.model_name).inc()
     except MapQuestionToSchemaException:
         resp.natural_language_response = (
@@ -135,12 +135,12 @@ def retrieve_answer_with_chathistory(
 
         resp = agent.question_for_agent(query.query, latest_history_query)
         
-        # Convert IMAGE_REF markers to markdown images for UI display
-        if resp.natural_language_response and "[IMAGE_REF:" in resp.natural_language_response:
+        # Convert tg:// protocol URLs to endpoint URLs for UI display
+        if resp.natural_language_response and "(tg://" in resp.natural_language_response:
             import re
             resp.natural_language_response = re.sub(
-                r'\[IMAGE_REF:([^\]]+)\]',
-                rf'![Image](/ui/image_vertex/{graphname}/\1)',
+                r'!\[([^\]]*)\]\(tg://([^\)]+)\)',
+                rf'![\1](/ui/image_vertex/{graphname}/\2)',
                 resp.natural_language_response
             )
         

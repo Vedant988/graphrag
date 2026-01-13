@@ -156,7 +156,7 @@ def process_id(v_id: str):
     has_func = re.compile(r"(.*)\(").findall(v_id)
     if len(has_func) > 0:
         v_id = has_func[0]
-    v_id = v_id.replace(" ", "-").lower().replae("/", "_").replace("(", "").replace(")", "")
+    v_id = v_id.replace(" ", "-").lower().replace("/", "_").replace("(", "").replace(")", "")
     if v_id == "''" or v_id == '""':
         return ""
 

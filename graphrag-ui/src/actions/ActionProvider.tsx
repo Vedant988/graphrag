@@ -91,10 +91,10 @@ const ActionProvider: React.FC<ActionProviderProps> = ({
       const creds = localStorage.getItem("creds");
       console.log("Sending credentials, length:", creds ? creds.length : 0);
       queryGraphragWs2(creds!);
-      
+
       // Send RAG pattern
       //sendMessage(selectedRagPattern);
-      
+
       // Send conversation ID (or "new" for new conversation)
       const conversationId = conversationManager.getCurrentConversationId();
       const conversationIdToSend = conversationId || "new";
@@ -113,22 +113,76 @@ const ActionProvider: React.FC<ActionProviderProps> = ({
     },
   });
 
-  // Initialize conversation manager with any existing conversation data
+  // Initialize conversation manager and load conversation messages
   useEffect(() => {
     const selectedConversationData = localStorage.getItem('selectedConversationData');
     if (selectedConversationData) {
       try {
         const data = JSON.parse(selectedConversationData);
-        // Extract conversation ID from the first message
-        if (data.messages && data.messages.length > 0) {
-          const conversationId = data.messages[0].conversation_id;
+
+        // Handle different data structures
+        let messages: any[] = [];
+        let conversationId: string | null = null;
+
+        if (Array.isArray(data) && data.length > 0) {
+          // Direct array of messages from API
+          messages = data;
+          conversationId = data[0].conversation_id;
+        } else if (data.messages && Array.isArray(data.messages)) {
+          // Wrapped in messages property
+          messages = data.messages;
+          conversationId = data.messages[0]?.conversation_id;
+        } else if (data.content && Array.isArray(data.content)) {
+          // Wrapped in content property (from fetchHistory2)
+          messages = data.content;
+          conversationId = data.conversation_id || data.content[0]?.conversation_id;
+        }
+
+        if (conversationId) {
           conversationManager.setCurrentConversationId(conversationId);
         }
+
+        // Load conversation messages into the chat UI
+        // Sort messages by timestamp if available to maintain chronological order
+        const sortedMessages = [...messages].sort((a: any, b: any) => {
+          const timeA = a.create_ts ? new Date(a.create_ts).getTime() : 0;
+          const timeB = b.create_ts ? new Date(b.create_ts).getTime() : 0;
+          return timeA - timeB; // Oldest first
+        });
+
+        const loadedMessages: any[] = [];
+
+        sortedMessages.forEach((msg: any) => {
+          if (msg.role === "user") {
+            // Create user message
+            const userMessage = createClientMessage(msg.content || "", {
+              delay: 0,
+            });
+            loadedMessages.push(userMessage);
+          } else if (msg.role === "system") {
+            // Create bot message
+            const botMessage = createChatBotMessage({
+              content: msg.content || "",
+              response_type: msg.response_type || "text",
+              query_sources: msg.query_sources,
+              answered_question: msg.answered_question,
+            });
+            loadedMessages.push(botMessage);
+          }
+        });
+
+        // Set the loaded messages in the chat state
+        if (loadedMessages.length > 0) {
+          setState((prev: any) => ({
+            ...prev,
+            messages: loadedMessages,
+          }));
+        }
       } catch (error) {
-        console.error("Error parsing conversation data:", error);
+        // Silently handle error parsing conversation data
       }
     }
-  }, []);
+  }, [createChatBotMessage, createClientMessage, setState]);
 
   // eslint-disable-next-line
   // @ts-ignore
@@ -168,6 +222,10 @@ const ActionProvider: React.FC<ActionProviderProps> = ({
       ...prev,
       messages: [...prev.messages, loading],
     }));
+
+    // Dispatch event to refresh conversation list when user sends a question
+    // This ensures the side menu updates when a new message is sent
+    window.dispatchEvent(new CustomEvent('conversationUpdated'));
   };
 
   // FOR REFERENCE
@@ -200,16 +258,17 @@ const ActionProvider: React.FC<ActionProviderProps> = ({
   useEffect(() => {
     if (lastMessage !== null) {
       setMessageHistory((prev) => prev.concat(lastMessage));
-      
+
       try {
         const messageData = JSON.parse(lastMessage.data);
-        
+
         // Check if this is a conversation ID message (first message from backend)
         if (messageData.conversation_id && !messageData.content) {
           conversationManager.setCurrentConversationId(messageData.conversation_id);
+          // Don't dispatch refresh event here - refresh happens when user sends the question
           return; // Don't create a bot message for conversation ID
         }
-        
+
         // Handle regular bot messages
         const botMessage = createChatBotMessage(messageData);
         setState((prev) => {

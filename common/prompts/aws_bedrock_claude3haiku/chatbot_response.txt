@@ -35,6 +35,6 @@ Generate the answer in JSON format, make sure to escape necessary characters in 
 Make sure all the fields required by the format instructions are included, set a field to empty if you don't have that information.
 
 Question: {question}
-Context: {context}
+Contexts: {context}
 Query: {query}
 Format: {format_instructions}

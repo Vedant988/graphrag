@@ -6,7 +6,7 @@ import { IoCartOutline } from "react-icons/io5";
 import { FiKey } from "react-icons/fi";
 import { IoIosHelpCircleOutline } from "react-icons/io";
 import { HiOutlineChatBubbleOvalLeft } from "react-icons/hi2";
-import { MdKeyboardArrowDown } from "react-icons/md";
+import { MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
 import { IoIosArrowForward } from "react-icons/io";
 import { useTheme } from "@/components/ThemeProvider";
 import { GoGear } from "react-icons/go";
@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { FaPaperclip } from "react-icons/fa6";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { conversationManager } from "../actions/ActionProvider";
 import { useNavigate } from "react-router-dom";
 
@@ -62,16 +62,27 @@ const WS_CONVO_URL = "/ui/conversation";
 const SideMenu = ({ height, setGetConversationId }: { height?: string, setGetConversationId?: any }) => {
   const getTheme = useTheme().theme;
   // const [conhistory, setConHistory] = useState([]);
-  const [conversationId, setConversationId] = useState([]);
-  const [conversationId2, setConversationId2] = useState([]);
-  const [newSet, setNewSet] = useState([]);
+  const [conversationId, setConversationId] = useState<any[]>([]);
+  const [conversationId2, setConversationId2] = useState<any[]>([]);
+  const [newSet, setNewSet] = useState<any[]>([]);
+  const [expandedConversations, setExpandedConversations] = useState<Set<string>>(new Set());
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const navigate = useNavigate();
-  
 
-  const fetchHistory2 = async () => {
+
+  const fetchHistory2 = useCallback(async () => {
     setConversationId([]);
     const creds = localStorage.getItem("creds");
     const username = localStorage.getItem("username");
+
+    if (!username) {
+      return;
+    }
+
+    if (!creds) {
+      return;
+    }
+
     const settings = {
       method: 'GET',
       headers: {
@@ -79,22 +90,72 @@ const SideMenu = ({ height, setGetConversationId }: { height?: string, setGetCon
         "Content-Type": "application/json",
       }
     }
-    const response = await fetch(`${WS_HISTORY_URL}/${username}`, settings);
-    const data = await response.json();
-    data.map(async (item: any) => {
-      const response2 = await fetch(`${WS_CONVO_URL}/${item.conversation_id}`, settings);
-      const obj = {
-        conversation_id: item.conversation_id,
-        content: await response2.json(),
-        date: formatDate(item.create_ts)
-        // date:  item.create_ts.filter((val,id,array) => array.indexOf(val) == id)
+    try {
+      const response = await fetch(`${WS_HISTORY_URL}/${username}`, settings);
+
+      if (!response.ok) {
+        setConversationId([]);
+        return;
       }
-      // eslint-disable-next-line
-      // @ts-ignore
-      setConversationId(prev => [...prev, obj]);
-      // console.log('resp', conversationId);
-    });
-  }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        setConversationId([]);
+        return;
+      }
+
+      // Sort conversations by update_ts (most recently updated first), fallback to create_ts
+      const sortedData = [...data].sort((a: any, b: any) => {
+        // Use update_ts if available, otherwise use create_ts
+        const timeA = new Date(a.update_ts || a.create_ts).getTime();
+        const timeB = new Date(b.update_ts || b.create_ts).getTime();
+        return timeB - timeA; // Most recently updated first
+      });
+
+      // Wait for all conversation details to be fetched
+      const conversationPromises = sortedData.map(async (item: any) => {
+        try {
+          const response2 = await fetch(`${WS_CONVO_URL}/${item.conversation_id}`, settings);
+          if (!response2.ok) {
+            return null;
+          }
+          const content = await response2.json();
+
+          // Get the most recent message timestamp for sorting
+          let lastUpdateTime = item.update_ts || item.create_ts;
+          if (Array.isArray(content) && content.length > 0) {
+            // Find the most recent message timestamp
+            const messageTimes = content
+              .map((msg: any) => msg.create_ts || msg.update_ts)
+              .filter((ts: any) => ts != null)
+              .map((ts: any) => new Date(ts).getTime());
+            if (messageTimes.length > 0) {
+              const latestMessageTime = Math.max(...messageTimes);
+              lastUpdateTime = new Date(latestMessageTime).toISOString();
+            }
+          }
+
+          return {
+            conversation_id: item.conversation_id,
+            content: content,
+            date: formatDate(item.create_ts),
+            create_ts: item.create_ts,
+            update_ts: lastUpdateTime // Use for sorting by most recent activity
+          };
+        } catch (error) {
+          return null;
+        }
+      });
+
+      const conversations = await Promise.all(conversationPromises);
+      // Filter out any null values from failed requests
+      const validConversations = conversations.filter(conv => conv !== null);
+      setConversationId(validConversations as any);
+    } catch (error) {
+      setConversationId([]);
+    }
+  }, []);
 
   const formatDate = (dateString) => {
     const options = { year: "numeric" as const, month: "long" as const, day: "numeric" as const}
@@ -103,65 +164,176 @@ const SideMenu = ({ height, setGetConversationId }: { height?: string, setGetCon
 
   const handleNewChat = () => {
     conversationManager.startNewConversation();
-    navigate("/chat");
-    //window.location.reload();
+    // Clear any selected conversation data
+    localStorage.removeItem('selectedConversationData');
+    // Force navigation by reloading if already on chat page
+    if (window.location.pathname === "/chat") {
+      window.location.reload();
+    } else {
+      navigate("/chat");
+    }
   };
 
   // eslint-disable-next-line
   // @ts-ignore
   const resumeConvo = async (id):any => {
-    // Load conversation into conversation manager
-    conversationManager.loadConversation(id);
-    
-    // Store conversation data for the chat component
-    const creds = localStorage.getItem("creds");
-    const settings = {
-      method: 'GET',
-      headers: {
-        Authorization: `Basic ${creds}`,
-        "Content-Type": "application/json",
+    try {
+      // Load conversation into conversation manager
+      conversationManager.loadConversation(id);
+
+      // Set as active conversation and expand it
+      setActiveConversationId(id);
+      setExpandedConversations(prev => new Set([...prev, id]));
+
+      // Store conversation data for the chat component
+      const creds = localStorage.getItem("creds");
+      if (!creds) {
+        return;
       }
+
+      const settings = {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${creds}`,
+          "Content-Type": "application/json",
+        }
+      }
+
+      const response = await fetch(`${WS_CONVO_URL}/${id}`, settings);
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      setConversationId2(data);
+
+      // Store the conversation data in localStorage for the chat component
+      localStorage.setItem('selectedConversationData', JSON.stringify(data));
+
+      // Force reload to restart the WebSocket connection with the conversation ID
+      // This ensures the Bot component re-initializes and loads the conversation messages
+      if (window.location.pathname === "/chat") {
+        window.location.reload();
+      } else {
+        navigate("/chat");
+      }
+    } catch (error) {
+      // Silently handle error
     }
-    const response = await fetch(`${WS_CONVO_URL}/${id}`, settings);
-    const data = await response.json();
-    setConversationId2(data);
-    
-    // Store the conversation data in localStorage for the chat component
-    localStorage.setItem('selectedConversationData', JSON.stringify(data));
-    
-    // Reload the page to restart the WebSocket connection with the new conversation ID
-    navigate("/chat");
-    //window.location.reload();
+  }
+
+  const toggleConversation = (conversationId: string) => {
+    setExpandedConversations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(conversationId)) {
+        newSet.delete(conversationId);
+      } else {
+        newSet.add(conversationId);
+      }
+      return newSet;
+    });
   }
 
   const renderConvoHistory = () => {
+    if (newSet.length === 0) {
+      return (
+        <div className="mb-[200px] px-6 pt-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            No chat history yet. Start a new conversation to see it here.
+          </p>
+        </div>
+      );
+    }
+
+    // Group conversations by date
+    const groupedByDate = newSet.reduce((acc: Record<string, any[]>, item: any) => {
+      const date = item.date;
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(item);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // Sort dates (most recently updated first) - convert to array and sort by the first conversation's timestamp
+    const sortedDates = Object.entries(groupedByDate).sort(([, convsA], [, convsB]) => {
+      const timeA = new Date(convsA[0]?.update_ts || convsA[0]?.create_ts || convsA[0]?.date || 0).getTime();
+      const timeB = new Date(convsB[0]?.update_ts || convsB[0]?.create_ts || convsB[0]?.date || 0).getTime();
+      return timeB - timeA; // Most recently updated first
+    });
+
     return (
       <div className="mb-[200px]">
-        {newSet.map((item: any, i) => {
+        {sortedDates.map(([date, conversations]) => {
           return (
-            <div key={i}>
+            <div key={date}>
               <h4 className="Urbane-Medium text-lg pl-6 pt-5 text-black dark:text-white">
-                {item.date}
+                {date}
               </h4>
               <ul className="menu border-b border-gray-300 dark:border-[#3D3D3D] text-black mx-6">
-                 <li className="text-ellipsis">
-                   <Dialog>
-                     <DialogTrigger asChild>
-                       <a href="#" className="flex py-3 my-3 px-3 items-center" onClick={() => resumeConvo(item.conversation_id)}>
-                         <HiOutlineChatBubbleOvalLeft className="text-xl mr-3" />
-                         <div>{item.content.map((d) => d.content)}</div>
-                         {/* <div>{item.content.filter((value) => value % 2 !== 0).map((value) => value.content * 2)}</div> */}
-                         ;
-                       </a>
-                     </DialogTrigger>
-                     <DialogContent className="sm:max-w-md">
-                     </DialogContent>
-                   </Dialog>
-                 </li>
+                {conversations.map((item: any, idx: number) => {
+                  const isExpanded = expandedConversations.has(item.conversation_id);
+                  const isActive = activeConversationId === item.conversation_id;
+
+                  // Get all user messages for display
+                  const userMessages = item.content?.filter((msg: any) => msg.role === "user") || [];
+                  const firstUserMessage = userMessages[0];
+                  const previewText = firstUserMessage?.content || "No messages";
+
+                  return (
+                    <li key={`${item.conversation_id}-${idx}`} className="text-ellipsis">
+                      <div className={`${isActive ? 'bg-gray-100 dark:bg-gray-800' : ''} rounded`}>
+                        <a 
+                          href="#" 
+                          className={`flex py-3 my-3 px-3 items-center hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer ${isActive ? 'font-medium' : ''}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            resumeConvo(item.conversation_id);
+                          }}
+                        >
+                          <HiOutlineChatBubbleOvalLeft className="text-xl mr-3 flex-shrink-0" />
+                          <div className="truncate flex-1">{previewText}</div>
+                          {userMessages.length > 1 && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleConversation(item.conversation_id);
+                              }}
+                              className="ml-2 flex-shrink-0 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                            >
+                              {isExpanded ? (
+                                <MdKeyboardArrowUp className="text-xl" />
+                              ) : (
+                                <MdKeyboardArrowDown className="text-xl" />
+                              )}
+                            </button>
+                          )}
+                        </a>
+                        {isExpanded && userMessages.length > 1 && (
+                          <div className="px-3 pb-3 ml-8 border-l-2 border-gray-300 dark:border-gray-600">
+                            {userMessages.slice(1).map((msg: any, msgIdx: number) => (
+                              <div
+                                key={msgIdx}
+                                className="py-2 text-sm text-gray-600 dark:text-gray-400 truncate cursor-pointer hover:text-gray-900 dark:hover:text-gray-200"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  resumeConvo(item.conversation_id);
+                                }}
+                              >
+                                {msg.content}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
-          )}
-        )}
+          );
+        })}
       </div>
     )
   }
@@ -169,22 +341,70 @@ const SideMenu = ({ height, setGetConversationId }: { height?: string, setGetCon
 
   useEffect(() => {
     fetchHistory2();
-    setGetConversationId(conversationId);
-    const groupByDate = array => array.reduce((results, item) => {
-      const current = results.find(i => i.date === item.date);
-      if (current) {
-        for (let property in item) {
-          if (property !== 'date') {
-            current[property] = item[property];
-          }
-        }
-      } else {
-        results.push({...item});
+  }, [fetchHistory2]);
+
+  // Refresh history when component becomes visible (user returns to chat page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchHistory2();
       }
-      return results;
-    }, []);
-    setNewSet(groupByDate(conversationId));
-  }, [])
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchHistory2]);
+
+  // Listen for conversation creation/update events to refresh the history
+  useEffect(() => {
+    const handleConversationEvent = () => {
+      // Debounce to avoid too many refreshes
+      setTimeout(() => {
+        fetchHistory2();
+      }, 500);
+    };
+
+    window.addEventListener('conversationCreated', handleConversationEvent);
+    window.addEventListener('conversationUpdated', handleConversationEvent);
+
+    return () => {
+      window.removeEventListener('conversationCreated', handleConversationEvent);
+      window.removeEventListener('conversationUpdated', handleConversationEvent);
+    };
+  }, [fetchHistory2]);
+
+  useEffect(() => {
+    setGetConversationId(conversationId);
+    // Sort by update_ts (most recently updated first), fallback to create_ts
+    const sorted = [...conversationId].sort((a, b) => {
+      const timeA = new Date(a.update_ts || a.create_ts || a.date).getTime();
+      const timeB = new Date(b.update_ts || b.create_ts || b.date).getTime();
+      return timeB - timeA; // Most recently updated first
+    });
+    setNewSet(sorted);
+  }, [conversationId])
+
+  // Track active conversation from conversationManager
+  useEffect(() => {
+    const checkActiveConversation = () => {
+      const currentId = conversationManager.getCurrentConversationId();
+      if (currentId && currentId !== activeConversationId) {
+        setActiveConversationId(currentId);
+        // Auto-expand the active conversation
+        setExpandedConversations(prev => new Set([...prev, currentId]));
+      } else if (!currentId) {
+        setActiveConversationId(null);
+      }
+    };
+
+    // Check immediately
+    checkActiveConversation();
+
+    // Check periodically (every 500ms) to catch changes
+    const interval = setInterval(checkActiveConversation, 500);
+
+    return () => clearInterval(interval);
+  }, [activeConversationId]);
 
   return (
     <div

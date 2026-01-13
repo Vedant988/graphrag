@@ -112,15 +112,14 @@ class TigerGraphAgentGraph:
         logger.debug_pii(
             f"request_id={req_id_cv.get()} Routing question: {state['question']}"
         )
-        if self.supportai_enabled:
-            source = step.route_question(state["question"])
-            logger.debug_pii(
-                f"request_id={req_id_cv.get()} Routing question to: {source}"
-            )
-            if source.datasource == "vectorstore":
-                return "supportai_lookup"
-            elif source.datasource == "functions":
-                return "inquiryai_lookup"
+        source = step.route_question(state["question"], state["conversation"])
+        logger.debug_pii(
+            f"request_id={req_id_cv.get()} Routing question to: {source}"
+        )
+        if self.supportai_enabled and source.datasource == "vectorstore":
+            return "supportai_lookup"
+        elif source.datasource == "history":
+            return "history_lookup"
         else:
             return "inquiryai_lookup"
 
@@ -135,6 +134,20 @@ class TigerGraphAgentGraph:
             response_type="error",
             query_sources={"error": True, "error_history": state["error_history"]},
         )
+        return state
+
+    def lookup_history(self, state):
+        """
+        Run the agent history lookup.
+        """
+        self.emit_progress("Looking up the conversation history")
+        state["lookup_source"] = "history"
+        state["context"] = {
+            "result": state["conversation"],
+            "reasoning": "The following conversation history was used to answer the question. {}".format(
+                state["conversation"]
+            ),
+        }
         return state
 
     def map_question_to_schema(self, state):
@@ -181,14 +194,12 @@ class TigerGraphAgentGraph:
         """
         Run the agent cypher generator.
         """
-        self.emit_progress("Generating the Cypher to answer your question")
+        self.emit_progress("Generating the query to answer your question")
         gen_history = []
         response_json = None
 
         for i in range(3):
             cypher = self.cypher_gen._run(state["question"], gen_history)
-            logger.info(f"cypher: {cypher}")
-
             response = self.db_connection.gsql(cypher)
             response_lines = response.split("\n")
             json_str = "\n".join(response_lines[1:])
@@ -197,9 +208,9 @@ class TigerGraphAgentGraph:
                 break
             except Exception as e:
                 gen_history.append(f"{i}: {cypher}\n\tError: {json_str}\n")
-        if response_json:
+        if response_json and not self.is_query_result_empty(response_json["results"][0]):
             state["context"] = {
-                "answer": response_json["results"][0],
+                "result": response_json["results"][0],
                 "cypher": cypher,
                 "reasoning": "The following OpenCypher query was executed to answer the question. {}".format(
                     cypher
@@ -209,7 +220,7 @@ class TigerGraphAgentGraph:
             state["context"] = {
                 "error": True,
                 "cypher": cypher,
-                "answer": json_str
+                "result": json_str
             }
             if "error_history" not in state or state["error_history"] is None:
                 state["error_history"] = []
@@ -233,7 +244,7 @@ class TigerGraphAgentGraph:
         chunk_only=graphrag_config.get("chunk_only", True)
         step = retriever.search(
             state["question"],
-            indices=(["DocumentChunk"] if chunk_only else ["Document", "DocumentChunk", "Entity"]),
+            indices=["DocumentChunk", "Entity"],
             top_k=graphrag_config.get("top_k", 5),
             num_seen_min=graphrag_config.get("num_seen_min", 2),
             num_hops=graphrag_config.get("num_hops", 2),
@@ -367,13 +378,19 @@ class TigerGraphAgentGraph:
             logger.debug_pii(
                 f"""request_id={req_id_cv.get()} Got result: {state["context"]["result"]}"""
             )
+            context = state["context"]["result"]["final_retrieval"]
+            citations = sorted(list(context.keys()))
             answer = step.generate_answer(
-                state["question"], state["context"]["result"]["final_retrieval"]
+                state["question"], context
             )
 
-            if not answer.citation:
-                answer.citation = [state["context"]["result"]["final_retrieval"].keys()]
-            state["context"]["reasoning"] = list(set(list(answer.citation)))
+            if answer.citation:
+                for citation in answer.citation:
+                    if citation in citations:
+                        citations[citations.index(citation)] = f"* {citation}"
+                    else:
+                        logger.info(f"Answer citation {citation} not found in the context")
+            state["context"]["reasoning"] = citations
 
         elif state["lookup_source"] == "inquiryai":
             logger.debug_pii(
@@ -389,9 +406,16 @@ class TigerGraphAgentGraph:
 
         elif state["lookup_source"] == "cypher":
             logger.debug_pii(
-                f"""request_id={req_id_cv.get()} Got result: {state["context"]["answer"]}"""
+                f"""request_id={req_id_cv.get()} Got result: {state["context"]["result"]}"""
             )
-            answer = step.generate_answer(state["question"], state["context"]["answer"], state["context"]["cypher"])
+            answer = step.generate_answer(state["question"], state["context"]["result"], state["context"]["cypher"])
+
+        elif state["lookup_source"] == "history":
+            logger.debug_pii(
+                f"""request_id={req_id_cv.get()} Got result: {state["context"]["result"]}"""
+            )
+            answer = step.generate_answer(state["question"], state["context"]["result"])
+
         logger.debug_pii(
             f"request_id={req_id_cv.get()} Generated answer: {answer.generated_answer}"
         )
@@ -404,7 +428,6 @@ class TigerGraphAgentGraph:
             # Convert [IMAGE_REF:image_id] to markdown images for React UI
             # This converts internal image references to URLs that the UI can display
             answer.generated_answer = self.convert_image_refs_to_markdown(answer.generated_answer)
-            logger.info(f"[IMAGE_DEBUG] After conversion: {answer.generated_answer}")
             
             resp = GraphRAGResponse(
                 natural_language_response=answer.generated_answer,
@@ -424,7 +447,6 @@ class TigerGraphAgentGraph:
         logger.info(f"Generated answer: {resp.natural_language_response}")
         return state
 
-
     def replace_s3_urls_with_presigned(self, content, expires_in=3600):
         """
         Recursively detects S3 URLs in content (string, list, or dict) 
@@ -438,7 +460,7 @@ class TigerGraphAgentGraph:
             Any: Content with S3 URLs replaced by presigned URLs (same type as input).
         """
 
-        s3_url_pattern = r's3://([\w\-.]+)/([\w\-\./]+)'
+        s3_url_pattern = r'\(s3://([^/]+)/([^\)]+)\)'
         s3 = boto3.client('s3')
 
         def presign(match):
@@ -449,10 +471,10 @@ class TigerGraphAgentGraph:
                     Params={'Bucket': bucket, 'Key': key},
                     ExpiresIn=expires_in
                 )
-                return url
+                return f"({url})"
             except Exception as e:
                 logger.error(f"Failed to presign S3 url for s3://{bucket}/{key}: {e}")
-                return match.group(0)
+                return f"({match.group(0)})"
 
         def process(value):
             if isinstance(value, str):
@@ -465,11 +487,10 @@ class TigerGraphAgentGraph:
                 return value
 
         return process(content)
-    
 
     def convert_image_refs_to_markdown(self, text):
         """
-        Convert [IMAGE_REF:image_id] markers to markdown image syntax with API endpoint URLs.
+        Convert tg:// protocol URLs to actual API endpoint URLs for images stored in TigerGraph.
         
         Creates relative URLs pointing to the /ui/image_vertex/ endpoint which serves images 
         from TigerGraph. The endpoint uses standard HTTP Basic Authentication (same pattern as 
@@ -477,37 +498,38 @@ class TigerGraphAgentGraph:
         
         PATH_PREFIX is automatically handled by FastAPI router configuration.
         
-        Format: [IMAGE_REF:image_id] → ![Image](/ui/image_vertex/{graphname}/{image_id})
+        Format: ![description](tg://image_id) → ![description](/ui/image_vertex/{graphname}/{image_id})
         
         Args:
-            text (str): The text containing [IMAGE_REF:] markers.
+            text (str): The text containing markdown images with tg:// protocol.
             
         Returns:
-            str: The text with [IMAGE_REF:] markers converted to markdown with endpoint URLs.
+            str: The text with tg:// URLs converted to endpoint URLs.
         """
         if not isinstance(text, str):
             return text
             
-        if "[IMAGE_REF:" not in text:
+        if "(tg://" not in text:
             return text
-        
-        import re
         
         # Get graphname from connection
         graphname = self.db_connection.graphname
         
-        # Replace [IMAGE_REF:image_id] with markdown image syntax pointing to the endpoint
+        # Replace tg://image_id with actual endpoint URL and count
+        # Preserves the image description from markdown
         # Note: Authentication is handled via HTTP Basic Auth headers (standard FastAPI pattern)
         # PATH_PREFIX is already applied at router level in main.py, so use relative URL
-        converted = re.sub(
-            r'\[IMAGE_REF:([^\]]+)\]',
-            rf'![Image](/ui/image_vertex/{graphname}/\1)',
+        converted, count = re.subn(
+            r'!\[([^\]]*)\]\(tg://([^\)]+)\)',
+            rf'![\1](/ui/image_vertex/{graphname}/\2)',
             text
         )
         
-        logger.info(f"Converted {text.count('[IMAGE_REF:')} image reference(s) to endpoint URLs")
-        return converted
-
+        if count > 0:
+            logger.info(f"Converted {count} tg:// image reference(s) to endpoint URLs")
+            return converted
+        else:
+            return text
 
     def rewrite_question(self, state):
         """
@@ -518,6 +540,21 @@ class TigerGraphAgentGraph:
         question_str = state["question"]
         state["question"] = step.rewrite_question(question_str)
         return state
+
+    def is_query_result_empty(self, query_result) -> bool:
+        """
+        Check if the query result is empty or contains empty values.
+        """
+        if query_result in ("", [], {}, (), set(), range(0), None):
+            return True
+
+        if isinstance(query_result, (list, set)):
+            return all(self.is_query_result_empty(item) for item in query_result)
+
+        if isinstance(query_result, dict):
+            return all(self.is_query_result_empty(v) for v in query_result.values())
+
+        return False
 
     # remove halucinaton check, always return grounded
     def check_answer_for_hallucinations(self, state):
@@ -609,6 +646,7 @@ class TigerGraphAgentGraph:
         self.workflow.set_entry_point("entry")
         self.workflow.add_node("entry", self.entry)
         self.workflow.add_node("generate_answer", self.generate_answer)
+        self.workflow.add_node("lookup_history", self.lookup_history)
         self.workflow.add_node("map_question_to_schema", self.map_question_to_schema)
         self.workflow.add_node("generate_function", self.generate_function)
         if self.supportai_enabled:
@@ -623,11 +661,20 @@ class TigerGraphAgentGraph:
                 self.check_state_for_generation_error,
                 {"error": "generate_cypher", "success": "generate_answer"},
             )
-            self.workflow.add_conditional_edges(
-                "generate_cypher",
-                self.check_state_for_generation_error,
-                {"error": "apologize", "success": "generate_answer"},
-            )
+
+            if self.supportai_enabled:
+                self.workflow.add_conditional_edges(
+                    "generate_cypher",
+                    self.check_state_for_generation_error,
+                    {"error": "supportai", "success": "generate_answer"},
+                )
+            else:
+                self.workflow.add_conditional_edges(
+                    "generate_cypher",
+                    self.check_state_for_generation_error,
+                    {"error": "apologize", "success": "generate_answer"},
+                )
+
             # remove hallucination and usefulness check
             if self.supportai_enabled:
                 self.workflow.add_conditional_edges(
@@ -693,6 +740,7 @@ class TigerGraphAgentGraph:
                 {
                     "supportai_lookup": "supportai",
                     "inquiryai_lookup": "map_question_to_schema",
+                    "history_lookup": "lookup_history",
                     "apologize": "apologize",
                 },
             )
@@ -702,10 +750,12 @@ class TigerGraphAgentGraph:
                 self.route_question,
                 {
                     "inquiryai_lookup": "map_question_to_schema",
+                    "history_lookup": "lookup_history",
                     "apologize": "apologize",
                 },
             )
 
+        self.workflow.add_edge("lookup_history", "generate_answer")
         self.workflow.add_edge("map_question_to_schema", "generate_function")
         if self.supportai_enabled:
             self.workflow.add_edge("supportai", "generate_answer")

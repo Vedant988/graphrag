@@ -17,19 +17,20 @@
   "llm_config": {
     "token_limit": 0,
     "authentication_configuration": {
-      "OPENAI_API_KEY": "YOUR_LLM_API_KEY_HERE"
+      "GOOGLE_API_KEY": "YOUR_LLM_API_KEY_HERE"
     },
     "embedding_service": {
-      "model_name": "text-embedding-3-small",
-      "embedding_model_service": "openai"
+      "embedding_model_service": "genai",
+      "model_name": "models/gemini-embedding-exp-03-07",
+      "dimensions": 1536,
     },
     "completion_service": {
-      "llm_service": "openai",
-      "llm_model": "gpt-4.1-mini",
+      "llm_service": "genai",
+      "llm_model": "gemini-2.5-flash",
       "model_kwargs": {
         "temperature": 0
       },
-      "prompt_path": "./common/prompts/openai_gpt4/"
+      "prompt_path": "./common/prompts/google_gemini/"
     },
     "multimodal_service": {
       "llm_service": "openai",

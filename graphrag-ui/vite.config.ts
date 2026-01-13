@@ -17,7 +17,7 @@ export default defineConfig({
         target: 'ws://localhost:8000',
         ws: true,
       },
-      '^/[^/]+/(graphrag|supportai)': 'http://localhost:8000',
+      '^/[^/]+/graphrag/.*': 'http://localhost:8000',
     }
   },
 });

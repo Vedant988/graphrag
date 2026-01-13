@@ -72,8 +72,8 @@ class GenerateCypher(BaseTool):
             ]
         )
 
+        LogWriter.info(f"request_id={req_id_cv.get()} ENTRY generate_cypher with {question}")
         schema = self._generate_schema_rep()
-    
         logger.debug_pii("Prompt to LLM:\n" + PROMPT.invoke({"question": question, "schema": schema, "history": history}).to_string())
 
         chain = PROMPT | self.llm.model | StrOutputParser()
@@ -89,8 +89,10 @@ class GenerateCypher(BaseTool):
 
         query_header = "USE GRAPH " + self.conn.graphname + " "+ "\n" + "INTERPRET OPENCYPHER QUERY () {" + "\n"
         query_footer = "\n}"
-        return query_header + out + query_footer
-    
+        cypher = query_header + out + query_footer
+        LogWriter.info(f"request_id={req_id_cv.get()} EXIT generate_cypher with:\n{cypher}")
+        return cypher
+
     def _run(self, question: str, history: Iterable[str]):
         """Run the GenerateCypher tool.
         Args:
@@ -101,6 +103,6 @@ class GenerateCypher(BaseTool):
                 Cypher query for the question.
         """
         return self.generate_cypher(question, history)
-    
+
     def _arun(self, question: str, history: Iterable[str]):
         raise NotImplementedError("Asynchronous execution is not supported for this tool.")

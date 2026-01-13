@@ -96,7 +96,7 @@ class HybridRetriever(BaseRetriever):
         else:
             context = ["\n".join(retrieved[0]["final_retrieval"][x]) for x in retrieved[0]["final_retrieval"]]
 
-        resp = self._generate_response(question, context, verbose)
+        resp = self._generate_response(question, context, verbose=verbose)
         
         if verbose and len(retrieved) > 1 and "verbose" in retrieved[1]:
             resp["verbose"] = retrieved[1]["verbose"]

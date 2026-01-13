@@ -11,7 +11,7 @@ from langchain_ollama import OllamaEmbeddings
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
 from common.metrics.prometheus_metrics import metrics
-from common.utils.token_calculator import TokenCalculator
+from common.utils.token_calculator import get_token_calculator
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class EmbeddingModel(Embeddings):
         self.embeddings = None
         self.model_name = model_name
         self.dimensions = config.get("dimensions", 1536)
-        self.token_calculator = TokenCalculator(token_limit=config.get("token_limit", 8192), model_name=model_name)
+        self.token_calculator = get_token_calculator(token_limit=config.get("token_limit", 8192), model_name=model_name)
         LogWriter.info(
             f"request_id={req_id_cv.get()} instantiated AI model_name={model_name} with dimensions={self.dimensions}"
         )

@@ -30,6 +30,8 @@ from agent.agent import TigerGraphAgent, make_agent
 from agent.Q import DONE
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
+    Body,
     Depends,
     File,
     HTTPException,
@@ -49,9 +51,12 @@ from common.db.connections import get_db_connection_pwd_manual
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
 from common.metrics.prometheus_metrics import metrics as pmetrics
+from supportai import supportai
 from common.py_schemas.schemas import (
     AgentProgess,
+    CreateIngestConfig,
     GraphRAGResponse,
+    LoadingInfo,
     Message,
     ResponseType,
     Role,
@@ -140,6 +145,230 @@ def add_feedback(
     return {"message": "feedback saved", "message_id": message.message_id}
 
 
+@router.post(route_prefix + "/{graphname}/create_graph")
+def create_graph(
+    graphname: str,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+):
+    """
+    Create a new TigerGraph knowledge graph.
+    This creates an empty graph with the specified name.
+    Uses HTTP Basic Authentication to get credentials and create a connection.
+    """
+    try:
+        # Extract credentials from the dependency (same pattern as other endpoints)
+        creds = creds[1]
+        auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
+        _, conn = ws_basic_auth(auth, graphname)
+
+        # Create the graph using GSQL
+        LogWriter.info(f"Creating graph: {graphname}")
+        create_query = f"CREATE GRAPH {graphname}()"
+        result = conn.gsql(create_query)
+
+        LogWriter.info(f"Graph creation result: {result}")
+        return {
+            "status": "success",
+            "message": f"Graph '{graphname}' created successfully",
+            "graphname": graphname,
+            "details": result
+        }
+
+    except Exception as e:
+        LogWriter.error(f"Error creating graph {graphname}: {str(e)}")
+        if "conflicts" in str(e).lower() or "existing graph" in str(e).lower():
+            return {
+                "status": "error",
+                "message": f"Graph '{graphname}' already exists",
+                "details": str(e)
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to create graph '{graphname}': {str(e)}",
+                "details": str(e)
+            }
+
+
+@router.post(route_prefix + "/{graphname}/initialize_graph")
+def init_graph(
+    graphname: str,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+):
+    """
+    Initialize a TigerGraph knowledge graph with GraphRAG schema.
+    This initializes the graph with SupportAI/GraphRAG schema, indexes, and queries.
+    Uses HTTP Basic Authentication to get credentials and create a connection.
+    """
+    try:
+        # Extract credentials from the dependency (same pattern as other endpoints)
+        creds = creds[1]
+        auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
+        _, conn = ws_basic_auth(auth, graphname)
+
+        # Initialize the graph with GraphRAG schema
+        LogWriter.info(f"Initializing graph: {graphname}")
+        resp = supportai.init_supportai(conn, graphname)
+        schema_res, index_res, query_res = resp[0], resp[1], resp[2]
+
+        LogWriter.info(f"Graph initialization completed for: {graphname}")
+
+        return {
+            "status": "success",
+            "message": f"Graph '{graphname}' initialized successfully",
+            "graphname": graphname,
+            "host_name": conn._tg_connection.host,
+            "schema_creation_status": json.dumps(schema_res),
+            "index_creation_status": json.dumps(index_res),
+            "query_creation_status": json.dumps(query_res),
+        }
+
+    except Exception as e:
+        LogWriter.error(f"Error initializing graph {graphname}: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to initialize graph '{graphname}': {str(e)}",
+            "details": str(e)
+        }
+
+
+@router.post(route_prefix + "/{graphname}/rebuild_graph")
+def forceupdate(
+    graphname: str,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+    bg_tasks: BackgroundTasks,
+):
+    """
+    Force update/refresh of a GraphRAG knowledge graph.
+    This triggers the ECC (Eventual Consistency Checker) service to rebuild the graph.
+    Uses HTTP Basic Authentication to get credentials.
+    """
+    # Extract credentials from the dependency
+    creds = creds[1]
+    auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
+
+    from httpx import get as http_get
+
+    ecc = (
+        graphrag_config.get("ecc", "http://localhost:8001")
+        + f"/{graphname}/graphrag/consistency_update"
+    )
+    LogWriter.info(f"Sending ECC request to: {ecc}")
+    bg_tasks.add_task(
+        http_get, ecc, headers={"Authorization": f"Basic {auth}"}
+    )
+    return {"status": "submitted"}
+
+
+@router.get(route_prefix + "/{graphname}/rebuild_status")
+def get_rebuild_status(
+    graphname: str,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+):
+    """
+    Check if a GraphRAG rebuild is currently in progress for the specified graph.
+    Returns the current status without triggering a new rebuild.
+    Uses HTTP Basic Authentication to get credentials.
+    """
+    # Extract credentials from the dependency
+    creds = creds[1]
+    auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
+
+    try:
+        ecc_status_url = (
+            graphrag_config.get("ecc", "http://localhost:8001")
+            + f"/{graphname}/graphrag/rebuild_status"
+        )
+        LogWriter.info(f"Checking ECC status at: {ecc_status_url}")
+        
+        response = httpx.get(
+            ecc_status_url,
+            headers={"Authorization": f"Basic {auth}"},
+            timeout=10.0
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            LogWriter.warning(f"ECC status check returned {response.status_code}")
+            return {
+                "graphname": graphname,
+                "is_running": False,
+                "status": "unknown",
+                "error": f"ECC service returned status {response.status_code}"
+            }
+    except Exception as e:
+        LogWriter.error(f"Failed to check ECC status: {str(e)}")
+        return {
+            "graphname": graphname,
+            "is_running": False,
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@router.post(route_prefix + "/{graphname}/create_ingest")
+def create_ingest(
+    graphname: str,
+    cfg: CreateIngestConfig,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+):
+    """
+    Create an ingest configuration for a GraphRAG knowledge graph.
+    This sets up the data source and load job configuration for document ingestion.
+    Uses HTTP Basic Authentication to get credentials and create a connection.
+    """
+    try:
+        # Extract credentials from the dependency (same pattern as other endpoints)
+        creds = creds[1]
+        auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
+        _, conn = ws_basic_auth(auth, graphname)
+
+        # Create the ingest configuration
+        LogWriter.info(f"Creating ingest configuration for graph: {graphname}")
+        result = supportai.create_ingest(graphname, cfg, conn)
+
+        return result
+
+    except Exception as e:
+        LogWriter.error(f"Error creating ingest configuration for graph {graphname}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create ingest configuration: {str(e)}"
+        )
+
+
+@router.post(route_prefix + "/{graphname}/ingest")
+def ingest(
+    graphname: str,
+    loader_info: LoadingInfo,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+):
+    """
+    Run document ingestion for a GraphRAG knowledge graph.
+    This processes documents from the configured data source and loads them into the graph.
+    Uses HTTP Basic Authentication to get credentials and create a connection.
+    """
+    try:
+        # Extract credentials from the dependency (same pattern as other endpoints)
+        creds = creds[1]
+        auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
+        _, conn = ws_basic_auth(auth, graphname)
+
+        # Run the ingestion
+        LogWriter.info(f"Running ingestion for graph: {graphname}")
+        result = supportai.ingest(graphname, loader_info, conn)
+
+        return result
+
+    except Exception as e:
+        LogWriter.error(f"Error running ingestion for graph {graphname}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to run ingestion: {str(e)}"
+        )
+
+
 @router.get(route_prefix + "/image_vertex/{graphname}/{image_id}")
 async def serve_image_from_vertex(
     graphname: str,
@@ -160,12 +389,11 @@ async def serve_image_from_vertex(
     try:
         # Extract credentials from the dependency (same pattern as graph_query and other endpoints)
         creds = creds[1]
-        encoded_username = base64.b64encode(creds.username.encode()).decode()
-        encoded_password = base64.b64encode(creds.password.encode()).decode()
-
-        # now you can use them separately
-        conn = get_db_connection_pwd_manual(graphname, encoded_username, encoded_password)
+        auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
+        _, conn = ws_basic_auth(auth, graphname)
         
+        LogWriter.info(f"Serving image {image_id} from graph {graphname}")
+
         # Fetch the Image vertex by ID
         image_vertices = conn.getVerticesById('Image', [image_id.lower()])
         
@@ -385,7 +613,7 @@ async def run_agent(
 async def load_conversation_history(conversation_id: str, usr_auth: str) -> list[dict[str, str]]:
     """
     Load conversation history from the chat history service.
-    Returns a list of dicts with 'query' and 'response' keys.
+    Returns a list of dicts with 'query', 'response', 'create_ts', and 'update_ts' keys.
     """
     if not conversation_id or conversation_id == "new":
         return []
@@ -414,7 +642,9 @@ async def load_conversation_history(conversation_id: str, usr_auth: str) -> list
                             response_msg.get("parent_id") == msg.get("message_id")):
                             history.append({
                                 "query": msg.get("content", ""),
-                                "response": response_msg.get("content", "")
+                                "response": response_msg.get("content", ""),
+                                "create_ts": response_msg.get("create_ts"),
+                                "update_ts": response_msg.get("update_ts"),
                             })
                             break
             
@@ -824,32 +1054,33 @@ async def clear_uploaded_files(
 async def download_from_cloud(
     graphname: str,
     credentials: Annotated[HTTPBase, Depends(security)],
-    provider: str = None,
-    # S3 parameters
-    access_key: str = None,
-    secret_key: str = None,
-    bucket: str = None,
-    region: str = None,
-    prefix: str = "",
-    # GCS parameters
-    project_id: str = None,
-    gcs_credentials_json: str = None,
-    # Azure parameters
-    account_name: str = None,
-    account_key: str = None,
-    container: str = None,
+    request_body: dict = Body(...),
 ):
     """
     Download files from cloud storage (S3, GCS, or Azure) to local directory.
     
     Parameters:
     - graphname: The graph name to associate downloaded files with
-    - provider: Cloud provider (s3, gcs, azure)
-    - For S3: access_key, secret_key, bucket, region, prefix
-    - For GCS: project_id, gcs_credentials_json, bucket, prefix
-    - For Azure: account_name, account_key, container, prefix
+    - request_body: JSON body containing:
+      - provider: Cloud provider (s3, gcs, azure)
+      - For S3: access_key, secret_key, bucket, region, prefix
+      - For GCS: project_id, gcs_credentials_json, bucket, prefix
+      - For Azure: account_name, account_key, container, prefix
     """
     try:
+        # Extract parameters from request body
+        provider = request_body.get("provider")
+        access_key = request_body.get("access_key")
+        secret_key = request_body.get("secret_key")
+        bucket = request_body.get("bucket")
+        region = request_body.get("region")
+        prefix = request_body.get("prefix", "")
+        project_id = request_body.get("project_id")
+        gcs_credentials_json = request_body.get("gcs_credentials_json")
+        account_name = request_body.get("account_name")
+        account_key = request_body.get("account_key")
+        container = request_body.get("container")
+        
         download_dir = os.path.join("downloaded_files_cloud", graphname)
         os.makedirs(download_dir, exist_ok=True)
         

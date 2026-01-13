@@ -10,7 +10,6 @@ def load_data(conn: TigerGraphConnection):
     res = conn.ai.createDocumentIngest(
         data_source="local",
         data_source_config={"data_path": "./data/tg_tutorials.jsonl"},
-        loader_config={"doc_id_field": "doc_id", "content_field": "content", "doc_type": "markdown"},
         file_format="json",
     )
     conn.ai.runDocumentIngest(res["load_job_id"], res["data_source_id"], res["data_path"])
