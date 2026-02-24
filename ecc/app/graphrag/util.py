@@ -14,9 +14,12 @@
 
 import asyncio
 import base64
+import json
 import logging
 import re
+import time
 import traceback
+from collections import defaultdict
 from glob import glob
 
 import httpx
@@ -34,18 +37,286 @@ from common.embeddings.tigergraph_embedding_store import TigerGraphEmbeddingStor
 from common.extractors import GraphExtractor, LLMEntityRelationshipExtractor
 from common.extractors.BaseExtractor import BaseExtractor
 from common.logs.logwriter import LogWriter
-from common.db.schema_utils import generate_schema_rep_async
+from common.db.schema_utils import (
+    generate_schema_rep_async,
+    get_domain_types_async,
+    graphrag_edge_types,
+    graphrag_vertex_types,
+)
 
 logger = logging.getLogger(__name__)
 
 http_timeout = httpx.Timeout(15.0)
 
-tg_sem = asyncio.Semaphore(2)
+tg_sem = asyncio.Semaphore(graphrag_config.get("tg_concurrency", 10))
 load_q = reusable_channel.ReuseableChannel()
 
 # will pause workers until the event is false
 loading_event = asyncio.Event()
 loading_event.set() # set the event to true to allow the workers to run
+
+# ---------------------------------------------------------------------------
+# Auto schema discovery: accumulate entity/relationship types across workers
+# ---------------------------------------------------------------------------
+_discovered_vertex_types: set[str] = set()
+_discovered_edge_triples: set[tuple[str, str, str]] = set()  # (edge_type, from_vtype, to_vtype)
+_pending_typed_vertices: list[tuple[str, str, dict]] = []    # (type_name, v_id, attrs)
+_pending_typed_edges: list[tuple[str, str, str, str, str, dict | None]] = []
+# (src_type, src_id, edge_type, tgt_type, tgt_id, attrs)
+_discovery_lock = asyncio.Lock()
+
+
+def _normalize_type_name(name: str) -> str:
+    """Lowercase and strip separators for fuzzy type-name comparison."""
+    return name.lower().replace("_", "").replace("-", "").replace(" ", "")
+
+
+def _find_matching_type(name: str, known_types: list[str]) -> str | None:
+    """Return the existing type name whose normalized form equals *name*'s, or None."""
+    norm = _normalize_type_name(name)
+    for kt in known_types:
+        if _normalize_type_name(kt) == norm:
+            return kt
+    return None
+
+
+def _sanitize_gsql_name(name: str) -> str:
+    """Convert a free-form type name to a valid GSQL identifier."""
+    s = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+    if s and not s[0].isalpha():
+        s = "T_" + s
+    return s
+
+
+async def register_discovered_types(
+    entity_types: set[str],
+    edge_triples: set[tuple[str, str, str]],
+) -> None:
+    """Thread-safe registration of types found during extraction."""
+    async with _discovery_lock:
+        _discovered_vertex_types.update(entity_types)
+        _discovered_edge_triples.update(edge_triples)
+
+
+async def buffer_typed_vertex(type_name: str, v_id: str, attrs: dict) -> None:
+    """Buffer a typed vertex for post-schema-creation replay."""
+    async with _discovery_lock:
+        _pending_typed_vertices.append((type_name, v_id, attrs))
+
+
+async def buffer_typed_edge(
+    src_type: str, src_id: str, edge_type: str,
+    tgt_type: str, tgt_id: str, attrs: dict | None,
+) -> None:
+    """Buffer a typed edge for post-schema-creation replay."""
+    async with _discovery_lock:
+        _pending_typed_edges.append((src_type, src_id, edge_type, tgt_type, tgt_id, attrs))
+
+
+def clear_discovered_types() -> None:
+    """Reset accumulated types and buffers (call between runs)."""
+    _discovered_vertex_types.clear()
+    _discovered_edge_triples.clear()
+    _pending_typed_vertices.clear()
+    _pending_typed_edges.clear()
+
+
+async def create_discovered_schema_types(
+    conn: AsyncTigerGraphConnection,
+    existing_vertex_types: list[str],
+    existing_edge_types: list[str],
+) -> tuple[list[str], list[str]]:
+    """Create a schema change job for genuinely new types discovered during
+    extraction.
+
+    A discovered type is considered *new* only when its normalised name does
+    not match any existing domain or GraphRAG-internal type.  This avoids
+    creating near-duplicate types (e.g. "person" vs "Person").
+
+    Returns:
+        ``(created_vertex_type_names, created_edge_type_names)``
+    """
+    async with _discovery_lock:
+        pending_vtypes = set(_discovered_vertex_types)
+        pending_etriples = set(_discovered_edge_triples)
+
+    if not pending_vtypes and not pending_etriples:
+        logger.info("No discovered types to process")
+        return [], []
+
+    all_known_vtypes = list(existing_vertex_types) + graphrag_vertex_types
+    all_known_etypes = list(existing_edge_types) + graphrag_edge_types
+
+    # --- vertex types -------------------------------------------------------
+    vtype_name_map: dict[str, str] = {}   # extracted name -> schema name
+    new_vtypes: list[str] = []
+    seen_sanitized: set[str] = set()
+
+    for vt in sorted(pending_vtypes):
+        match = _find_matching_type(vt, all_known_vtypes)
+        if match:
+            vtype_name_map[vt] = match
+            logger.info(f"Discovered type '{vt}' matches existing '{match}', skipping")
+        else:
+            safe = _sanitize_gsql_name(vt)
+            vtype_name_map[vt] = safe
+            if safe not in seen_sanitized:
+                new_vtypes.append(safe)
+                seen_sanitized.add(safe)
+
+    # --- edge types ---------------------------------------------------------
+    edge_groups: dict[str, set[tuple[str, str]]] = defaultdict(set)
+
+    for etype, from_vt, to_vt in pending_etriples:
+        if _find_matching_type(etype, all_known_etypes):
+            logger.info(f"Discovered edge type '{etype}' matches existing, skipping")
+            continue
+
+        safe_etype = _sanitize_gsql_name(etype)
+
+        from_resolved = vtype_name_map.get(from_vt)
+        if from_resolved is None:
+            from_resolved = _find_matching_type(from_vt, all_known_vtypes) or "Entity"
+        to_resolved = vtype_name_map.get(to_vt)
+        if to_resolved is None:
+            to_resolved = _find_matching_type(to_vt, all_known_vtypes) or "Entity"
+
+        all_valid = set(all_known_vtypes) | seen_sanitized
+        if from_resolved not in all_valid:
+            from_resolved = "Entity"
+        if to_resolved not in all_valid:
+            to_resolved = "Entity"
+
+        edge_groups[safe_etype].add((from_resolved, to_resolved))
+
+    if not new_vtypes and not edge_groups:
+        logger.info("All discovered types match existing schema, no changes needed")
+        return [], []
+
+    # --- build GSQL ---------------------------------------------------------
+    stmts: list[str] = []
+    for vt in new_vtypes:
+        stmts.append(
+            f"ADD VERTEX {vt} ("
+            f"PRIMARY_ID id STRING, "
+            f"description LIST<STRING>, "
+            f"epoch_added INT"
+            f') WITH primary_id_as_attribute="true"'
+        )
+
+    for etype, pairs in sorted(edge_groups.items()):
+        pair_strs = [f"FROM {f}, TO {t}" for f, t in sorted(pairs)]
+        stmts.append(
+            f"ADD DIRECTED EDGE {etype} ("
+            + " | ".join(pair_strs)
+            + ", relation_type STRING)"
+        )
+
+    # Allow CONTAINS_ENTITY to connect DocumentChunk to each new vertex type
+    for vt in new_vtypes:
+        stmts.append(
+            f"ALTER EDGE CONTAINS_ENTITY ADD PAIR (FROM DocumentChunk, TO {vt})"
+        )
+
+    job_name = f"auto_schema_{int(time.time())}"
+    gsql = f"USE GRAPH {conn.graphname}\n"
+    gsql += f"CREATE SCHEMA_CHANGE JOB {job_name} FOR GRAPH {conn.graphname} {{\n"
+    for s in stmts:
+        gsql += f"  {s};\n"
+    gsql += "}\n"
+    gsql += f"RUN SCHEMA_CHANGE JOB {job_name}\n"
+    gsql += f"DROP JOB {job_name}\n"
+
+    logger.info(f"Auto schema creation GSQL:\n{gsql}")
+
+    try:
+        async with tg_sem:
+            result = await conn.gsql(gsql)
+        if isinstance(result, str) and "error" in result.lower():
+            logger.error(f"Auto schema creation failed: {result}")
+            return [], []
+    except Exception as e:
+        logger.error(f"Auto schema creation exception: {e}")
+        return [], []
+
+    created_etypes = list(edge_groups.keys())
+    logger.info(
+        f"Auto schema creation complete: "
+        f"{len(new_vtypes)} vertex type(s), {len(created_etypes)} edge type(s)"
+    )
+    return new_vtypes, created_etypes
+
+
+async def replay_typed_data(
+    conn: AsyncTigerGraphConnection,
+    new_vtypes: list[str],
+    new_etypes: list[str],
+    batch_size: int = 500,
+) -> None:
+    """Replay buffered typed vertices and edges after schema creation.
+
+    Reads from ``_pending_typed_vertices`` and ``_pending_typed_edges``,
+    batches them into upsert payloads, and writes directly to TigerGraph
+    via ``upsert_batch()``.
+    """
+    async with _discovery_lock:
+        vertices = list(_pending_typed_vertices)
+        edges = list(_pending_typed_edges)
+
+    if not vertices and not edges:
+        logger.info("No buffered typed data to replay")
+        return
+
+    new_vtypes_set = set(new_vtypes)
+    new_etypes_set = set(new_etypes)
+
+    # --- replay vertices ----------------------------------------------------
+    batch: dict = {"vertices": defaultdict(dict)}
+    count = 0
+    for type_name, v_id, attrs in vertices:
+        safe = _sanitize_gsql_name(type_name)
+        if safe not in new_vtypes_set:
+            continue
+        batch["vertices"][safe][v_id] = map_attrs(attrs)
+        count += 1
+        if count >= batch_size:
+            await upsert_batch(conn, json.dumps(batch))
+            batch = {"vertices": defaultdict(dict)}
+            count = 0
+    if count > 0:
+        await upsert_batch(conn, json.dumps(batch))
+    logger.info(f"Replayed {len(vertices)} typed vertex upserts")
+
+    # --- replay edges -------------------------------------------------------
+    dd = lambda: defaultdict(dd)  # infinite default dict
+    edge_batch: dict = {"edges": dd()}
+    count = 0
+    for src_type, src_id, edge_type, tgt_type, tgt_id, attrs in edges:
+        safe_etype = _sanitize_gsql_name(edge_type)
+        safe_src = _sanitize_gsql_name(src_type) if src_type != "DocumentChunk" else src_type
+        safe_tgt = _sanitize_gsql_name(tgt_type)
+
+        # Only replay edges whose types were actually created (or CONTAINS_ENTITY)
+        is_contains = edge_type == "CONTAINS_ENTITY"
+        is_new_edge = safe_etype in new_etypes_set
+        if not is_contains and not is_new_edge:
+            continue
+        # For CONTAINS_ENTITY, target must be a new type
+        if is_contains and safe_tgt not in new_vtypes_set:
+            continue
+
+        edge_label = "CONTAINS_ENTITY" if is_contains else safe_etype
+        formatted_attrs = map_attrs(attrs) if attrs else {}
+        edge_batch["edges"][safe_src][src_id][edge_label][safe_tgt][tgt_id] = formatted_attrs
+        count += 1
+        if count >= batch_size:
+            await upsert_batch(conn, json.dumps(edge_batch))
+            edge_batch = {"edges": dd()}
+            count = 0
+    if count > 0:
+        await upsert_batch(conn, json.dumps(edge_batch))
+    logger.info(f"Replayed {len(edges)} typed edge upserts")
+
 
 async def install_queries(
     requried_queries: list[str],
@@ -79,7 +350,12 @@ INSTALL QUERY ALL
 
 async def init(
     conn: AsyncTigerGraphConnection,
-) -> tuple[BaseExtractor, dict[str, EmbeddingStore]]:
+) -> tuple[BaseExtractor, dict[str, EmbeddingStore], list[str]]:
+    """Initialize extractors, embedding store, and return domain vertex types.
+
+    Returns:
+        (extractor, embedding_store, domain_vertex_types)
+    """
     # install requried queries
     requried_queries = [
         "common/gsql/graphrag/StreamIds",
@@ -103,15 +379,26 @@ async def init(
     logger.info(f"Installing queries needed for GraphRAG all together")
     await install_queries(requried_queries, conn)
 
+    # Retrieve domain vertex/edge types (user schema, excluding GraphRAG internals)
+    domain_vertex_types, domain_edge_types = await get_domain_types_async(conn)
+    logger.info(f"Domain vertex types: {domain_vertex_types}")
+    logger.info(f"Domain edge types: {domain_edge_types}")
+
+    strict_schema = graphrag_config.get("strict_schema_mode", False)
+
     # extractor
     if graphrag_config.get("extractor") == "graphrag":
         extractor = GraphExtractor()
     elif graphrag_config.get("extractor") == "llm":
+        kwargs = {}
         if graphrag_config.get("use_graph_schema", True):
-            graph_schema = await generate_schema_rep_async(conn, graphrag=True)
-            extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config), graph_schema=graph_schema)
-        else:
-            extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config))
+            kwargs["graph_schema"] = await generate_schema_rep_async(conn, graphrag=True)
+            if domain_vertex_types:
+                kwargs["allowed_entity_types"] = domain_vertex_types
+            if domain_edge_types:
+                kwargs["allowed_relationship_types"] = domain_edge_types
+        kwargs["strict_mode"] = strict_schema
+        extractor = LLMEntityRelationshipExtractor(get_llm_service(llm_config), **kwargs)
     else:
         raise ValueError("Invalid extractor type")
 
@@ -122,7 +409,7 @@ async def init(
     )
     embedding_store.set_graphname(conn.graphname)
 
-    return extractor, embedding_store
+    return extractor, embedding_store, domain_vertex_types
 
 
 def make_headers(conn: AsyncTigerGraphConnection):
@@ -220,6 +507,34 @@ async def check_vertex_exists(conn, v_id: str):
             return {"error": True, "message": str(e)}
 
         return {"error": False, "resp": res}
+
+
+async def batch_check_vertices(
+    conn: AsyncTigerGraphConnection,
+    ids: list[str],
+    domain_vertex_types: list[str],
+) -> dict[str, str]:
+    """Check which IDs already exist as vertices in any domain vertex type.
+
+    Returns a mapping of ``{vertex_id: vertex_type}`` for IDs that were found.
+    IDs not found in any domain type are omitted from the result.
+    """
+    found: dict[str, str] = {}
+    if not ids or not domain_vertex_types:
+        return found
+
+    for v_type in domain_vertex_types:
+        remaining = [vid for vid in ids if vid not in found]
+        if not remaining:
+            break
+        try:
+            async with tg_sem:
+                res = await conn.getVerticesById(v_type, remaining)
+            for v in res:
+                found[v["v_id"]] = v_type
+        except Exception:
+            pass
+    return found
 
 
 async def upsert_edge(

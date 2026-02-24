@@ -28,6 +28,7 @@ from graphrag import community_summarizer, util
 from langchain_community.graphs.graph_document import GraphDocument, Node
 from pyTigerGraph import AsyncTigerGraphConnection
 
+from common.config import graphrag_config
 from common.db.schema_utils import graphrag_vertex_types, graphrag_edge_types
 from common.embeddings.embedding_services import EmbeddingModel
 from common.embeddings.base_embedding_store import EmbeddingStore
@@ -233,11 +234,16 @@ async def extract(
     chunk: str,
     chunk_id: str,
     vertex_types: List[str],
+    domain_vertex_types: Optional[List[str]] = None,
 ):
     # if loader is running, wait until it's done
     if not util.loading_event.is_set():
         logger.info("Extract worker waiting for loading event to finish")
         await util.loading_event.wait()
+
+    embed_entities = graphrag_config.get("embed_entities", True)
+    entity_match_mode = graphrag_config.get("entity_match_mode", "merge")
+    auto_schema = graphrag_config.get("auto_schema_creation", False)
 
     async with extract_sem:
         try:
@@ -249,6 +255,66 @@ async def extract(
             logger.error(f"Failed to extract chunk {chunk_id}: {e}")
             extracted = []
 
+        # -- Auto schema discovery: collect entity/relationship types ------
+        if graphrag_config.get("auto_schema_creation", False) and extracted:
+            _entity_types: set[str] = set()
+            _edge_triples: set[tuple[str, str, str]] = set()
+            for doc in extracted:
+                for node in doc.nodes:
+                    ntype = getattr(node, "type", None)
+                    if ntype and ntype != "Node":
+                        _entity_types.add(ntype)
+                for edge in doc.relationships:
+                    etype = getattr(edge, "type", None)
+                    if etype:
+                        src_type = getattr(edge.source, "type", None) or "Entity"
+                        tgt_type = getattr(edge.target, "type", None) or "Entity"
+                        if src_type == "Node":
+                            src_type = "Entity"
+                        if tgt_type == "Node":
+                            tgt_type = "Entity"
+                        _edge_triples.add((etype, src_type, tgt_type))
+            if _entity_types or _edge_triples:
+                await util.register_discovered_types(_entity_types, _edge_triples)
+
+        # -- Batch check: collect all entity IDs from this chunk's extraction,
+        #    then check which ones already exist as domain vertices. ---------
+        all_entity_ids: list[str] = []
+        for doc in extracted:
+            for node in doc.nodes:
+                v_id = util.process_id(str(node.id))
+                if v_id:
+                    all_entity_ids.append(v_id)
+            for edge in doc.relationships:
+                for endpoint in (edge.source, edge.target):
+                    v_id = util.process_id(endpoint.id)
+                    if v_id:
+                        all_entity_ids.append(v_id)
+        all_entity_ids = list(set(all_entity_ids))
+
+        existing_map: dict[str, str] = {}
+        if entity_match_mode != "create_always" and domain_vertex_types:
+            existing_map = await util.batch_check_vertices(
+                conn, all_entity_ids, domain_vertex_types
+            )
+            if existing_map:
+                logger.info(f"Found {len(existing_map)} existing domain vertices for chunk {chunk_id}")
+
+        seen_embedded: set[str] = set()
+
+        async def _maybe_embed_entity(v_id: str, content: str):
+            """Push to embed channel if embed_entities is on and not yet seen."""
+            if not embed_entities:
+                return
+            if v_id in seen_embedded:
+                return
+            seen_embedded.add(v_id)
+            await embed_chan.put((v_id, content, "Entity"))
+
+        def _entity_is_existing(v_id: str) -> Optional[str]:
+            """Return the domain vertex type if v_id matches an existing vertex, else None."""
+            return existing_map.get(v_id)
+
         # upsert nodes and edges to the graph
         for doc in extracted:
             for i, node in enumerate(doc.nodes):
@@ -258,189 +324,170 @@ async def extract(
                 if len(v_id) == 0:
                     continue
 
-                desc = await get_vert_desc(conn, v_id, node)
+                matched_type = _entity_is_existing(v_id)
 
-                # embed the entity
-                # embed with the v_id if the description is blank
+                if matched_type:
+                    # Entity already exists as a domain vertex -- link chunk to it
+                    logger.info(f"Linking chunk {chunk_id} to existing {matched_type} vertex {v_id}")
+                    await upsert_chan.put((
+                        util.upsert_edge,
+                        (conn, "DocumentChunk", chunk_id, "CONTAINS_ENTITY",
+                         matched_type, v_id, None),
+                    ))
+                    continue
+
+                if entity_match_mode == "link_only":
+                    logger.info(f"Skipping entity {v_id} (link_only mode, not found in domain)")
+                    continue
+
+                # "merge" or "create_always": create the Entity vertex
+                desc = await get_vert_desc(conn, v_id, node)
                 if len(desc[0]) == 0:
                     desc[0] = str(node.id)
 
-                await upsert_chan.put(
-                    (
-                        util.upsert_vertex,  # func to call
-                        (
-                            conn,
-                            "Entity",  # v_type
-                            v_id,  # v_id
-                            {  # attrs
-                                "description": desc,
-                                "entity_type": type_id,
-                                "epoch_added": int(time.time()),
-                            },
-                        ),
-                    )
-                )
+                entity_attrs = {
+                    "description": desc,
+                    "entity_type": type_id,
+                    "epoch_added": int(time.time()),
+                }
+                await upsert_chan.put((
+                    util.upsert_vertex,
+                    (conn, "Entity", v_id, entity_attrs),
+                ))
 
-                # (v_id, content, index_name)
-                await embed_chan.put((v_id, desc[0], "Entity"))
+                # Buffer typed vertex for post-schema-creation replay
+                if auto_schema and node.type and node.type != "Node":
+                    await util.buffer_typed_vertex(node.type, v_id, {
+                        "description": desc,
+                        "epoch_added": entity_attrs["epoch_added"],
+                    })
+                    await util.buffer_typed_edge(
+                        "DocumentChunk", chunk_id, "CONTAINS_ENTITY",
+                        node.type, v_id, None,
+                    )
+
+                await _maybe_embed_entity(v_id, desc[0])
 
                 # upsert type vert
                 if isinstance(extractor, LLMEntityRelationshipExtractor):
                     logger.info("extract writes type vert to upsert")
                     if len(type_id) == 0:
                         continue
-                    await upsert_chan.put(
-                        (
-                            util.upsert_vertex,  # func to call
-                            (
-                                conn,
-                                "EntityType",  # v_type
-                                type_id,  # v_id
-                                {  # attrs
-                                    "epoch_added": int(time.time()),
-                                },
-                            )
-                        )
-                    )
+                    await upsert_chan.put((
+                        util.upsert_vertex,
+                        (conn, "EntityType", type_id, {
+                            "epoch_added": int(time.time()),
+                        }),
+                    ))
                     logger.info("extract writes entity_has_type edge to upsert")
-                    await upsert_chan.put(
-                        (
-                            util.upsert_edge,
-                            (
-                                conn,
-                                "Entity",  # src_type
-                                v_id,  # src_id
-                                "ENTITY_HAS_TYPE",  # edgeType
-                                "EntityType",  # tgt_type
-                                type_id,  # tgt_id
-                                None,  # attributes
-                            ),
-                        )
-                    )
+                    await upsert_chan.put((
+                        util.upsert_edge,
+                        (conn, "Entity", v_id, "ENTITY_HAS_TYPE",
+                         "EntityType", type_id, None),
+                    ))
 
-                # Link the vertex to the chunk it came from
+                # Link the vertex to the chunk via the domain type if applicable
                 if type_id in vertex_types and type_id not in graphrag_vertex_types:
                     logger.info(f"extract writes contains edge of {v_id} of type {type_id} to upsert")
-                    await upsert_chan.put(
-                        (
-                            util.upsert_edge,
-                            (
-                                conn,
-                                "DocumentChunk",  # src_type
-                                chunk_id,  # src_id
-                                "CONTAINS_ENTITY",  # edge_type
-                                type_id,  # tgt_type
-                                v_id,  # tgt_id
-                                None,  # attributes
-                            ),
-                        )
-                    )
+                    await upsert_chan.put((
+                        util.upsert_edge,
+                        (conn, "DocumentChunk", chunk_id, "CONTAINS_ENTITY",
+                         type_id, v_id, None),
+                    ))
 
                 # link the entity to the chunk it came from
                 logger.info("extract writes contains edge to upsert")
-                await upsert_chan.put(
-                    (
-                        util.upsert_edge,
-                        (
-                            conn,
-                            "DocumentChunk",  # src_type
-                            chunk_id,  # src_id
-                            "CONTAINS_ENTITY",  # edge_type
-                            "Entity",  # tgt_type
-                            v_id,  # tgt_id
-                            None,  # attributes
-                        ),
-                    )
-                )
+                await upsert_chan.put((
+                    util.upsert_edge,
+                    (conn, "DocumentChunk", chunk_id, "CONTAINS_ENTITY",
+                     "Entity", v_id, None),
+                ))
+
                 for node2 in doc.nodes[i + 1:]:
                     v_id2 = util.process_id(str(node2.id))
                     if len(v_id2) == 0:
                         continue
-                    await upsert_chan.put(
-                    (
+                    await upsert_chan.put((
                         util.upsert_edge,
-                        (
-                            conn,
-                            "Entity",  # src_type
-                            v_id,  # src_id
-                            "RELATIONSHIP",  # edgeType
-                            "Entity",  # tgt_type
-                            v_id2,  # tgt_id
-                            {"relation_type": "DOC_CHUNK_COOCCURRENCE"},  # attributes
-                        ),
-                    )
-                )
+                        (conn, "Entity", v_id, "RELATIONSHIP",
+                         "Entity", v_id2,
+                         {"relation_type": "DOC_CHUNK_COOCCURRENCE"}),
+                    ))
 
             for edge in doc.relationships:
                 logger.info(
                     f"extract writes relates edge to upsert:{edge.source.id} -({edge.type})->  {edge.target.id}"
                 )
-                # upsert verts first to make sure their ID becomes an attr
-                v_id = util.process_id(edge.source.id)  # src_id
-                if len(v_id) == 0:
+                src_id = util.process_id(edge.source.id)
+                tgt_id = util.process_id(edge.target.id)
+                if not src_id or not tgt_id:
                     continue
-                desc = await get_vert_desc(conn, v_id, edge.source)
-                if len(desc[0]) == 0:
-                    await embed_chan.put((v_id, v_id, "Entity"))
-                else:
-                    # (v_id, content, index_name)
-                    await embed_chan.put((v_id, desc[0], "Entity"))
-                await upsert_chan.put(
-                    (
-                        util.upsert_vertex,  # func to call
-                        (
-                            conn,
-                            "Entity",  # v_type
-                            v_id,
-                            {  # attrs
-                                "description": desc,
-                                "epoch_added": int(time.time()),
-                            },
-                        ),
-                    )
-                )
-                v_id = util.process_id(edge.target.id)
-                if len(v_id) == 0:
-                    continue
-                desc = await get_vert_desc(conn, v_id, edge.target)
-                if len(desc[0]) == 0:
-                    await embed_chan.put((v_id, v_id, "Entity"))
-                else:
-                    # (v_id, content, index_name)
-                    await embed_chan.put((v_id, desc[0], "Entity"))
-                await upsert_chan.put(
-                    (
-                        util.upsert_vertex,  # func to call
-                        (
-                            conn,
-                            "Entity",  # v_type
-                            v_id,  # src_id
-                            {  # attrs
-                                "description": desc,
-                                "epoch_added": int(time.time()),
-                            },
-                        ),
-                    )
-                )
 
-                # upsert the edge between the two entities
-                await upsert_chan.put(
-                    (
-                        util.upsert_edge,
-                        (
-                            conn,
-                            "Entity",  # src_type
-                            util.process_id(edge.source.id),  # src_id
-                            "RELATIONSHIP",  # edgeType
-                            "Entity",  # tgt_type
-                            util.process_id(edge.target.id),  # tgt_id
-                            {"relation_type": edge.type},  # attributes
-                        ),
+                src_matched = _entity_is_existing(src_id)
+                tgt_matched = _entity_is_existing(tgt_id)
+
+                src_type = src_matched or "Entity"
+                tgt_type = tgt_matched or "Entity"
+
+                # upsert source vertex (only if not an existing domain vertex)
+                if not src_matched:
+                    if entity_match_mode == "link_only":
+                        continue
+                    desc = await get_vert_desc(conn, src_id, edge.source)
+                    if len(desc[0]) == 0:
+                        desc[0] = str(edge.source.id)
+                    await _maybe_embed_entity(src_id, desc[0])
+                    src_attrs = {
+                        "description": desc,
+                        "epoch_added": int(time.time()),
+                    }
+                    await upsert_chan.put((
+                        util.upsert_vertex,
+                        (conn, "Entity", src_id, src_attrs),
+                    ))
+                    src_node_type = getattr(edge.source, "type", None)
+                    if auto_schema and src_node_type and src_node_type != "Node":
+                        await util.buffer_typed_vertex(src_node_type, src_id, src_attrs)
+
+                # upsert target vertex (only if not an existing domain vertex)
+                if not tgt_matched:
+                    if entity_match_mode == "link_only":
+                        continue
+                    desc = await get_vert_desc(conn, tgt_id, edge.target)
+                    if len(desc[0]) == 0:
+                        desc[0] = str(edge.target.id)
+                    await _maybe_embed_entity(tgt_id, desc[0])
+                    tgt_attrs = {
+                        "description": desc,
+                        "epoch_added": int(time.time()),
+                    }
+                    await upsert_chan.put((
+                        util.upsert_vertex,
+                        (conn, "Entity", tgt_id, tgt_attrs),
+                    ))
+                    tgt_node_type = getattr(edge.target, "type", None)
+                    if auto_schema and tgt_node_type and tgt_node_type != "Node":
+                        await util.buffer_typed_vertex(tgt_node_type, tgt_id, tgt_attrs)
+
+                # upsert the edge between the two entities (using actual types)
+                await upsert_chan.put((
+                    util.upsert_edge,
+                    (conn, src_type, src_id, "RELATIONSHIP",
+                     tgt_type, tgt_id, {"relation_type": edge.type}),
+                ))
+
+                # Buffer typed edge for post-schema-creation replay
+                if auto_schema and edge.type:
+                    src_node_type = getattr(edge.source, "type", None) or "Entity"
+                    tgt_node_type = getattr(edge.target, "type", None) or "Entity"
+                    if src_node_type == "Node":
+                        src_node_type = "Entity"
+                    if tgt_node_type == "Node":
+                        tgt_node_type = "Entity"
+                    await util.buffer_typed_edge(
+                        src_node_type, src_id, edge.type,
+                        tgt_node_type, tgt_id, {"relation_type": edge.type},
                     )
-                )
-                # embed "Relationship",
-                # (v_id, content, index_name)
-                # right now, we're not embedding relationships in graphrag
 
 
 resolve_sem = asyncio.Semaphore(20)

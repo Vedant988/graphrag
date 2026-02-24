@@ -175,6 +175,16 @@ Edge Types:
 
     return schema_rep
 
+async def get_domain_types_async(conn: AsyncTigerGraphConnection) -> tuple[list[str], list[str]]:
+    """Return vertex and edge type names that belong to the user's domain schema,
+    excluding internal GraphRAG types."""
+    all_verts = await conn.getVertexTypes()
+    all_edges = await conn.getEdgeTypes()
+    domain_verts = [v for v in all_verts if v not in graphrag_vertex_types]
+    domain_edges = [e for e in all_edges if e not in graphrag_edge_types]
+    return domain_verts, domain_edges
+
+
 async def generate_schema_rep_async(conn: AsyncTigerGraphConnection, schema_ver: int = None, graphrag: bool = False) -> str:
     """Generate a schema representation for an async TigerGraph connection.
 

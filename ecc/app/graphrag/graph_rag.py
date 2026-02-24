@@ -26,19 +26,30 @@ from graphrag.util import (
     check_all_ents_resolved,
     check_vertex_has_desc,
     check_embedding_rebuilt,
+    clear_discovered_types,
+    create_discovered_schema_types,
     http_timeout,
     init,
     load_q,
     loading_event,
     make_headers,
+    replay_typed_data,
     stream_ids,
     tg_sem,
     upsert_batch,
-    add_rels_between_types
+    add_rels_between_types,
 )
 from pyTigerGraph import AsyncTigerGraphConnection
 
-from common.config import embedding_service, graphrag_config, entity_extraction_switch, entity_resolution_switch, community_detection_switch, doc_process_switch
+from common.config import (
+    embedding_service,
+    graphrag_config,
+    entity_extraction_switch,
+    entity_resolution_switch,
+    community_detection_switch,
+    doc_process_switch,
+)
+from common.db.schema_utils import graphrag_edge_types
 from common.embeddings.base_embedding_store import EmbeddingStore
 from common.extractors.BaseExtractor import BaseExtractor
 
@@ -181,7 +192,8 @@ async def upsert(upsert_chan: Channel):
 async def load(conn: AsyncTigerGraphConnection):
     logger.info("Data Loading Start")
     dd = lambda: defaultdict(dd)  # infinite default dict
-    batch_size = 500
+    batch_size = graphrag_config.get("load_batch_size", 500)
+    upsert_delay = graphrag_config.get("upsert_delay", 0)
     # while the load q is still open or has contents
     while not load_q.closed() or not load_q.empty():
         if load_q.closed():
@@ -229,11 +241,12 @@ async def load(conn: AsyncTigerGraphConnection):
                 f"Upserting batch size of {size}. ({n_verts} verts | {n_edges} edges. {len(data.encode())/1000:,} kb)"
             )
 
-            loading_event.clear()
-            if n_verts >0 or n_edges >0:
+            if n_verts > 0 or n_edges > 0:
+                loading_event.clear()
                 await upsert_batch(conn, data)
-                await asyncio.sleep(5)
-            loading_event.set()
+                loading_event.set()
+                if upsert_delay > 0:
+                    await asyncio.sleep(upsert_delay)
         else:
             await asyncio.sleep(1)
 
@@ -285,6 +298,7 @@ async def extract(
     extractor: BaseExtractor,
     conn: AsyncTigerGraphConnection,
     num_senders: int,
+    domain_vertex_types: list[str] | None = None,
 ):
     """
     Creates and starts one worker for each extract job
@@ -310,7 +324,12 @@ async def extract(
                 else:
                     if entity_extraction_switch:
                         grp.create_task(
-                            workers.extract(upsert_chan, embed_chan, extractor, conn, *item, vertex_types=vertex_types)
+                            workers.extract(
+                                upsert_chan, embed_chan, extractor, conn,
+                                *item,
+                                vertex_types=vertex_types,
+                                domain_vertex_types=domain_vertex_types,
+                            )
                         )
             except ChannelClosed:
                 break
@@ -537,7 +556,7 @@ async def run(graphname: str, conn: AsyncTigerGraphConnection):
             Ex: "Vincent van Gogh" and "van Gogh" should be resolved to "Vincent van Gogh"
     """
 
-    extractor, embedding_store = await init(conn)
+    extractor, embedding_store, domain_vertex_types = await init(conn)
     init_start = time.perf_counter()
 
     if doc_process_switch:
@@ -565,7 +584,11 @@ async def run(graphname: str, conn: AsyncTigerGraphConnection):
             grp.create_task(embed(embed_chan, embedding_store, graphname))
             # extract entities
             grp.create_task(
-                extract(extract_chan, upsert_chan, embed_chan, extractor, conn, num_chunk_senders)
+                extract(
+                    extract_chan, upsert_chan, embed_chan, extractor, conn,
+                    num_chunk_senders,
+                    domain_vertex_types=domain_vertex_types,
+                )
             )
     logger.info("Join docs_chan")
     await docs_chan.join()
@@ -577,6 +600,26 @@ async def run(graphname: str, conn: AsyncTigerGraphConnection):
     await upsert_chan.join()
     init_end = time.perf_counter()
     logger.info("Doc Processing End")
+
+    # Auto Schema Creation: materialise discovered types into the graph schema
+    if graphrag_config.get("auto_schema_creation", False):
+        logger.info("Auto schema creation: analysing discovered types")
+        domain_edge_types = [
+            e for e in await conn.getEdgeTypes()
+            if e not in graphrag_edge_types
+        ]
+        new_vtypes, new_etypes = await create_discovered_schema_types(
+            conn, domain_vertex_types, domain_edge_types
+        )
+        if new_vtypes:
+            logger.info(f"Created new vertex types: {new_vtypes}")
+            domain_vertex_types.extend(new_vtypes)
+        if new_etypes:
+            logger.info(f"Created new edge types: {new_etypes}")
+        if new_vtypes or new_etypes:
+            batch_size = graphrag_config.get("load_batch_size", 500)
+            await replay_typed_data(conn, new_vtypes, new_etypes, batch_size)
+        clear_discovered_types()
 
     # Type Resolution
     type_start = time.perf_counter()

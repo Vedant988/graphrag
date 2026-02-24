@@ -247,11 +247,53 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         except:
             return [GraphDocument(nodes=[], relationships=[], source=Document(page_content=doc))]
         
+    def _build_schema_prompt_messages(self) -> list:
+        """Build the prompt messages that describe available schema types."""
+        msgs = []
+        has_schema_context = (
+            self.allowed_vertex_types or self.allowed_edge_types or self.graph_schema
+        )
+        if not has_schema_context:
+            return msgs
+
+        if self.strict_mode:
+            msgs.append((
+                "human",
+                "Important: You MUST only use the following vertex and edge types. "
+                "Do NOT create types that are not listed below.",
+            ))
+        else:
+            msgs.append((
+                "human",
+                "The graph already has the following vertex and edge types. "
+                "Prefer mapping extracted entities and relationships to these types "
+                "when applicable. If the input does not match any listed type, "
+                "you may create your own.",
+            ))
+
+        if self.allowed_vertex_types:
+            msgs.append((
+                "human",
+                f"Existing Vertex Types (use these as node_type when applicable): "
+                f"{self.allowed_vertex_types}",
+            ))
+        if self.allowed_edge_types:
+            msgs.append((
+                "human",
+                f"Existing Edge Types (use these as relation_type when applicable): "
+                f"{self.allowed_edge_types}",
+            ))
+        if self.graph_schema:
+            msgs.append((
+                "human",
+                f"Full Graph Schema (includes attribute details):\n{self.graph_schema}",
+            ))
+        return msgs
+
     async def adocument_er_extraction(self, document):
         from langchain.prompts import ChatPromptTemplate
         from langchain.output_parsers import PydanticOutputParser
 
-    
         parser = PydanticOutputParser(pydantic_object=KnowledgeGraph)
         prompt = [
             ("system", self.llm_service.entity_relationship_extraction_prompt),
@@ -267,31 +309,16 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                 "Mandatory: Make sure to answer in the correct format, specified here: {format_instructions}",
             ),
         ]
-        if self.allowed_vertex_types or self.allowed_edge_types or self.graph_schema:
-            prompt.append(
-                (
-                    "human",
-                    "Tip: Make sure to use the following types if they are applicable. "
-                    "If the input does not contain any of the types, you may create your own.",
-                )
-            )
-        if self.allowed_vertex_types:
-            prompt.append(("human", f"Allowed Node Types: {self.allowed_vertex_types}"))
-        if self.allowed_edge_types:
-            prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
-        if self.graph_schema:
-            prompt.append(("human", f"Graph Schema: {self.graph_schema}"))
+        prompt.extend(self._build_schema_prompt_messages())
         prompt = ChatPromptTemplate.from_messages(prompt)
-        chain = prompt | self.llm_service.model  # | parser
+        chain = prompt | self.llm_service.model
         er = await self._aextract_kg_from_doc(document, chain, parser)
         return er
-
 
     def document_er_extraction(self, document):
         from langchain.prompts import ChatPromptTemplate
         from langchain.output_parsers import PydanticOutputParser
 
-    
         parser = PydanticOutputParser(pydantic_object=KnowledgeGraph)
         prompt = [
             ("system", self.llm_service.entity_relationship_extraction_prompt),
@@ -307,22 +334,9 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                 "Mandatory: Make sure to answer in the correct format, specified here: {format_instructions}",
             ),
         ]
-        if self.allowed_vertex_types or self.allowed_edge_types or self.graph_schema:
-            prompt.append(
-                (
-                    "human",
-                    "Tip: Make sure to use the following types if they are applicable. "
-                    "If the input does not contain any of the types, you may create your own.",
-                )
-            )
-        if self.allowed_vertex_types:
-            prompt.append(("human", f"Allowed Node Types: {self.allowed_vertex_types}"))
-        if self.allowed_edge_types:
-            prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
-        if self.graph_schema:
-            prompt.append(("human", f"Graph Schema: {self.graph_schema}"))
+        prompt.extend(self._build_schema_prompt_messages())
         prompt = ChatPromptTemplate.from_messages(prompt)
-        chain = prompt | self.llm_service.model  # | parser
+        chain = prompt | self.llm_service.model
         er = self._extract_kg_from_doc(document, chain, parser)
         return er
 
