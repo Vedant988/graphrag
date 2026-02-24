@@ -40,7 +40,7 @@ const Setup = () => {
   const navigate = useNavigate();
   const [confirm, confirmDialog, isConfirmDialogOpen] = useConfirm();
   const [availableGraphs, setAvailableGraphs] = useState<string[]>([]);
-  
+
   const [initializeGraphOpen, setInitializeGraphOpen] = useState(false);
   const [graphName, setGraphName] = useState("");
   const [isInitializing, setIsInitializing] = useState(false);
@@ -56,7 +56,9 @@ const Setup = () => {
   const [uploadMessage, setUploadMessage] = useState("");
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestMessage, setIngestMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("upload");
+  // Ingestion job data state
+  const [ingestJobData, setIngestJobData] = useState<any>(null);
+  const [directIngestion, setDirectIngestion] = useState(false);
 
   // Refresh state
   const [refreshOpen, setRefreshOpen] = useState(false);
@@ -92,7 +94,7 @@ const Setup = () => {
   const [downloadedFiles, setDownloadedFiles] = useState<any[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadMessage, setDownloadMessage] = useState("");
-
+const [activeTab, setActiveTab] = useState("upload");
   // Fetch uploaded files
   const fetchUploadedFiles = async () => {
     if (!ingestGraphName) return;
@@ -157,17 +159,34 @@ const Setup = () => {
         body: formData,
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Upload failed: ${response.statusText}`);
+      }
+
       const data = await response.json();
       if (data.status === "success") {
-        setUploadMessage(`✅ ${data.message}`);
+        const uploadedCount = selectedFiles?.length || 0;
+        setUploadMessage("✅ Successfully uploaded the files. Processing...");
         setSelectedFiles(null);
         await fetchUploadedFiles();
+        setIsUploading(false);
+
+        // Step 2: Call create_ingest to process uploaded files in background
+        console.log("Calling handleCreateIngestAfterUpload from main upload...");
+        handleCreateIngestAfterUpload("uploaded", uploadedCount).catch((err) => {
+          console.error("Error in background processing:", err);
+          setUploadMessage(`❌ Processing error: ${err.message}`);
+        });
       } else {
         setUploadMessage(`⚠️ ${data.message}`);
+        setIsUploading(false);
       }
     } catch (error: any) {
-      setUploadMessage(`❌ Error: ${error.message}`);
-    } finally {
+      console.error("Upload error:", error);
+      // Show warning icon for lock conflicts, error icon for actual errors
+      const isLockConflict = error.message?.includes("currently being processed");
+      setUploadMessage(isLockConflict ? `⚠️ ${error.message}` : `❌ Error: ${error.message}`);
       setIsUploading(false);
     }
   };
@@ -201,7 +220,8 @@ const Setup = () => {
           });
 
           if (!response.ok) {
-            throw new Error(`Upload failed with status ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
           }
 
           const data = await response.json();
@@ -219,14 +239,20 @@ const Setup = () => {
 
       // Show final result
       if (failedCount === 0) {
-        setUploadMessage(`✅ Successfully uploaded all ${uploadedCount} files (uploaded individually).`);
+       setUploadMessage(`✅ Successfully uploaded all ${uploadedCount} files. Processing...`);
       } else {
-        setUploadMessage(`⚠️ Uploaded ${uploadedCount} files successfully, ${failedCount} failed.`);
+        setUploadMessage(`⚠️ Uploaded ${uploadedCount} files successfully, ${failedCount} failed. Processing...`);
       }
       
       setSelectedFiles(null);
       await fetchUploadedFiles();
+
+      // Step 2: Call create_ingest to process uploaded files
+      console.log("Calling handleCreateIngestAfterUpload...");
+      await handleCreateIngestAfterUpload("uploaded", uploadedCount);
+      console.log("handleCreateIngestAfterUpload completed");
     } catch (error: any) {
+      console.error("Upload error:", error);
       setUploadMessage(`❌ Batch upload error: ${error.message}`);
     } finally {
       setIsUploading(false);
@@ -236,20 +262,25 @@ const Setup = () => {
   // Delete a specific file
   const handleDeleteFile = async (filename: string) => {
     if (!ingestGraphName) return;
+    console.log("Deleting file:", filename);
 
     try {
       const creds = localStorage.getItem("creds");
-      const response = await fetch(
-        `/ui/${ingestGraphName}/uploads?filename=${encodeURIComponent(filename)}`,
-        {
+
+      // Delete original file
+      const url = `/ui/${ingestGraphName}/uploads?filename=${encodeURIComponent(filename)}`;
+      const response = await fetch(url, {
           method: "DELETE",
           headers: { Authorization: `Basic ${creds}` },
-        }
-      );
+        });
       const data = await response.json();
       setUploadMessage(`✅ ${data.message}`);
       await fetchUploadedFiles();
+      
+      // Clear ingest message when deleting files
+      setIngestMessage("");
     } catch (error: any) {
+      console.error("Delete error:", error);
       setUploadMessage(`❌ Error: ${error.message}`);
     }
   };
@@ -268,6 +299,10 @@ const Setup = () => {
         headers: { Authorization: `Basic ${creds}` },
       });
       const data = await response.json();
+      
+      // Clear all temp state
+      setIngestJobData(null);
+      setIngestMessage("");  // Clear any previous ingestion messages
       setUploadMessage(`✅ ${data.message}`);
       await fetchUploadedFiles();
     } catch (error: any) {
@@ -358,17 +393,31 @@ const Setup = () => {
         body: JSON.stringify(requestBody),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Download failed: ${response.statusText}`);
+      }
       const data = await response.json();
       if (data.status === "success") {
-        setDownloadMessage(`✅ ${data.message}`);
+        const downloadCount = data.downloaded_files?.length || downloadedFiles.length;
+        setDownloadMessage("✅ Successfully downloaded the files. Processing...");
         await fetchDownloadedFiles();
+        setIsDownloading(false);
+        // Step 2: Call create_ingest to process downloaded files in background
+        handleCreateIngestAfterUpload("downloaded", downloadCount).catch((err) => {
+          console.error("Error in background processing:", err);
+          setDownloadMessage(`❌ Processing error: ${err.message}`);
+        });
       } else if (data.status === "warning") {
         setDownloadMessage(`⚠️ ${data.message}`);
+        setIsDownloading(false);
       } else {
         setDownloadMessage(`❌ ${data.message || "Download failed"}`);
+        setIsDownloading(false);
       }
     } catch (error: any) {
-      setDownloadMessage(`❌ Error: ${error.message}`);
+      const isLockConflict = error.message?.includes("currently being processed");
+      setDownloadMessage(isLockConflict ? `⚠️ ${error.message}` : `❌ Error: ${error.message}`);
     } finally {
       setIsDownloading(false);
     }
@@ -380,9 +429,10 @@ const Setup = () => {
 
     try {
       const creds = localStorage.getItem("creds");
-      const response = await fetch(
-        `/ui/${ingestGraphName}/cloud/delete?filename=${encodeURIComponent(filename)}`,
-        {
+      
+      // Delete original file
+      const url = `/ui/${ingestGraphName}/cloud/delete?filename=${encodeURIComponent(filename)}`;
+      const response = await fetch(url, {
           method: "DELETE",
           headers: { Authorization: `Basic ${creds}` },
         }
@@ -416,6 +466,64 @@ const Setup = () => {
     }
   };
 
+  // Ingest flows (create ingest, run ingest)
+  // -------------------------
+  const handleRunIngest = async (sourceType: "uploaded" | "downloaded" = "uploaded") => {
+    if (!ingestGraphName) {
+      setIngestMessage("❌ Please select a graph");
+      return;
+    }
+    setIsIngesting(true);
+    setIngestMessage("Ingesting documents into knowledge graph...");
+    try {
+      const creds = localStorage.getItem("creds");
+      const folderPath = sourceType === "uploaded" ? `uploads/${ingestGraphName}` : `downloaded_files_cloud/${ingestGraphName}`;
+      
+      // Use existing ingestJobData if available, otherwise construct from folder path
+      const jobData = ingestJobData || {
+        load_job_id: "load_documents_content_json",
+        data_source_id: {
+          data_source: "server",
+          data_source_config: { data_path: folderPath },
+          loader_config: {},
+          file_format: "multi"
+        },
+        data_path: folderPath,
+      };
+
+      const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${creds}`,
+        },
+        body: JSON.stringify({
+          load_job_id: jobData.load_job_id,
+          data_source_id: jobData.data_source_id,
+          file_path: jobData.data_path,
+        }),
+      });
+
+      if (!ingestResponse.ok) {
+        const errorData = await ingestResponse.json();
+        throw new Error(errorData.detail || `Failed to ingest: ${ingestResponse.statusText}`);
+      }
+
+      const ingestData = await ingestResponse.json();
+      console.log("Ingest response:", ingestData);
+
+      setIngestMessage(`✅ Ingestion completed successfully!`);
+      setUploadMessage("");
+    } catch (error: any) {
+      console.error("Error during ingestion:", error);
+      // Show warning icon for rebuild conflicts, error icon for actual errors
+      const isRebuildConflict = error.message?.includes("currently being rebuilt");
+      setIngestMessage(isRebuildConflict ? `⚠️ ${error.message}` : `❌ Error: ${error.message}`);
+    } finally {
+      setIsIngesting(false);
+    }
+  };
+
   // Ingest files into knowledge graph (uploaded or downloaded)
   const handleIngestDocuments = async (sourceType: "uploaded" | "downloaded" = "uploaded") => {
     if (!ingestGraphName) {
@@ -423,9 +531,8 @@ const Setup = () => {
       return;
     }
 
-    const folderPath = sourceType === "uploaded" 
-      ? `uploads/${ingestGraphName}`
-      : `downloaded_files_cloud/${ingestGraphName}`;
+    const folderPath = sourceType === "uploaded" ? `uploads/${ingestGraphName}` : `downloaded_files_cloud/${ingestGraphName}`;
+    const fileCount = sourceType === "uploaded" ? uploadedFiles.length : downloadedFiles.length;
 
     setIsIngesting(true);
     setIngestMessage("Step 1/2: Creating ingest job...");
@@ -437,7 +544,7 @@ const Setup = () => {
       const createIngestConfig = {
         data_source: "server",
         data_source_config: {
-          folder_path: folderPath
+          data_path: folderPath,
         },
         loader_config: {},
         file_format: "multi"
@@ -458,15 +565,27 @@ const Setup = () => {
       }
 
       const createData = await createResponse.json();
-      //console.log("Create ingest response:", createData);
+      console.log("Create ingest response:", createData);
 
-      // Step 2: Run ingest
+      // Store ingest job data for later use (store folderPath as source_data_path for temp folder deletion)
+        setIngestJobData({
+          load_job_id: createData.load_job_id,
+          data_source_id: createData.data_source_id,
+        data_path: folderPath,  // Use the source folderPath, not the backend's "in_temp_storage"
+      });
+
+      if (!directIngestion) {
+        // Files are saved to temp storage - show message for review (only if not direct ingestion)
+        setIngestMessage(`✅ ${fileCount} file(s) ready for ingestion.`);
+        setIsIngesting(false);
+      } else {
+        // Direct ingestion enabled - proceed directly to ingest
       setIngestMessage("Step 2/2: Running document ingest...");
 
       const loadingInfo = {
         load_job_id: createData.load_job_id,
         data_source_id: createData.data_source_id,
-        file_path: createData.data_path || createData.file_path, // Handle both field names
+          file_path: createData.data_path || createData.file_path,
       };
 
       const ingestResponse = await fetch(`/ui/${ingestGraphName}/ingest`, {
@@ -484,14 +603,91 @@ const Setup = () => {
       }
 
       const ingestData = await ingestResponse.json();
-      //console.log("Ingest response:", ingestData);
+      console.log("Ingest response:", ingestData);
 
       setIngestMessage(`✅ Data ingested successfully! Processed documents from ${folderPath}/`);
+      setIsIngesting(false);
+      }
     } catch (error: any) {
       console.error("Error ingesting data:", error);
-      setIngestMessage(`❌ Error: ${error.message}`);
-    } finally {
+      // Show warning icon for rebuild conflicts, error icon for actual errors
+      const isRebuildConflict = error.message?.includes("currently being rebuilt");
+      setIngestMessage(isRebuildConflict ? `⚠️ ${error.message}` : `❌ Error: ${error.message}`);
       setIsIngesting(false);
+    }
+  };
+  // Called automatically after upload or cloud download finishes.
+  // Creates an ingest job that processes files into JSONL format in temp folder.
+  const handleCreateIngestAfterUpload = async (sourceType: "uploaded" | "downloaded" = "uploaded", fileCountParam?: number) => {
+    console.log("handleCreateIngestAfterUpload called with sourceType:", sourceType);
+    console.log("ingestGraphName:", ingestGraphName);
+
+    if (!ingestGraphName) {
+      console.log("No graph name, returning early");
+      return;
+    }
+
+    const folderPath = sourceType === "uploaded" ? `uploads/${ingestGraphName}` : `downloaded_files_cloud/${ingestGraphName}`;
+    // Use passed file count or fallback to state arrays
+    const fileCount = fileCountParam || (sourceType === "uploaded" ? uploadedFiles.length : downloadedFiles.length);
+    console.log("folderPath:", folderPath);
+    console.log("fileCount:", fileCount);
+
+    try {
+      const creds = localStorage.getItem("creds");
+
+      // Call create_ingest to process files
+      const createIngestConfig = {
+        data_source: "server",
+        data_source_config: {
+          data_path: folderPath,
+        },
+        loader_config: {},
+        file_format: "multi",
+      };
+
+      console.log("Calling create_ingest with config:", createIngestConfig);
+
+      const createResponse = await fetch(`/ui/${ingestGraphName}/create_ingest`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${creds}`,
+        },
+        body: JSON.stringify(createIngestConfig),
+      });
+
+      console.log("create_ingest response status:", createResponse.status);
+
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        console.error("create_ingest error:", errorData);
+        throw new Error(errorData.detail || `Failed to create ingest job: ${createResponse.statusText}`);
+      }
+
+      const createData = await createResponse.json();
+      console.log("create_ingest response data:", createData);
+
+      // Save ingest job data for later (store folderPath as data_path for temp folder deletion)
+        setIngestJobData({
+          load_job_id: createData.load_job_id,
+          data_source_id: createData.data_source_id,
+        data_path: folderPath,
+        });
+
+        console.log("Direct ingestion enabled:", directIngestion);
+
+        if (directIngestion) {
+          // Direct ingestion - proceed to ingest immediately
+          setUploadMessage("Running direct ingestion...");
+          await handleRunIngest(sourceType);
+        } else {
+          // Save for later - files ready for ingestion
+        setUploadMessage(`✅ ${fileCount} file(s) ready for ingestion.`);
+      }
+    } catch (error: any) {
+      console.error("Error in create_ingest:", error);
+      setUploadMessage(`❌ Processing error: ${error.message}`);
     }
   };
 
@@ -636,7 +832,9 @@ const Setup = () => {
 
     } catch (error: any) {
       console.error("Error ingesting files:", error);
-      setIngestMessage(`❌ Error: ${error.message}`);
+      // Show warning icon for rebuild conflicts, error icon for actual errors
+      const isRebuildConflict = error.message?.includes("currently being rebuilt");
+      setIngestMessage(isRebuildConflict ? `⚠️ ${error.message}` : `❌ Error: ${error.message}`);
     } finally {
       setIsIngesting(false);
     }
@@ -667,29 +865,24 @@ const Setup = () => {
         
         setIsRebuildRunning(isCurrentlyRunning);
         
+        if (statusData.status === "error" || statusData.status === "unknown") {
+          return;
+        }
         if (isCurrentlyRunning) {
           const startTime = statusData.started_at ? new Date(statusData.started_at * 1000).toLocaleString() : "unknown time";
           setRefreshMessage(`⚠️ A rebuild is already in progress for "${graphName}" (started at ${startTime}). Please wait for it to complete.`);
-        } else {
-          // Rebuild is not running anymore
-          if (wasRunning && statusData.status === "completed") {
-            // Just finished
-            setRefreshMessage(`✅ Rebuild completed successfully for "${graphName}".`);
-          } else if (statusData.status === "failed") {
-            setRefreshMessage(`❌ Previous rebuild failed: ${statusData.error || "Unknown error"}`);
-          } else {
-            // Clear message only if we're not showing loading message
-            if (!showLoadingMessage) {
-              setRefreshMessage("");
-            }
-          }
+        } else if (wasRunning && statusData.status === "completed") {
+          setRefreshMessage(`✅ Rebuild completed successfully for "${graphName}".`);
+        } else if (statusData.status === "failed") {
+          setRefreshMessage(`❌ Previous rebuild failed: ${statusData.error || "Unknown error"}`);
+        } else if (statusData.status === "idle") {
+          setRefreshMessage("");
         }
       }
     } catch (error: any) {
       console.error("Error checking rebuild status:", error);
-      // On error, assume it's safe to proceed
-      setIsRebuildRunning(false);
-      setRefreshMessage("");
+      // On error, don't change state - keep existing message
+      // Don't clear existing messages on error
     } finally {
       setIsCheckingStatus(false);
     }
@@ -717,12 +910,33 @@ const Setup = () => {
       return;
     }
 
+    // Check status one final time RIGHT before submitting (to catch any race conditions)
     setIsRefreshing(true);
-    setRefreshMessage("Submitting rebuild request...");
+    setRefreshMessage("Verifying rebuild status...");
 
     try {
       const creds = localStorage.getItem("creds");
-      
+
+      // Final status check to prevent race conditions
+      const statusCheckResponse = await fetch(`/ui/${refreshGraphName}/rebuild_status`, {
+        method: "GET",
+        headers: {
+          Authorization: `Basic ${creds}`,
+        },
+      });
+
+      if (statusCheckResponse.ok) {
+        const statusData = await statusCheckResponse.json();
+        if (statusData.is_running) {
+          setRefreshMessage(`⚠️ A rebuild is already in progress for "${refreshGraphName}". Please wait for it to complete.`);
+          setIsRebuildRunning(true);
+          setIsRefreshing(false);
+          return;
+        }
+      }
+
+      setRefreshMessage("Submitting rebuild request...");
+
       const response = await fetch(`/ui/${refreshGraphName}/rebuild_graph`, {
         method: "POST",
         headers: {
@@ -732,6 +946,12 @@ const Setup = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        // For 409 (lock conflict), show message as-is without "Error:" prefix
+        if (response.status === 409) {
+          setRefreshMessage(`⚠️ ${errorData.detail || errorData.message}`);
+          setIsRefreshing(false);
+          return;
+        }
         throw new Error(errorData.detail || `Failed to refresh graph: ${response.statusText}`);
       }
 
@@ -1221,43 +1441,16 @@ const Setup = () => {
                     </div>
                   )}
 
-                  {/* Ingest Data Section */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="border-t border-gray-300 dark:border-[#3D3D3D] pt-4 mt-4">
-                      <h3 className="text-sm font-medium mb-2 text-black dark:text-white">
-                        Ingest Documents into Knowledge Graph
-                      </h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        Process uploaded files and add them to the knowledge graph
-                      </p>
-                      <Button
-                        onClick={() => handleIngestDocuments("uploaded")}
-                        disabled={isIngesting}
-                        className="gradient text-white w-full"
-                      >
-                        {isIngesting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Ingesting...
-                          </>
-                        ) : (
-                          <>
-                            <Database className="h-4 w-4 mr-2" />
-                            Ingest Documents into {ingestGraphName}
-                          </>
-                        )}
-                      </Button>
-                      {ingestMessage && (
-                        <div className={`p-3 rounded-lg text-sm mt-3 ${
-                          ingestMessage.includes("✅")
-                            ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                            : ingestMessage.includes("❌")
-                            ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
-                            : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                        }`}>
-                          {ingestMessage}
-                        </div>
-                      )}
+                  {/* Ingestion Status Message */}
+                  {ingestMessage && (
+                    <div className={`p-3 rounded-lg text-sm ${
+                      ingestMessage.includes("✅")
+                        ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                        : ingestMessage.includes("❌")
+                        ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
+                        : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                    }`}>
+                      {ingestMessage}
                     </div>
                   )}
 
@@ -1287,6 +1480,35 @@ const Setup = () => {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Ingest Data Section */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="border-t border-gray-300 dark:border-[#3D3D3D] pt-4 mt-4">
+                      <h3 className="text-sm font-medium mb-2 text-black dark:text-white">
+                        Ingest Documents into Knowledge Graph
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        Process uploaded files and add them to the knowledge graph
+                      </p>
+                      <Button
+                        onClick={() => handleRunIngest("uploaded")}
+                        disabled={isIngesting}
+                        className="gradient text-white w-full"
+                      >
+                        {isIngesting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Ingesting...
+                          </>
+                        ) : (
+                          <>
+                            <Database className="h-4 w-4 mr-2" />
+                            Ingest Documents into {ingestGraphName}
+                          </>
+                        )}
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1575,7 +1797,7 @@ const Setup = () => {
                         Process downloaded files and add them to the knowledge graph
                       </p>
                       <Button
-                        onClick={() => handleIngestDocuments("downloaded")}
+                        onClick={() => handleRunIngest("downloaded")}
                         disabled={isIngesting}
                         className="gradient text-white w-full"
                       >
@@ -1591,17 +1813,6 @@ const Setup = () => {
                           </>
                         )}
                       </Button>
-                      {ingestMessage && (
-                        <div className={`p-3 rounded-lg text-sm mt-3 ${
-                          ingestMessage.includes("✅")
-                            ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                            : ingestMessage.includes("❌")
-                            ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300"
-                            : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                        }`}>
-                          {ingestMessage}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1762,6 +1973,10 @@ const Setup = () => {
               return;
             }
             setRefreshOpen(open);
+            // Clear message when closing dialog
+            if (!open) {
+              setRefreshMessage("");
+            }
           }}
         >
           <DialogContent 

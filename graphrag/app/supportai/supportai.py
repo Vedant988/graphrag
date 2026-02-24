@@ -343,9 +343,9 @@ def create_ingest(
     conn: TigerGraphConnection,
 ):
     # Check for invalid combination of multi format and non-s3 data source
-    if ingest_config.data_source.lower() in ["bda", "server"] and ingest_config.get("file_format", "").lower() != "multi":
-        logger.warning(f"File format {ingest_config.get('file_format', '').lower()} is not supported for data source {ingest_config.data_source.lower()}")
-        ingest_config["file_format"] = "multi"
+    if ingest_config.data_source.lower() in ["bda", "server"] and getattr(ingest_config, "file_format", "").lower() != "multi":
+        logger.warning(f"File format {getattr(ingest_config, 'file_format', '')} is not supported for data source {ingest_config.data_source.lower()}")
+        ingest_config.file_format = "multi"
 
     res_ingest_config = {"data_source": ingest_config.data_source.lower()}
     res_ingest_config["file_format"] = ingest_config.file_format.lower()
@@ -491,18 +491,27 @@ def create_ingest(
         if data_path is None:
             raise Exception("Data path not provided for server processing")
         try:
+            #create temp folder
+            base_dir = os.path.dirname(data_path) 
+            temp_folder = os.path.join(base_dir, "ingestion_temp", graphname)
+            # Process files and save immediately to temp folder (memory efficient)
             extractor = TextExtractor()
-            server_processing_result = extractor.process_folder(data_path, graphname=graphname)
+            server_processing_result = extractor.process_folder(
+                data_path, 
+                graphname=graphname,
+                temp_folder=temp_folder  # Extractor saves files as it processes
+            )
             if server_processing_result.get("statusCode") != 200:
                 raise Exception(f"Server folder processing failed: {server_processing_result}")
-            else:
-                logger.info(f"Server folder processing completed successfully: {server_processing_result}")
+            
+            doc_count = server_processing_result.get("num_documents", 0)
+            logger.info(f"Server folder processing completed: {server_processing_result.get('message')}")
 
-            res_ingest_config["server_jobs"] = server_processing_result.get("documents", [])
+            res_ingest_config["data_path"] = temp_folder
+            res_ingest_config["file_count"] = doc_count
             res_ingest_config["data_source_id"] = "DocumentContent"
-            # Use a placeholder path that doesn't start with "/" to avoid pyTigerGraph treating it as a file
-            # The actual folder path is stored in server_jobs, this is just for the API call
-            res["data_path"] = "in_response"
+            # Use a placeholder path to indicate temp storage
+            res["data_path"] = "in_temp_storage"
             res["data_source_id"] = res_ingest_config
         except Exception as e:
             raise Exception(f"Error during server folder processing: {e}")
@@ -654,41 +663,59 @@ def ingest(
             }
         elif ingest_config.get("data_source") == "server":
             try:
-                processed_files = []
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
-                if ingest_config.get("server_jobs"):
-                    for doc_data in ingest_config.get("server_jobs"):
-                        if not doc_data.get("doc_id") or not doc_data.get("content"):
-                            continue
-                        if doc_data.get("image_data"):
-                            payload = {
-                                "doc_id": doc_data.get("doc_id", ""),
-                                "doc_type": "image",
-                                "image_data": doc_data.get("image_data", ""),
-                                "image_format": doc_data.get("image_format", "jpg"),
-                                "parent_doc": doc_data.get("parent_doc", ""),
-                                "page_number": doc_data.get("page_number", 0),
-                                "position": doc_data.get("position", 0),
-                                "content": ""
-                            }
-                        else:
-                            payload = {
-                                "doc_id": doc_data.get("doc_id", ""),
-                                "doc_type": doc_data.get("doc_type", "markdown"),
-                                "content": doc_data.get("content", "")
-                            }
-                        payload_json = json.dumps(payload)
-                        conn.runLoadingJobWithData(payload_json, data_source_id, loader_info.load_job_id)
-                        processed_files.append({
-                            'file_path': doc_data.get("doc_id", ""),
-                            'parent_doc': doc_data.get("parent_doc", ""),
+                
+                # Read from temporary folder containing JSONL files (one per input file)
+                data_path = ingest_config.get("data_path")
+                if not data_path or not os.path.exists(data_path):
+                    raise Exception(f"Data path not found: {data_path}")
+                # Get all JSONL files from temp folder
+                jsonl_files = [f for f in os.listdir(data_path) if f.endswith('.jsonl')]
+                if not jsonl_files:
+                    raise Exception(f"No JSONL files found in: {data_path}")
+                logger.info(f"Found {len(jsonl_files)} JSONL files to ingest from: {data_path}")
+                
+                total_doc_count = 0
+                ingested_files = []
+                
+                # Process each JSONL file separately
+                for jsonl_filename in jsonl_files:
+                    jsonl_file = os.path.join(data_path, jsonl_filename)
+                    logger.info(f"Processing JSONL file: {jsonl_filename}")
+                    
+                    try:
+                        # Load documents directly from file - more memory efficient
+                        conn.runLoadingJobWithFile(jsonl_file, data_source_id, loader_info.load_job_id)
+                    
+                        # Count documents for reporting
+                        with open(jsonl_file, 'r', encoding='utf-8') as f:
+                            doc_count = sum(1 for line in f if line.strip())
+                        total_doc_count += doc_count
+                        ingested_files.append({
+                            'jsonl_file': jsonl_filename,
+                            'document_count': doc_count,
+                            'status': 'success'
                         })
-                        logger.info(f"Data uploading done for doc_id: {doc_data.get('doc_id', 'unknown')}")
+                        logger.info(f"Successfully ingested {doc_count} documents from {jsonl_filename}")
+                        
+                    except Exception as file_error:
+                        logger.error(f"Failed to ingest {jsonl_filename}: {file_error}")
+                        ingested_files.append({
+                            'jsonl_file': jsonl_filename,
+                            'status': 'failed',
+                            'error': str(file_error)
+                        })
+                # Keep temp files for potential re-ingestion (faster, no need to re-process PDFs/images)
+                # Files will be cleaned up when user deletes source files via delete endpoints
+                logger.info(f"Ingestion complete. Temp files preserved at: {data_path}")
+                    
             except Exception as e:
                 raise Exception(f"Error during server markdown extraction and TigerGraph loading: {e}")
             return {
                 "job_name": loader_info.load_job_id,
-                "summary": processed_files
+                "summary": f"Successfully ingested {total_doc_count} documents from {len(jsonl_files)} JSONL files",
+                "document_count": total_doc_count,
+                "ingested_files": ingested_files
             }
         else:
             raise Exception("Data source and file format combination not implemented")
