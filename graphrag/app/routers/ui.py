@@ -1124,16 +1124,26 @@ async def chat(
         logger.error("WebSocket authentication timeout - no credentials received")
         await websocket.close(code=1008, reason="Authentication timeout")
         return
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected during authentication")
+        return
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
-        await websocket.close(code=1008, reason=f"Authentication failed")
+        try:
+            await websocket.close(code=1008, reason="Authentication failed")
+        except Exception:
+            pass
         return
 
     # Get RAG pattern
     rag_pattern = rag_pattern or "hybridsearch"
-    
+
     # Get conversation ID
-    conversation_id = await websocket.receive_text()
+    try:
+        conversation_id = await websocket.receive_text()
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected before conversation ID received")
+        return
     logger.info(
         f"WebSocket conversation_id received: {conversation_id or 'empty'} "
         f"(graph={graphname}, rag_pattern={rag_pattern})"

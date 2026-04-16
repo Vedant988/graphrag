@@ -520,6 +520,32 @@ def create_ingest(
     return res
 
 
+_LOADING_JOB_GSQL_FILES = {
+    "load_documents_content_json_with_images": "common/gsql/supportai/SupportAI_InitialLoadJSON_WithImages.gsql",
+    "load_documents_content_json": "common/gsql/supportai/SupportAI_InitialLoadJSON.gsql",
+}
+
+
+def _ensure_loading_jobs(conn: TigerGraphConnection, graphname: str, load_job_id: str) -> None:
+    """Check that the required loading job exists; recreate it if missing."""
+    current_schema = conn.gsql(f"USE GRAPH {graphname}\n ls")
+    marker = f"- CREATE LOADING JOB {load_job_id} {{"
+    if marker in current_schema:
+        return
+
+    gsql_file = _LOADING_JOB_GSQL_FILES.get(load_job_id)
+    if not gsql_file:
+        raise Exception(f"Loading job '{load_job_id}' not found and no GSQL template available to recreate it")
+
+    logger.info(f"Loading job '{load_job_id}' missing — recreating from {gsql_file}")
+    with open(gsql_file, "r") as f:
+        q_body = f.read()
+    result = conn.gsql(f"USE GRAPH {graphname}\nBEGIN\n{q_body}\nEND\n")
+    logger.info(f"Loading job creation result: {result}")
+    if isinstance(result, str) and ("error" in result.lower() or "failed" in result.lower()):
+        raise Exception(f"Failed to recreate loading job '{load_job_id}': {result}")
+
+
 def ingest(
     graphname: str,
     loader_info: LoadingInfo,
@@ -658,7 +684,7 @@ def ingest(
         elif ingest_config.get("data_source") == "server":
             try:
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
-                
+
                 # Read from temporary folder containing JSONL files (one per input file)
                 data_path = ingest_config.get("data_path")
                 if not data_path or not os.path.exists(data_path):
@@ -668,30 +694,55 @@ def ingest(
                 if not jsonl_files:
                     raise Exception(f"No JSONL files found in: {data_path}")
                 logger.info(f"Found {len(jsonl_files)} JSONL files to ingest from: {data_path}")
-                
+
+                # Ensure loading job exists — recreate if missing (e.g. after schema drop)
+                _ensure_loading_jobs(conn, graphname, loader_info.load_job_id)
+
                 total_doc_count = 0
                 ingested_files = []
-                
+
                 # Process each JSONL file separately
                 for jsonl_filename in jsonl_files:
                     jsonl_file = os.path.join(data_path, jsonl_filename)
                     logger.info(f"Processing JSONL file: {jsonl_filename}")
-                    
+
                     try:
                         # Load documents directly from file - more memory efficient
-                        conn.runLoadingJobWithFile(jsonl_file, data_source_id, loader_info.load_job_id)
-                    
-                        # Count documents for reporting
-                        with open(jsonl_file, 'r', encoding='utf-8') as f:
-                            doc_count = sum(1 for line in f if line.strip())
+                        load_result = conn.runLoadingJobWithFile(jsonl_file, data_source_id, loader_info.load_job_id)
+                        logger.info(f"Loading job raw result for {jsonl_filename}: {load_result}")
+
+                        # Parse loading job statistics
+                        valid_lines = 0
+                        rejected_lines = 0
+                        doc_count = 0
+                        if load_result:
+                            for entry in load_result:
+                                stats = entry.get("statistics", {})
+                                parsing = stats.get("parsingStatistics", stats)
+                                file_level = parsing.get("fileLevel", {})
+                                valid_lines += file_level.get("validLine", stats.get("validLine", 0))
+                                rejected_lines += file_level.get("invalidLine", stats.get("invalidLine", 0))
+                                obj_level = parsing.get("objectLevel", stats)
+                                for v in obj_level.get("vertex", []):
+                                    if v.get("typeName") == "Document":
+                                        doc_count += v.get("validObject", 0)
+                        if doc_count == 0:
+                            # Fallback: count lines in JSONL file
+                            with open(jsonl_file, 'r', encoding='utf-8') as f:
+                                doc_count = sum(1 for line in f if line.strip())
                         total_doc_count += doc_count
                         ingested_files.append({
                             'jsonl_file': jsonl_filename,
                             'document_count': doc_count,
+                            'valid_lines': valid_lines,
+                            'rejected_lines': rejected_lines,
                             'status': 'success'
                         })
-                        logger.info(f"Successfully ingested {doc_count} documents from {jsonl_filename}")
-                        
+                        logger.info(
+                            f"Successfully ingested {doc_count} documents from {jsonl_filename} "
+                            f"(validLine={valid_lines}, rejectedLine={rejected_lines})"
+                        )
+
                     except Exception as file_error:
                         logger.error(f"Failed to ingest {jsonl_filename}: {file_error}")
                         ingested_files.append({

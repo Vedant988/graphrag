@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.1]
+
+### Changed
+- Upgraded `pyTigerGraph` dependency to `>=2.0.3`
+- Improved ingestion statistics: loading job results now parsed for accurate document counts and rejected line tracking
+- Clarified file preparation log message to distinguish JSONL copies from converted files
+
+### Fixed
+- **WebSocket chat endpoint no longer crashes on early client disconnect**
+  - `WebSocketDisconnect` caught separately during auth and conversation ID phases
+  - Prevents `ASGI application` error when client closes before sending credentials
+- **Loading jobs auto-recreated before ingestion** if missing (e.g., after schema drop or reinitialization)
+  - Checks for required loading job before JSONL ingestion loop
+  - Recreates from GSQL template if not found; fails with clear error if recreation fails
+
 ## [1.3.0]
 
 ### Added
