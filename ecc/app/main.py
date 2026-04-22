@@ -216,7 +216,13 @@ async def run_with_tracking(task_key: str, run_func, graphname: str, conn):
     try:
         running_tasks[task_key] = {"status": "running", "started_at": time.time()}
         LogWriter.info(f"Starting ECC task: {task_key}")
-        
+
+        # Verify the graph still exists before doing any work
+        try:
+            await conn.getVertexTypes()
+        except Exception:
+            raise Exception(f"Graph '{graphname}' does not exist or is not accessible")
+
         # Reload config at the start of each job to ensure latest settings are used
         LogWriter.info("Reloading configuration for new job...")
         from common.config import reload_llm_config, reload_graphrag_config, reload_db_config

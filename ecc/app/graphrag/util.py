@@ -18,7 +18,6 @@ import json
 import logging
 import re
 import traceback
-from glob import glob
 
 import httpx
 from graphrag import reusable_channel, workers
@@ -46,6 +45,24 @@ _default_concurrency = graphrag_config.get("default_concurrency", 10)
 # the base concurrency since each worker is mostly waiting on I/O (LLM/embedding API calls).
 _worker_concurrency = _default_concurrency * 2
 tg_sem = asyncio.Semaphore(_default_concurrency)
+
+COMMUNITY_QUERIES = [
+    "common/gsql/graphrag/louvain/graphrag_louvain_init",
+    "common/gsql/graphrag/louvain/graphrag_louvain_communities",
+    "common/gsql/graphrag/louvain/modularity",
+    "common/gsql/graphrag/louvain/stream_community",
+    "common/gsql/graphrag/get_community_children",
+    "common/gsql/graphrag/communities_have_desc",
+]
+
+REQUIRED_QUERIES = [
+    "common/gsql/graphrag/StreamIds",
+    "common/gsql/graphrag/StreamDocContent",
+    "common/gsql/graphrag/StreamChunkContent",
+    "common/gsql/graphrag/SetEpochProcessing",
+    "common/gsql/graphrag/get_vertices_or_remove",
+    "common/gsql/supportai/create_entity_type_relationships",
+]
 load_q = reusable_channel.ReuseableChannel()
 
 # will pause workers until the event is false
@@ -77,7 +94,8 @@ async def install_queries(
     async with tg_sem:
         res = await conn.gsql(query)
         logger.info(f"INSTALL QUERY ALL returned: {str(res)[:200]}")
-        if isinstance(res, str) and "error" in res.lower():
+        res_lower = res.lower() if isinstance(res, str) else ""
+        if "error" in res_lower or "does not exist" in res_lower or "failed" in res_lower:
             raise Exception(res)
 
     max_wait = 600  # seconds
@@ -115,26 +133,9 @@ async def init(
     Returns:
         (extractor, embedding_store)
     """
-    # install requried queries
-    requried_queries = [
-        "common/gsql/graphrag/StreamIds",
-        "common/gsql/graphrag/StreamDocContent",
-        "common/gsql/graphrag/StreamChunkContent",
-        "common/gsql/graphrag/SetEpochProcessing",
-        "common/gsql/graphrag/get_community_children",
-        "common/gsql/graphrag/communities_have_desc",
-        "common/gsql/graphrag/get_vertices_or_remove",
-        "common/gsql/graphrag/louvain/graphrag_louvain_init",
-        "common/gsql/graphrag/louvain/graphrag_louvain_communities",
-        "common/gsql/graphrag/louvain/modularity",
-        "common/gsql/graphrag/louvain/stream_community",
-        "common/gsql/supportai/create_entity_type_relationships"
-    ]
-    # add louvain to queries
-    q = [x.split(".gsql")[0] for x in glob("common/gsql/graphrag/louvain/*")]
-    requried_queries.extend(q)
-    logger.info(f"Installing queries needed for GraphRAG all together")
-    await install_queries(requried_queries, conn)
+    # install required queries
+    logger.info("Installing queries needed for GraphRAG all together")
+    await install_queries(REQUIRED_QUERIES, conn)
 
     # extractor
     graph_cfg = get_graphrag_config(conn.graphname)
@@ -241,7 +242,10 @@ async def upsert_batch(conn: AsyncTigerGraphConnection, data: str):
 async def check_vertex_exists(conn, v_id: str):
     async with tg_sem:
         try:
-            res = await conn.getVerticesById("Entity", v_id)
+            from urllib.parse import quote
+            url = (conn.restppUrl + "/graph/" + conn.graphname
+                   + "/vertices/Entity/" + quote(v_id, safe=""))
+            res = await conn._req("GET", url, params={"select": "description"})
 
         except Exception as e:
             if "is not a valid vertex id" not in str(e):
