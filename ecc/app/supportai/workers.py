@@ -173,7 +173,7 @@ def _is_near_duplicate(new_desc, existing_descs, threshold=0.85):
     for existing in existing_descs:
         ex_lower = existing.lower()
         ex_len = len(ex_lower)
-        if 2 * min(new_len, ex_len) / (new_len + ex_len) < threshold:
+        if not (new_len + ex_len) or 2 * min(new_len, ex_len) / (new_len + ex_len) < threshold:
             continue
         sm.set_seq2(ex_lower)
         if sm.quick_ratio() >= threshold and sm.ratio() >= threshold:
