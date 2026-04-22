@@ -64,7 +64,8 @@ async def install_queries(
     async with tg_sem:
         res = await conn.gsql(query)
         logger.info(f"INSTALL QUERY ALL returned: {str(res)[:200]}")
-        if isinstance(res, str) and "error" in res.lower():
+        res_lower = res.lower() if isinstance(res, str) else ""
+        if "error" in res_lower or "does not exist" in res_lower or "failed" in res_lower:
             raise Exception(res)
 
     max_wait = 300  # seconds
@@ -215,7 +216,10 @@ async def upsert_vertex(
 async def check_vertex_exists(conn, v_id: str):
     async with tg_sem:
         try:
-            res = await conn.getVerticesById("Entity", v_id)
+            from urllib.parse import quote
+            url = (conn.restppUrl + "/graph/" + conn.graphname
+                   + "/vertices/Entity/" + quote(v_id, safe=""))
+            res = await conn._req("GET", url, params={"select": "description"})
 
         except Exception as e:
             err = traceback.format_exc()

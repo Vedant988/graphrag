@@ -137,6 +137,8 @@ class TextExtractor:
             '.xml': 'application/xml',
             '.jpeg': 'image/jpeg',
             '.jpg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
             '.jsonl': 'application/x-jsonlines'
         }
 
@@ -288,7 +290,7 @@ class TextExtractor:
                     'error': result.get('error', 'Unknown error')
                 })
 
-        logger.info(f"Processed {len(processed_files_info)} files, extracted {total_docs} total documents")
+        logger.info(f"Prepared {len(processed_files_info)} files ({len(jsonl_files_copied)} JSONL copied, {len(files_to_process)} converted), {total_docs} total documents")
         logger.info(f"Created {len([f for f in processed_files_info if f.get('status') == 'success'])} JSONL files in {temp_folder}")
 
         return {

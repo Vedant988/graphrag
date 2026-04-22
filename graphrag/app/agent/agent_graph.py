@@ -88,9 +88,11 @@ class TigerGraphAgentGraph:
         self.supportai_enabled = True
         self.supportai_retriever = supportai_retriever.lower().replace(" ", "")
         try:
-            self.db_connection.getQueryMetadata("StreamDocContent")
-        except TigerGraphException as e:
-            logger.info(f"StreamDocContent not found in the graph {self.db_connection.graphname}. Disabling supportai.")
+            vtypes = self.db_connection.getVertexTypes()
+            if "DocumentChunk" not in vtypes:
+                raise ValueError("DocumentChunk vertex type not found")
+        except Exception as e:
+            logger.info(f"SupportAI schema not found in graph {self.db_connection.graphname}. Disabling supportai.")
             self.supportai_enabled = False
 
     def emit_progress(self, msg):
@@ -372,9 +374,6 @@ class TigerGraphAgentGraph:
         state["context"] = {
             "function_call": query_name,
             "result": step[0],
-            "query_output_format": self.db_connection.getQueryMetadata(
-                query_name
-            )["output"],
         }
         state["lookup_source"] = "supportai"
         return state
@@ -401,9 +400,6 @@ class TigerGraphAgentGraph:
         state["context"] = {
             "function_call": query_name,
             "result": step[0],
-            "query_output_format": self.db_connection.getQueryMetadata(
-                query_name
-            )["output"],
         }
         state["lookup_source"] = "supportai"
         return state
@@ -429,9 +425,6 @@ class TigerGraphAgentGraph:
         state["context"] = {
             "function_call": query_name,
             "result": step[0],
-            "query_output_format": self.db_connection.getQueryMetadata(
-                query_name
-            )["output"],
         }
         state["lookup_source"] = "supportai"
         return state
@@ -458,9 +451,6 @@ class TigerGraphAgentGraph:
         state["context"] = {
             "function_call": query_name,
             "result": step[0],
-            "query_output_format": self.db_connection.getQueryMetadata(
-                query_name
-            )["output"],
         }
         state["lookup_source"] = "supportai"
         return state

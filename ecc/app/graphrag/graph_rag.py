@@ -23,9 +23,11 @@ import httpx
 from aiochannel import Channel, ChannelClosed
 from graphrag import workers
 from graphrag.util import (
+    COMMUNITY_QUERIES,
     check_vertex_has_desc,
     http_timeout,
     init,
+    install_queries,
     load_q,
     loading_event,
     make_headers,
@@ -517,8 +519,12 @@ async def run(graphname: str, conn: AsyncTigerGraphConnection):
     type_end = time.perf_counter()
 
     # Community Detection
+    # Ensure community queries are installed.  Per TG docs, only DROP operations
+    # invalidate queries (not ADD/ALTER), but partial init failures or manual
+    # schema edits could still leave queries missing.
     community_start = time.perf_counter()
     if community_detection_switch:
+        await install_queries(COMMUNITY_QUERIES, conn)
         logger.info("Community Processing Start")
         comm_process_chan = Channel()
         upsert_chan = Channel()
@@ -551,3 +557,38 @@ async def run(graphname: str, conn: AsyncTigerGraphConnection):
         f"DONE. graphrag community initializer dT: {community_end-community_start}"
     )
     logger.info(f"DONE. graphrag.run() total time elaplsed: {end-init_start}")
+
+    # Verify all required queries and loading jobs are still intact after the
+    # pipeline.  Per TG docs, only DROP invalidates queries, and ALTER/DROP
+    # invalidates loading jobs.  Log any missing ones to catch unexpected side
+    # effects from schema changes.
+    from graphrag.util import REQUIRED_QUERIES
+    installed = set(
+        q.split("/")[-1]
+        for q in await conn.getEndpoints(dynamic=True)
+        if f"/{conn.graphname}/" in q
+    )
+    expected = {q.split("/")[-1] for q in REQUIRED_QUERIES}
+    missing = expected - installed
+    if missing:
+        logger.error(
+            f"Queries missing after ECC pipeline: {sorted(missing)}."
+        )
+    else:
+        logger.info("Post-pipeline check: all required queries are installed.")
+
+    current_schema = await conn.gsql(f"USE GRAPH {conn.graphname}\nls")
+    expected_jobs = [
+        "load_documents_content_json",
+        "load_documents_content_json_with_images",
+    ]
+    missing_jobs = [
+        j for j in expected_jobs
+        if f"- CREATE LOADING JOB {j} {{" not in current_schema
+    ]
+    if missing_jobs:
+        logger.error(
+            f"Loading jobs missing after ECC pipeline: {missing_jobs}."
+        )
+    else:
+        logger.info("Post-pipeline check: all loading jobs are intact.")

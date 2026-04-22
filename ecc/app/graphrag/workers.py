@@ -53,7 +53,8 @@ INSTALL QUERY {query_name}
     async with util.tg_sem:
         res = await conn.gsql(query)
 
-    if "error" in res:
+    res_lower = res.lower() if isinstance(res, str) else ""
+    if "error" in res_lower or "does not exist" in res_lower or "failed" in res_lower:
         LogWriter.error(res)
         return {
             "result": None,
@@ -209,15 +210,33 @@ async def embed(
             logger.error(f"Failed to add embeddings for {v_id}: {e}")
 
 
+def _is_near_duplicate(new_desc, existing_descs, threshold=0.85):
+    from difflib import SequenceMatcher
+    new_lower = new_desc.lower()
+    new_len = len(new_lower)
+    sm = SequenceMatcher(None, new_lower)
+    for existing in existing_descs:
+        ex_lower = existing.lower()
+        ex_len = len(ex_lower)
+        if not (new_len + ex_len) or 2 * min(new_len, ex_len) / (new_len + ex_len) < threshold:
+            continue
+        sm.set_seq2(ex_lower)
+        if sm.quick_ratio() >= threshold and sm.ratio() >= threshold:
+            return True
+    return False
+
+
 async def get_vert_desc(conn, v_id, node: Node):
-    desc = [node.properties.get("description", "")]
+    new_desc = node.properties.get("description", "")
     exists = await util.check_vertex_exists(conn, v_id)
-    # if vertex exists, get description content and append this description to it
     if not exists.get("error", False):
-        # deduplicate descriptions
-        desc.extend(exists["resp"][0]["attributes"]["description"])
-        desc = list(set(desc))
-    return desc
+        resp = exists.get("resp")
+        if resp and len(resp) > 0 and "attributes" in resp[0]:
+            existing_descs = resp[0]["attributes"].get("description", [])
+            if not new_desc or _is_near_duplicate(new_desc, existing_descs):
+                return existing_descs if existing_descs else [new_desc]
+            return existing_descs + [new_desc]
+    return [new_desc]
 
 
 extract_sem = asyncio.Semaphore(util._worker_concurrency)
