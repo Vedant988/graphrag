@@ -1,0 +1,796 @@
+{
+  "config": {
+    "groq_model": "openai/gpt-oss-20b",
+    "gemini_embedding_model": "models/gemini-embedding-001",
+    "max_pages": 10,
+    "chunk_size": 6000,
+    "chunk_overlap": 400,
+    "top_k": 3
+  },
+  "sample_metadata": {
+    "source_pdf": "D:\\github\\graphrag\\database\\Mahabharata (Unabridged in English).pdf",
+    "sample_pdf": "D:\\github\\graphrag\\tests\\mahabharata_10_page_pilot\\data\\Mahabharata_first_10_pages.pdf",
+    "sample_text": "D:\\github\\graphrag\\tests\\mahabharata_10_page_pilot\\data\\Mahabharata_first_10_pages.txt",
+    "pages": 10,
+    "chars": 62980,
+    "words": 10564
+  },
+  "question": {
+    "id": "sauti_role",
+    "question": "Who is Sauti and what role does he play in the opening of the Mahabharata?"
+  },
+  "chunk_count": 12,
+  "top_chunks": [
+    {
+      "chunk_id": "chunk_002",
+      "score": 0.721897,
+      "text_preview": "h I always received from these \npatrons and friends of the enterprise. \n \nLastly, I should name my literary chief and friend, Dr. Sambhu C. Mookherjee. The kind interest he took in my labours, the \nrepeated exhortations he addressed to me inculcating patience, the care with which he read every fasciculus as it came out, \nmarking all those passages "
+    },
+    {
+      "chunk_id": "chunk_004",
+      "score": 0.70598,
+      "text_preview": "\nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in "
+    },
+    {
+      "chunk_id": "chunk_010",
+      "score": 0.702015,
+      "text_preview": "eat Bharata). Being esteemed superior both in substance and gravity \nof import it is denominated Mahabharata on account of such substance and gravity of import. He that knoweth its meaning is \nsaved from all his sins. \n \n'Tapa is innocent, study is harmless, the ordinance of the Vedas prescribed for all the tribes are harmless, the acquisition of \n"
+    }
+  ],
+  "simple_llm": {
+    "text": "",
+    "usage": {
+      "queue_time": 0.051893449,
+      "prompt_tokens": 5240,
+      "prompt_time": 0.329557529,
+      "completion_tokens": 500,
+      "completion_time": 0.524973848,
+      "total_tokens": 5740,
+      "total_time": 0.854531377,
+      "completion_tokens_details": {
+        "reasoning_tokens": 498
+      }
+    }
+  },
+  "simple_rag": {
+    "text": "Sauti is the sage who opens the Mahabharata.  He is identified as **Ugrasrava, the son of Lomaharshana (sometimes called the son of",
+    "usage": {
+      "queue_time": 0.051887776,
+      "prompt_tokens": 4439,
+      "prompt_time": 0.385163412,
+      "completion_tokens": 500,
+      "completion_time": 0.538004257,
+      "total_tokens": 4939,
+      "total_time": 0.923167669,
+      "completion_tokens_details": {
+        "reasoning_tokens": 456
+      }
+    }
+  },
+  "graph_rag": {
+    "answer": "**Sauti** is the son of Lomaharshana, a learned man \u201cwell\u2011versed in the Puranas\u201d who appears at the beginning of the Mah\u0101bh\u0101rata. In the opening section he is the one who approaches the ascetics in the forest of Naimi\u015ba and, after being received with respect, **narrates the story of the Mah\u0101bh\u0101rata\u2019s composition**. He explains how Vy\u0101sa composed the epic, how Ganesha was appointed as its scribe, and recounts the background of the text\u2019s transmission to the sages and to the king Janamejaya. Thus, Sauti serves as the **narrator and introducer** of the Mah\u0101bh\u0101rata in its opening.  \n\n*Sources: chunk_002 (Sauti\u2019s introduction and dialogue with the sages) and chunk_004 (his explanation of Vy\u0101sa, Ganesha, and the Mah\u0101bh\u0101rata\u2019s origin).*",
+    "usage": {
+      "queue_time": 0.050212433,
+      "prompt_tokens": 3492,
+      "prompt_time": 0.267026396,
+      "completion_tokens": 476,
+      "completion_time": 0.507414264,
+      "total_tokens": 3968,
+      "total_time": 0.77444066,
+      "completion_tokens_details": {
+        "reasoning_tokens": 268
+      }
+    },
+    "graph_node_count": 0,
+    "graph_edge_count": 0,
+    "seed_chunk_ids": [
+      "chunk_002",
+      "chunk_004",
+      "chunk_010"
+    ],
+    "related_entity_count": 0,
+    "related_relationship_count": 0,
+    "related_chunks": [
+      {
+        "chunk_id": "chunk_002",
+        "score": 0.0,
+        "text_preview": "h I always received from these \npatrons and friends of the enterprise. \n \nLastly, I should name my literary chief and friend, Dr. Sambhu C. Mookherjee. The kind interest he took in my labours, the \nrepeated exhortations he addressed to me inculcating patience, the care with which he read every fasciculus as it came out, \nmarking all those passages "
+      },
+      {
+        "chunk_id": "chunk_004",
+        "score": 0.0,
+        "text_preview": "\nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in "
+      },
+      {
+        "chunk_id": "chunk_010",
+        "score": 0.0,
+        "text_preview": "eat Bharata). Being esteemed superior both in substance and gravity \nof import it is denominated Mahabharata on account of such substance and gravity of import. He that knoweth its meaning is \nsaved from all his sins. \n \n'Tapa is innocent, study is harmless, the ordinance of the Vedas prescribed for all the tribes are harmless, the acquisition of \n"
+      }
+    ]
+  },
+  "extraction_summary": {
+    "chunk_extraction_calls": 12,
+    "total_extracted_nodes": 0,
+    "total_extracted_relationships": 0,
+    "per_chunk_usage": [
+      {
+        "chunk_id": "chunk_000",
+        "usage": {
+          "queue_time": 0.05014025,
+          "prompt_tokens": 2219,
+          "prompt_time": 0.130143039,
+          "completion_tokens": 900,
+          "completion_time": 0.933439826,
+          "total_tokens": 3119,
+          "total_time": 1.063582865,
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_001",
+        "usage": {
+          "queue_time": 0.048642619,
+          "prompt_tokens": 2168,
+          "prompt_time": 0.14073729,
+          "completion_tokens": 900,
+          "completion_time": 1.006998914,
+          "total_tokens": 3068,
+          "total_time": 1.147736204,
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_002",
+        "usage": {
+          "queue_time": 0.051309073,
+          "prompt_tokens": 2277,
+          "prompt_time": 0.123589545,
+          "completion_tokens": 900,
+          "completion_time": 0.933897809,
+          "total_tokens": 3177,
+          "total_time": 1.057487354,
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_003",
+        "usage": {
+          "queue_time": 0.050615613,
+          "prompt_tokens": 2332,
+          "prompt_time": 0.135120276,
+          "completion_tokens": 900,
+          "completion_time": 0.96047949,
+          "total_tokens": 3232,
+          "total_time": 1.095599766,
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_004",
+        "usage": {
+          "queue_time": 0.049910145,
+          "prompt_tokens": 2288,
+          "prompt_time": 0.132202774,
+          "completion_tokens": 900,
+          "completion_time": 0.932391736,
+          "total_tokens": 3188,
+          "total_time": 1.06459451,
+          "prompt_tokens_details": {
+            "cached_tokens": 512
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_005",
+        "usage": {
+          "queue_time": 0.049781449,
+          "prompt_tokens": 2249,
+          "prompt_time": 0.13360906,
+          "completion_tokens": 900,
+          "completion_time": 1.030587858,
+          "total_tokens": 3149,
+          "total_time": 1.164196918,
+          "prompt_tokens_details": {
+            "cached_tokens": 512
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_006",
+        "usage": {
+          "queue_time": 0.050358251,
+          "prompt_tokens": 2323,
+          "prompt_time": 0.193334167,
+          "completion_tokens": 900,
+          "completion_time": 0.960766481,
+          "total_tokens": 3223,
+          "total_time": 1.154100648,
+          "prompt_tokens_details": {
+            "cached_tokens": 512
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_007",
+        "usage": {
+          "queue_time": 0.049947587,
+          "prompt_tokens": 2357,
+          "prompt_time": 0.191561882,
+          "completion_tokens": 900,
+          "completion_time": 1.023967745,
+          "total_tokens": 3257,
+          "total_time": 1.215529627,
+          "prompt_tokens_details": {
+            "cached_tokens": 512
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_008",
+        "usage": {
+          "queue_time": 0.050545543,
+          "prompt_tokens": 2361,
+          "prompt_time": 0.101289717,
+          "completion_tokens": 900,
+          "completion_time": 0.993656887,
+          "total_tokens": 3261,
+          "total_time": 1.094946604,
+          "prompt_tokens_details": {
+            "cached_tokens": 512
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_009",
+        "usage": {
+          "queue_time": 0.051253608,
+          "prompt_tokens": 2346,
+          "prompt_time": 0.139479901,
+          "completion_tokens": 900,
+          "completion_time": 0.939729872,
+          "total_tokens": 3246,
+          "total_time": 1.079209773,
+          "prompt_tokens_details": {
+            "cached_tokens": 512
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_010",
+        "usage": {
+          "queue_time": 0.05138225,
+          "prompt_tokens": 2309,
+          "prompt_time": 0.098202559,
+          "completion_tokens": 900,
+          "completion_time": 0.9701282,
+          "total_tokens": 3209,
+          "total_time": 1.068330759,
+          "prompt_tokens_details": {
+            "cached_tokens": 512
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      },
+      {
+        "chunk_id": "chunk_011",
+        "usage": {
+          "queue_time": 0.048608619,
+          "prompt_tokens": 1617,
+          "prompt_time": 0.19244243,
+          "completion_tokens": 900,
+          "completion_time": 0.992375787,
+          "total_tokens": 2517,
+          "total_time": 1.1848182170000001,
+          "completion_tokens_details": {
+            "reasoning_tokens": 898
+          }
+        },
+        "node_count": 0,
+        "relationship_count": 0
+      }
+    ]
+  },
+  "groq_call_log": [
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.051893449,
+        "prompt_tokens": 5240,
+        "prompt_time": 0.329557529,
+        "completion_tokens": 500,
+        "completion_time": 0.524973848,
+        "total_tokens": 5740,
+        "total_time": 0.854531377,
+        "completion_tokens_details": {
+          "reasoning_tokens": 498
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-remaining-tokens": "2260",
+        "x-ratelimit-reset-requests": "1m26.4s",
+        "x-ratelimit-reset-tokens": "43.05s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 429,
+      "usage": null,
+      "headers": {
+        "retry-after": "23",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-remaining-tokens": "1991",
+        "x-ratelimit-reset-requests": "1m26.4s",
+        "x-ratelimit-reset-tokens": "45.067s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.051887776,
+        "prompt_tokens": 4439,
+        "prompt_time": 0.385163412,
+        "completion_tokens": 500,
+        "completion_time": 0.538004257,
+        "total_tokens": 4939,
+        "total_time": 0.923167669,
+        "completion_tokens_details": {
+          "reasoning_tokens": 456
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "998",
+        "x-ratelimit-remaining-tokens": "3061",
+        "x-ratelimit-reset-requests": "2m52.8s",
+        "x-ratelimit-reset-tokens": "37.042s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.05014025,
+        "prompt_tokens": 2219,
+        "prompt_time": 0.130143039,
+        "completion_tokens": 900,
+        "completion_time": 0.933439826,
+        "total_tokens": 3119,
+        "total_time": 1.063582865,
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "997",
+        "x-ratelimit-remaining-tokens": "530",
+        "x-ratelimit-reset-requests": "4m19.2s",
+        "x-ratelimit-reset-tokens": "56.025s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.048642619,
+        "prompt_tokens": 2168,
+        "prompt_time": 0.14073729,
+        "completion_tokens": 900,
+        "completion_time": 1.006998914,
+        "total_tokens": 3068,
+        "total_time": 1.147736204,
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "996",
+        "x-ratelimit-remaining-tokens": "4972",
+        "x-ratelimit-reset-requests": "5m45.6s",
+        "x-ratelimit-reset-tokens": "22.71s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.051309073,
+        "prompt_tokens": 2277,
+        "prompt_time": 0.123589545,
+        "completion_tokens": 900,
+        "completion_time": 0.933897809,
+        "total_tokens": 3177,
+        "total_time": 1.057487354,
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "995",
+        "x-ratelimit-remaining-tokens": "1847",
+        "x-ratelimit-reset-requests": "7m12s",
+        "x-ratelimit-reset-tokens": "46.147s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 429,
+      "usage": null,
+      "headers": {
+        "retry-after": "15",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "995",
+        "x-ratelimit-remaining-tokens": "1140",
+        "x-ratelimit-reset-requests": "7m12s",
+        "x-ratelimit-reset-tokens": "51.45s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.050615613,
+        "prompt_tokens": 2332,
+        "prompt_time": 0.135120276,
+        "completion_tokens": 900,
+        "completion_time": 0.96047949,
+        "total_tokens": 3232,
+        "total_time": 1.095599766,
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "994",
+        "x-ratelimit-remaining-tokens": "4768",
+        "x-ratelimit-reset-requests": "8m38.4s",
+        "x-ratelimit-reset-tokens": "24.24s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.049910145,
+        "prompt_tokens": 2288,
+        "prompt_time": 0.132202774,
+        "completion_tokens": 900,
+        "completion_time": 0.932391736,
+        "total_tokens": 3188,
+        "total_time": 1.06459451,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "993",
+        "x-ratelimit-remaining-tokens": "1776",
+        "x-ratelimit-reset-requests": "10m4.8s",
+        "x-ratelimit-reset-tokens": "46.68s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 429,
+      "usage": null,
+      "headers": {
+        "retry-after": "12",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "993",
+        "x-ratelimit-remaining-tokens": "1576",
+        "x-ratelimit-reset-requests": "10m4.8s",
+        "x-ratelimit-reset-tokens": "48.18s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.049781449,
+        "prompt_tokens": 2249,
+        "prompt_time": 0.13360906,
+        "completion_tokens": 900,
+        "completion_time": 1.030587858,
+        "total_tokens": 3149,
+        "total_time": 1.164196918,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "992",
+        "x-ratelimit-remaining-tokens": "4851",
+        "x-ratelimit-reset-requests": "11m31.2s",
+        "x-ratelimit-reset-tokens": "23.617s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.050358251,
+        "prompt_tokens": 2323,
+        "prompt_time": 0.193334167,
+        "completion_tokens": 900,
+        "completion_time": 0.960766481,
+        "total_tokens": 3223,
+        "total_time": 1.154100648,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "991",
+        "x-ratelimit-remaining-tokens": "2577",
+        "x-ratelimit-reset-requests": "12m57.599s",
+        "x-ratelimit-reset-tokens": "40.672s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.049947587,
+        "prompt_tokens": 2357,
+        "prompt_time": 0.191561882,
+        "completion_tokens": 900,
+        "completion_time": 1.023967745,
+        "total_tokens": 3257,
+        "total_time": 1.215529627,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "990",
+        "x-ratelimit-remaining-tokens": "1157",
+        "x-ratelimit-reset-requests": "14m24s",
+        "x-ratelimit-reset-tokens": "51.322s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.050545543,
+        "prompt_tokens": 2361,
+        "prompt_time": 0.101289717,
+        "completion_tokens": 900,
+        "completion_time": 0.993656887,
+        "total_tokens": 3261,
+        "total_time": 1.094946604,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "989",
+        "x-ratelimit-remaining-tokens": "4739",
+        "x-ratelimit-reset-requests": "15m50.4s",
+        "x-ratelimit-reset-tokens": "24.457s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.051253608,
+        "prompt_tokens": 2346,
+        "prompt_time": 0.139479901,
+        "completion_tokens": 900,
+        "completion_time": 0.939729872,
+        "total_tokens": 3246,
+        "total_time": 1.079209773,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "988",
+        "x-ratelimit-remaining-tokens": "2194",
+        "x-ratelimit-reset-requests": "17m16.8s",
+        "x-ratelimit-reset-tokens": "43.545s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 429,
+      "usage": null,
+      "headers": {
+        "retry-after": "3",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "988",
+        "x-ratelimit-remaining-tokens": "2918",
+        "x-ratelimit-reset-requests": "17m16.8s",
+        "x-ratelimit-reset-tokens": "38.115s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.05138225,
+        "prompt_tokens": 2309,
+        "prompt_time": 0.098202559,
+        "completion_tokens": 900,
+        "completion_time": 0.9701282,
+        "total_tokens": 3209,
+        "total_time": 1.068330759,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "987",
+        "x-ratelimit-remaining-tokens": "4791",
+        "x-ratelimit-reset-requests": "18m43.2s",
+        "x-ratelimit-reset-tokens": "24.067s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.048608619,
+        "prompt_tokens": 1617,
+        "prompt_time": 0.19244243,
+        "completion_tokens": 900,
+        "completion_time": 0.992375787,
+        "total_tokens": 2517,
+        "total_time": 1.1848182170000001,
+        "completion_tokens_details": {
+          "reasoning_tokens": 898
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "986",
+        "x-ratelimit-remaining-tokens": "3118",
+        "x-ratelimit-reset-requests": "20m9.6s",
+        "x-ratelimit-reset-tokens": "36.614s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 429,
+      "usage": null,
+      "headers": {
+        "retry-after": "5",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "986",
+        "x-ratelimit-remaining-tokens": "3418",
+        "x-ratelimit-reset-requests": "20m9.6s",
+        "x-ratelimit-reset-tokens": "34.365s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.050212433,
+        "prompt_tokens": 3492,
+        "prompt_time": 0.267026396,
+        "completion_tokens": 476,
+        "completion_time": 0.507414264,
+        "total_tokens": 3968,
+        "total_time": 0.77444066,
+        "completion_tokens_details": {
+          "reasoning_tokens": 268
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "985",
+        "x-ratelimit-remaining-tokens": "3958",
+        "x-ratelimit-reset-requests": "21m36s",
+        "x-ratelimit-reset-tokens": "30.314s"
+      }
+    }
+  ]
+}

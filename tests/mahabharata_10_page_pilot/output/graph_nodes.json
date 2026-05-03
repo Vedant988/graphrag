@@ -1,0 +1,658 @@
+[
+  {
+    "id": "Mahabharata",
+    "type": "work",
+    "definition": "Epic Sanskrit text authored by Vyasa",
+    "chunk_ids": [
+      "chunk_000",
+      "chunk_001",
+      "chunk_002",
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Krishna-Dwaipayana_Vyasa",
+    "type": "sage",
+    "definition": "Traditional author of the Mahabharata",
+    "chunk_ids": [
+      "chunk_000"
+    ]
+  },
+  {
+    "id": "Kisari_Mohan_Ganguli",
+    "type": "person",
+    "definition": "Translator of the Complete Mahabharata into English (1883\u20111896)",
+    "chunk_ids": [
+      "chunk_000",
+      "chunk_002"
+    ]
+  },
+  {
+    "id": "Juliet_Sutherland",
+    "type": "person",
+    "definition": "Project Manager who proofed the translation",
+    "chunk_ids": [
+      "chunk_000"
+    ]
+  },
+  {
+    "id": "J_B_Hare",
+    "type": "person",
+    "definition": "Proofreader and formatter for the translation",
+    "chunk_ids": [
+      "chunk_000"
+    ]
+  },
+  {
+    "id": "Babu_Pratapa_Chandra_Roy",
+    "type": "person",
+    "definition": "Initiator of an English translation project for the Mahabharata",
+    "chunk_ids": [
+      "chunk_000"
+    ]
+  },
+  {
+    "id": "Babu_Durga_Charan_Banerjee",
+    "type": "person",
+    "definition": "Collaborator with Pratapa on the translation scheme",
+    "chunk_ids": [
+      "chunk_000"
+    ]
+  },
+  {
+    "id": "Dr_Rost",
+    "type": "person",
+    "definition": "Author of a letter that suggested the translation undertaking",
+    "chunk_ids": [
+      "chunk_000"
+    ]
+  },
+  {
+    "id": "Dr_Sambhu_C_Mookherjee",
+    "type": "person",
+    "definition": "Literary friend consulted about the translation project",
+    "chunk_ids": [
+      "chunk_000"
+    ]
+  },
+  {
+    "id": "Complete_Mahabharata_in_English",
+    "type": "work",
+    "definition": "English prose translation of the Mahabharata",
+    "chunk_ids": [
+      "chunk_000"
+    ]
+  },
+  {
+    "id": "Pratapa Chandra Roy",
+    "type": "person",
+    "definition": "Indian scholar accused of posing as translator of Vyasa's work",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "Vyasa",
+    "type": "deity",
+    "definition": "Traditional author of the Mahabharata",
+    "chunk_ids": [
+      "chunk_001",
+      "chunk_004"
+    ]
+  },
+  {
+    "id": "Indian journal",
+    "type": "group",
+    "definition": "Publication that accused Pratapa Chandra Roy",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "Nilakantha",
+    "type": "sage",
+    "definition": "Great commentator whose interpretations were used",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "Babu Charu Charan Mookerjee",
+    "type": "person",
+    "definition": "Assistant in translating portions of the Adi and Sabha Parvas",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "Professor Krishna Kamal Bhattacharya",
+    "type": "person",
+    "definition": "Translator of about four forms of the Sabha Parva",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "Pundit Ram Nath Tarkaratna",
+    "type": "person",
+    "definition": "Author of 'Vasudeva Vijayam' acknowledged by the narrator",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "Pundit Shyama",
+    "type": "person",
+    "definition": "Pundit mentioned in the acknowledgments",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "publisher",
+    "type": "concept",
+    "definition": "Entity that issued the first fasciculus with two prefaces",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "editor",
+    "type": "person",
+    "definition": "Editor of the Indian journal who admitted the mistake",
+    "chunk_ids": [
+      "chunk_001"
+    ]
+  },
+  {
+    "id": "Narayana",
+    "type": "deity",
+    "definition": "Supreme male deity invoked at the start of the passage",
+    "chunk_ids": [
+      "chunk_002"
+    ]
+  },
+  {
+    "id": "Pitamaha_Brahma",
+    "type": "deity",
+    "definition": "Lord and the only Prajapati who emerged from the cosmic egg",
+    "chunk_ids": [
+      "chunk_003"
+    ]
+  },
+  {
+    "id": "Manu",
+    "type": "person",
+    "definition": "One of the twenty\u2011one Prajapatis",
+    "chunk_ids": [
+      "chunk_003"
+    ]
+  },
+  {
+    "id": "Vasishtha",
+    "type": "person",
+    "definition": "One of the twenty\u2011one Prajapatis",
+    "chunk_ids": [
+      "chunk_003"
+    ]
+  },
+  {
+    "id": "Parameshthi",
+    "type": "person",
+    "definition": "One of the twenty\u2011one Prajapatis",
+    "chunk_ids": [
+      "chunk_003"
+    ]
+  },
+  {
+    "id": "Daksha",
+    "type": "person",
+    "definition": "Praja\u2011pati and father of seven sons",
+    "chunk_ids": [
+      "chunk_003"
+    ]
+  },
+  {
+    "id": "Aswins",
+    "type": "group",
+    "definition": "Twin divine physicians among the Visvedevas",
+    "chunk_ids": [
+      "chunk_003"
+    ]
+  },
+  {
+    "id": "Ganesa",
+    "type": "deity",
+    "definition": "Obviator of obstacles, writer of the Bharata",
+    "chunk_ids": [
+      "chunk_004"
+    ]
+  },
+  {
+    "id": "Sauti",
+    "type": "narrator",
+    "definition": "Speaker of the passage",
+    "chunk_ids": [
+      "chunk_004",
+      "chunk_009",
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Suka",
+    "type": "sage",
+    "definition": "One of the learned who knows the verses",
+    "chunk_ids": [
+      "chunk_004"
+    ]
+  },
+  {
+    "id": "Sanjaya",
+    "type": "sage",
+    "definition": "One of the learned who knows the verses",
+    "chunk_ids": [
+      "chunk_004",
+      "chunk_006",
+      "chunk_007"
+    ]
+  },
+  {
+    "id": "Bharata",
+    "type": "work",
+    "definition": "Epic poem described in the passage",
+    "chunk_ids": [
+      "chunk_004",
+      "chunk_009",
+      "chunk_011"
+    ]
+  },
+  {
+    "id": "Purana",
+    "type": "concept",
+    "definition": "Scriptural genre that expands human intellect",
+    "chunk_ids": [
+      "chunk_004"
+    ]
+  },
+  {
+    "id": "Krishna-Dwaipayana",
+    "type": "sage",
+    "definition": "Father of Dhritarashtra, Pandu and Vidura",
+    "chunk_ids": [
+      "chunk_004"
+    ]
+  },
+  {
+    "id": "Bhishma",
+    "type": "person",
+    "definition": "Wise son of Ganga, instructor of Krishna-Dwaipayana",
+    "chunk_ids": [
+      "chunk_004"
+    ]
+  },
+  {
+    "id": "Dhritarashtra",
+    "type": "king",
+    "definition": "One of the three sons of Krishna-Dwaipayana",
+    "chunk_ids": [
+      "chunk_004",
+      "chunk_009"
+    ]
+  },
+  {
+    "id": "Pandu",
+    "type": "king",
+    "definition": "One of the three sons of Krishna-Dwaipayana",
+    "chunk_ids": [
+      "chunk_004"
+    ]
+  },
+  {
+    "id": "Vidura",
+    "type": "sage",
+    "definition": "One of the three sons of Krishna-Dwaipayana",
+    "chunk_ids": [
+      "chunk_004",
+      "chunk_011"
+    ]
+  },
+  {
+    "id": "Janamejaya",
+    "type": "king",
+    "definition": "Patron who solicited the Bharata",
+    "chunk_ids": [
+      "chunk_004"
+    ]
+  },
+  {
+    "id": "Vaisampayana",
+    "type": "sage",
+    "definition": "Disciple of Vyasa",
+    "chunk_ids": [
+      "chunk_004",
+      "chunk_005"
+    ]
+  },
+  {
+    "id": "Arjuna",
+    "type": "person",
+    "definition": "Hero of the Mahabharata, central figure in many events",
+    "chunk_ids": [
+      "chunk_006",
+      "chunk_007",
+      "chunk_008",
+      "chunk_011"
+    ]
+  },
+  {
+    "id": "Krishna",
+    "type": "deity",
+    "definition": "Divine figure, brother of Balarama and Subhadra",
+    "chunk_ids": [
+      "chunk_006",
+      "chunk_007",
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Balarama",
+    "type": "person",
+    "definition": "Brother of Krishna and Subhadra",
+    "chunk_ids": [
+      "chunk_006"
+    ]
+  },
+  {
+    "id": "Subhadra",
+    "type": "person",
+    "definition": "Sister of Krishna and Balarama, married to Arjuna",
+    "chunk_ids": [
+      "chunk_006",
+      "chunk_011"
+    ]
+  },
+  {
+    "id": "Pandavas",
+    "type": "group",
+    "definition": "The five sons of Pandu, including Arjuna, Bhima, Yudhishthira, etc.",
+    "chunk_ids": [
+      "chunk_006",
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Yudhishthira",
+    "type": "person",
+    "definition": "Eldest Pandava, king who lost at dice",
+    "chunk_ids": [
+      "chunk_006",
+      "chunk_007",
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Draupadi",
+    "type": "person",
+    "definition": "Wife of the Pandavas, subject of humiliation",
+    "chunk_ids": [
+      "chunk_006",
+      "chunk_011"
+    ]
+  },
+  {
+    "id": "Bhima",
+    "type": "person",
+    "definition": "Pandava who slew Jarasandha",
+    "chunk_ids": [
+      "chunk_006"
+    ]
+  },
+  {
+    "id": "Duryodhana",
+    "type": "person",
+    "definition": "Kaurava leader who plotted to imprison Krishna",
+    "chunk_ids": [
+      "chunk_007"
+    ]
+  },
+  {
+    "id": "Dhristadyumna",
+    "type": "person",
+    "definition": "Warrior who slew Drona",
+    "chunk_ids": [
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Drona",
+    "type": "person",
+    "definition": "Teacher of the Pandavas, killed by Dhristadyumna",
+    "chunk_ids": [
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Nakula",
+    "type": "person",
+    "definition": "Son of Madri who fought the son of Drona",
+    "chunk_ids": [
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Madri",
+    "type": "person",
+    "definition": "Mother of Nakula",
+    "chunk_ids": [
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Bhimasena",
+    "type": "person",
+    "definition": "Brother of the Pandavas who drank Duhsasana's blood",
+    "chunk_ids": [
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Karna",
+    "type": "person",
+    "definition": "Great warrior slain by Arjuna",
+    "chunk_ids": [
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Sahadeva",
+    "type": "person",
+    "definition": "Pandava who slew Suvala",
+    "chunk_ids": [
+      "chunk_008"
+    ]
+  },
+  {
+    "id": "Raghu",
+    "type": "person",
+    "definition": "One of the enumerated princes",
+    "chunk_ids": [
+      "chunk_009"
+    ]
+  },
+  {
+    "id": "Dwaipayana",
+    "type": "sage",
+    "definition": "Composer of a holy Upanishad",
+    "chunk_ids": [
+      "chunk_009"
+    ]
+  },
+  {
+    "id": "Upanishad",
+    "type": "work",
+    "definition": "Holy text composed by Dwaipayana",
+    "chunk_ids": [
+      "chunk_009"
+    ]
+  },
+  {
+    "id": "Puranas",
+    "type": "work",
+    "definition": "Collection of sacred bards' records where the Upanishad is published",
+    "chunk_ids": [
+      "chunk_009"
+    ]
+  },
+  {
+    "id": "Vasudeva",
+    "type": "deity",
+    "definition": "Eternal being possessing six attributes",
+    "chunk_ids": [
+      "chunk_009"
+    ]
+  },
+  {
+    "id": "Time",
+    "type": "concept",
+    "definition": "Primordial force that creates and destroys all things",
+    "chunk_ids": [
+      "chunk_009"
+    ]
+  },
+  {
+    "id": "Suta",
+    "type": "person",
+    "definition": "Father of the narrator Sauti",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Rama",
+    "type": "person",
+    "definition": "Son of Jamadagni, hero who slays Kshatriyas",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Jamadagni",
+    "type": "person",
+    "definition": "Father of Rama",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Bhrigu",
+    "type": "sage",
+    "definition": "Ancestor of Rama",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Richika",
+    "type": "sage",
+    "definition": "First forefather who appears at Samanta-panchaka",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Pitris",
+    "type": "group",
+    "definition": "Spirits of ancestors who speak to Rama",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Samanta-panchaka",
+    "type": "place",
+    "definition": "Holy region where Rama creates lakes of blood",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Kshatriyas",
+    "type": "group",
+    "definition": "Warrior caste slain by Rama",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Kauravas",
+    "type": "group",
+    "definition": "One of the two rival armies in the Mahabharata",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Akshauhini",
+    "type": "concept",
+    "definition": "Military formation with specific numbers of chariots, elephants, foot\u2011soldiers and horses",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Treta",
+    "type": "concept",
+    "definition": "Yuga preceding Dwapara",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Dwapara",
+    "type": "concept",
+    "definition": "Yuga between Treta and Kali",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Kali",
+    "type": "concept",
+    "definition": "Current Yuga",
+    "chunk_ids": [
+      "chunk_010"
+    ]
+  },
+  {
+    "id": "Anukramanika",
+    "type": "parva",
+    "definition": "The first parva of the Bharata",
+    "chunk_ids": [
+      "chunk_011"
+    ]
+  },
+  {
+    "id": "Swayamvara",
+    "type": "parva",
+    "definition": "Parva describing the selection of husband by Panchali",
+    "chunk_ids": [
+      "chunk_011"
+    ]
+  },
+  {
+    "id": "Panchali",
+    "type": "person",
+    "definition": "Another name for Draupadi",
+    "chunk_ids": [
+      "chunk_011"
+    ]
+  },
+  {
+    "id": "Kshatriya",
+    "type": "concept",
+    "definition": "Warrior virtue exemplified by Arjuna",
+    "chunk_ids": [
+      "chunk_011"
+    ]
+  }
+]

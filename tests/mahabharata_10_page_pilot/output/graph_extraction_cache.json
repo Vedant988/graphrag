@@ -1,0 +1,839 @@
+{
+  "cache_key": {
+    "version": 1,
+    "sample_text_sha256": "33013f3fae0d3e2526c4f4ba35bcf66bc11f19e1555a993e729b534ded490e3b",
+    "chunk_size": 6000,
+    "chunk_overlap": 400,
+    "groq_model": "openai/gpt-oss-120b"
+  },
+  "chunk_graphs": [
+    {
+      "chunk_id": "chunk_000",
+      "text": "The Complete Mahabharata in English \n \n \nThe Mahabharata \nof \nKrishna-Dwaipayana Vyasa \n \nBOOK 1 \nADI PARVA \n \n \n \nTranslated into English Prose from the Original Sanskrit Text by Kisari Mohan Ganguli [1883-1896] \n \nScanned at sacred-texts.com, 2003. Proofed at Distributed Proofing, Juliet Sutherland, Project Manager. Additional proofing \nand formatting at sacred-texts.com, by J. B. Hare. \n \nTRANSLATOR'S PREFACE \nThe object of a translator should ever be to hold the mirror upto his author. That being so, his chief duty is to represent so far as \npracticable the manner in which his author's ideas have been expressed, retaining if possible at the sacrifice of idiom and taste \nall the peculiarities of his author's imagery and of language as well. In regard to translations from the Sanskrit, nothing is easier \nthan to dish up Hindu ideas, so as to make them agreeable to English taste. But the endeavour of the present translator has been \nto give in the following pages as literal a rendering as possible of the great work of Vyasa. To the purely English reader there is \nmuch in the following pages that will strike as ridiculous. Those unacquainted with any language but their own are generally \nvery exclusive in matters of taste. Having no knowledge of models other than what they meet with in their own tongue, the \nstandard they have formed of purity and taste in composition must necessarily be a narrow one. The translator, however, would \nill-discharge his duty, if for the sake of avoiding ridicule, he sacrificed fidelity to the original. He must represent his author as \nhe is, not as he should be to please the narrow taste of those entirely unacquainted with him. Mr. Pickford, in the preface to his \nEnglish translation of the Mahavira Charita, ably defends a close adherence to the original even at the sacrifice of idiom and \ntaste against the claims of what has been called 'Free Translation,' which means dressing the author in an outlandish garb to \nplease those to whom he is introduced. \n \nIn the preface to his classical translation of Bhartrihari's Niti Satakam and Vairagya Satakam, Mr. C.H. Tawney says, \"I am \nsensible that in the present attempt I have retained much local colouring. For instance, the ideas of worshipping the feet of a \ngod of great men, though it frequently occurs in Indian literature, will undoubtedly move the laughter of Englishmen \nunacquainted with Sanskrit, especially if they happen to belong to that class of readers who revel their attention on the \naccidental and remain blind to the essential. But a certain measure of fidelity to the original even at the risk of making oneself \nridiculous, is better than the studied dishonesty which characterises so many translations of oriental poets.\" \n \nWe fully subscribe to the above although, it must be observed, the censure conveyed to the class of translators last indicated is \nrather undeserved, there being nothing like a 'studied dishonesty' in their efforts which proceed only from a mistaken view of \ntheir duties and as such betray only an error of the head but not of the heart. More than twelve years ago when Babu Pratapa \nChandra Roy, with Babu Durga Charan Banerjee, went to my retreat at Seebpore, for engaging me to translate the Mahabharata \ninto English, I was amazed with the grandeur of the scheme. My first question to him was,--whence was the money to come, \nsupposing my competence for the task. Pratapa then unfolded to me the details of his plan, the hopes he could legitimately \ncherish of assistance from different quarters. He was full of enthusiasm. He showed me Dr. Rost's letter, which, he said, had \nsuggested to him the undertaking. I had known Babu Durga Charan for many years and I had the highest opinion of his \nscholarship and practical good sense. When he warmly took Pratapa's side for convincing me of the practicability of the \nscheme, I listened to him patiently. The two were for completing all arrangements with me the very day. To this I did not \nagree. I took a week's time to consider. I consulted some of my literary friends, foremost among whom was the late lamented \nDr. Sambhu C. Mookherjee. The latter, I found, had been waited upon by Pratapa. Dr. Mookherjee spoke to me of Pratapa as a \nman of indomitable energy and perseverance. The result of my conference with Dr. Mookherjee was that I wrote to Pratapa \nasking him to see me again. In this second interview estimates were drawn up, and everything was arranged as far as my \nportion of the work was concerned. My friend left with me a specimen of translation which he had received from Professor \nMax Muller. This I began to study, carefully comparing it sentence by sentence with the original. About its literal character \nthere could be no doubt, but it had no flow and, therefore, could not be perused with pleasure by the general reader. The \ntranslation had been executed thirty years ago by a young German friend of the great Pundit. I had to touch up every sentence. \nThis I did without at all impairing faithfulness to the original. My first 'copy' was set up in type and a dozen sheets were struck \noff. These were submitted to the judgment of a number of eminent writers, European and native. All of them, I was glad to see, \napproved of the specimen, and then the task of translating the Mahabharata into English seriously began. \n \nBefore, however, the first fasciculus could be issued, the question as to whether the authorship of the translation should be \npublicly owned, arose. Babu Pratapa Chandra Roy was against anonymity. I was for it. The reasons I adduced were chiefly \nfounded upon the impossibility of one person translating the whole of the gigantic work. Notwithstanding my resolve to \ndischarge to the fullest extent the duty that I took up, I might not live to carry it out. It would take many years before the end \ncould be reached. Other circumstances than death might arise in consequence of which my connection with the work might \ncease. It could ",
+      "nodes": [
+        {
+          "id": "Mahabharata",
+          "type": "work",
+          "definition": "Epic Sanskrit text authored by Vyasa"
+        },
+        {
+          "id": "Krishna-Dwaipayana_Vyasa",
+          "type": "sage",
+          "definition": "Traditional author of the Mahabharata"
+        },
+        {
+          "id": "Kisari_Mohan_Ganguli",
+          "type": "person",
+          "definition": "Translator of the Complete Mahabharata into English (1883\u20111896)"
+        },
+        {
+          "id": "Juliet_Sutherland",
+          "type": "person",
+          "definition": "Project Manager who proofed the translation"
+        },
+        {
+          "id": "J_B_Hare",
+          "type": "person",
+          "definition": "Proofreader and formatter for the translation"
+        },
+        {
+          "id": "Babu_Pratapa_Chandra_Roy",
+          "type": "person",
+          "definition": "Initiator of an English translation project for the Mahabharata"
+        },
+        {
+          "id": "Babu_Durga_Charan_Banerjee",
+          "type": "person",
+          "definition": "Collaborator with Pratapa on the translation scheme"
+        },
+        {
+          "id": "Dr_Rost",
+          "type": "person",
+          "definition": "Author of a letter that suggested the translation undertaking"
+        },
+        {
+          "id": "Dr_Sambhu_C_Mookherjee",
+          "type": "person",
+          "definition": "Literary friend consulted about the translation project"
+        },
+        {
+          "id": "Complete_Mahabharata_in_English",
+          "type": "work",
+          "definition": "English prose translation of the Mahabharata"
+        }
+      ],
+      "rels": [
+        {
+          "source": "Krishna-Dwaipayana_Vyasa",
+          "target": "Mahabharata",
+          "type": "AUTHORED",
+          "definition": "Vyasa is the traditional author of the Mahabharata"
+        },
+        {
+          "source": "Kisari_Mohan_Ganguli",
+          "target": "Complete_Mahabharata_in_English",
+          "type": "TRANSLATED",
+          "definition": "Ganguli translated the Mahabharata into English"
+        }
+      ],
+      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Mahabharata\",\n      \"type\": \"work\",\n      \"definition\": \"Epic Sanskrit text authored by Vyasa\"\n    },\n    {\n      \"id\": \"Krishna-Dwaipayana_Vyasa\",\n      \"type\": \"sage\",\n      \"definition\": \"Traditional author of the Mahabharata\"\n    },\n    {\n      \"id\": \"Kisari_Mohan_Ganguli\",\n      \"type\": \"person\",\n      \"definition\": \"Translator of the Complete Mahabharata into English (1883\u20111896)\"\n    },\n    {\n      \"id\": \"Juliet_Sutherland\",\n      \"type\": \"person\",\n      \"definition\": \"Project Manager who proofed the translation\"\n    },\n    {\n      \"id\": \"J_B_Hare\",\n      \"type\": \"person\",\n      \"definition\": \"Proofreader and formatter for the translation\"\n    },\n    {\n      \"id\": \"Babu_Pratapa_Chandra_Roy\",\n      \"type\": \"person\",\n      \"definition\": \"Initiator of an English translation project for the Mahabharata\"\n    },\n    {\n      \"id\": \"Babu_Durga_Charan_Banerjee\",\n      \"type\": \"person\",\n      \"definition\": \"Collaborator with Pratapa on the translation scheme\"\n    },\n    {\n      \"id\": \"Dr_Rost\",\n      \"type\": \"person\",\n      \"definition\": \"Author of a letter that suggested the translation undertaking\"\n    },\n    {\n      \"id\": \"Dr_Sambhu_C_Mookherjee\",\n      \"type\": \"person\",\n      \"definition\": \"Literary friend consulted about the translation project\"\n    },\n    {\n      \"id\": \"Complete_Mahabharata_in_English\",\n      \"type\": \"work\",\n      \"definition\": \"English prose translation of the Mahabharata\"\n    }\n  ],\n  \"rels\": [\n    {\n      \"source\": \"Krishna-Dwaipayana_Vyasa\",\n      \"target\": \"Mahabharata\",\n      \"type\": \"AUTHORED\",\n      \"definition\": \"Vyasa is the traditional author of the Mahabharata\"\n    },\n    {\n      \"source\": \"Kisari_Mohan_Ganguli\",\n      \"target\": \"Complete_Mahabharata_in_English\",\n      \"type\": \"TRANSLATED\",\n      \"definition\": \"Ganguli translated the Mahabharata into English\"\n    }]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_001",
+      "text": "re chiefly \nfounded upon the impossibility of one person translating the whole of the gigantic work. Notwithstanding my resolve to \ndischarge to the fullest extent the duty that I took up, I might not live to carry it out. It would take many years before the end \ncould be reached. Other circumstances than death might arise in consequence of which my connection with the work might \ncease. It could not be desirable to issue successive fasciculus with the names of a succession of translators appearing on the \ntitle pages. These and other considerations convinced my friend that, after all, my view was correct. It was, accordingly, \nresolved to withhold the name of the translator. As a compromise, however, between the two views, it was resolved to issue the \nfirst fasciculus with two prefaces, one over the signature of the publisher and the other headed--'Translator's Preface.' This, it \nwas supposed, would effectually guard against misconceptions of every kind. No careful reader would then confound the \npublisher with the author. \n \nAlthough this plan was adopted, yet before a fourth of the task had been accomplished, an influential Indian journal came down \nupon poor Pratapa Chandra Roy and accused him openly of being a party to a great literary imposture, viz., of posing before \nthe world as the translator of Vyasa's work when, in fact, he was only the publisher. The charge came upon my friend as a \nsurprise, especially as he had never made a secret of the authorship in his correspondence with Oriental scholars in every part \nof the world. He promptly wrote to the journal in question, explaining the reasons there were for anonymity, and pointing to the \ntwo prefaces with which the first fasciculus had been given to the world. The editor readily admitted his mistake and made a \nsatisfactory apology. \n \nNow that the translation has been completed, there can no longer be any reason for withholding the name of the translator. The \nentire translation is practically the work of one hand. In portions of the Adi and the Sabha Parvas, I was assisted by Babu \nCharu Charan Mookerjee. About four forms of the Sabha Parva were done by Professor Krishna Kamal Bhattacharya, and \nabout half a fasciculus during my illness, was done by another hand. I should however state that before passing to the printer \nthe copy received from these gentlemen I carefully compared every sentence with the original, making such alterations as were \nneeded for securing a uniformity of style with the rest of the work. \n \nI should here observe that in rendering the Mahabharata into English I have derived very little aid from the three Bengali \nversions that are supposed to have been executed with care. Every one of these is full of inaccuracies and blunders of every \ndescription. The Santi in particular which is by far the most difficult of the eighteen Parvas, has been made a mess of by the \nPundits that attacked it. Hundreds of ridiculous blunders can be pointed out in both the Rajadharma and the Mokshadharma \nsections. Some of these I have pointed out in footnotes. \n \nI cannot lay claim to infallibility. There are verses in the Mahabharata that are exceedingly difficult to construe. I have derived \nmuch aid from the great commentator Nilakantha. I know that Nilakantha's authority is not incapable of being challenged. But \nwhen it is remembered that the interpretations given by Nilakantha came down to him from preceptors of olden days, one \nshould think twice before rejecting Nilakantha as a guide. \n \nAbout the readings I have adopted, I should say that as regards the first half of the work, I have generally adhered to the Bengal \ntexts; as regards the latter half, to the printed Bombay edition. Sometimes individual sections, as occurring in the Bengal \neditions, differ widely, in respect of the order of the verses, from the corresponding ones in the Bombay edition. In such cases I \nhave adhered to the Bengal texts, convinced that the sequence of ideas has been better preserved in the Bengal editions than the \nBombay one. \n \nI should express my particular obligations to Pundit Ram Nath Tarkaratna, the author of 'Vasudeva Vijayam' and other poems, \nPundit Shyama Charan Kaviratna, the learned editor of Kavyaprakasha with the commentary of Professor Mahesh Chandra \nNayaratna, and Babu Aghore Nath Banerjee, the manager of the Bharata Karyalaya. All these scholars were my referees on all \npoints of difficulty. Pundit Ram Nath's solid scholarship is known to them that have come in contact with him. I never referred \nto him a difficulty that he could not clear up. Unfortunately, he was not always at hand to consult. Pundit Shyama Charan \nKaviratna, during my residence at Seebpore, assisted me in going over the Mokshadharma sections of the Santi Parva. \nUnostentatious in the extreme, Kaviratna is truly the type of a learned Brahman of ancient India. Babu Aghore Nath Banerjee \nalso has from time to time, rendered me valuable assistance in clearing my difficulties. \n \nGigantic as the work is, it would have been exceedingly difficult for me to go on with it if I had not been encouraged by Sir \nStuart Bayley, Sir Auckland Colvin, Sir Alfred Croft, and among Oriental scholars, by the late lamented Dr. Reinhold Rost, \nand Mons. A. Barth of Paris. All these eminent men know from the beginning that the translation was proceeding from my pen. \nNotwithstanding the enthusiasm, with which my poor friend, Pratapa Chandra Roy, always endeavoured to fill me. I am sure \nmy energies would have flagged and patience exhausted but for the encouraging words which I always received from these \npatrons and friends of the enterprise. \n \nLastly, I should name my literary chief and friend, Dr. Sambhu C. Mookherjee. The kind interest he took in my labours, the \nrepeated exhortations he addressed to me inculcating patience, the care with which he read every fasciculus as it came out, \nmarking all those passages which threw light upon topics of antiquarian inter",
+      "nodes": [
+        {
+          "id": "Pratapa Chandra Roy",
+          "type": "person",
+          "definition": "Indian scholar accused of posing as translator of Vyasa's work"
+        },
+        {
+          "id": "Vyasa",
+          "type": "deity",
+          "definition": "Traditional author of the Mahabharata"
+        },
+        {
+          "id": "Mahabharata",
+          "type": "work",
+          "definition": "Epic text being translated into English"
+        },
+        {
+          "id": "Indian journal",
+          "type": "group",
+          "definition": "Publication that accused Pratapa Chandra Roy"
+        },
+        {
+          "id": "Nilakantha",
+          "type": "sage",
+          "definition": "Great commentator whose interpretations were used"
+        },
+        {
+          "id": "Babu Charu Charan Mookerjee",
+          "type": "person",
+          "definition": "Assistant in translating portions of the Adi and Sabha Parvas"
+        },
+        {
+          "id": "Professor Krishna Kamal Bhattacharya",
+          "type": "person",
+          "definition": "Translator of about four forms of the Sabha Parva"
+        },
+        {
+          "id": "Pundit Ram Nath Tarkaratna",
+          "type": "person",
+          "definition": "Author of 'Vasudeva Vijayam' acknowledged by the narrator"
+        },
+        {
+          "id": "Pundit Shyama",
+          "type": "person",
+          "definition": "Pundit mentioned in the acknowledgments"
+        },
+        {
+          "id": "publisher",
+          "type": "concept",
+          "definition": "Entity that issued the first fasciculus with two prefaces"
+        },
+        {
+          "id": "editor",
+          "type": "person",
+          "definition": "Editor of the Indian journal who admitted the mistake"
+        }
+      ],
+      "rels": [],
+      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Pratapa Chandra Roy\",\n      \"type\": \"person\",\n      \"definition\": \"Indian scholar accused of posing as translator of Vyasa's work\"\n    },\n    {\n      \"id\": \"Vyasa\",\n      \"type\": \"deity\",\n      \"definition\": \"Traditional author of the Mahabharata\"\n    },\n    {\n      \"id\": \"Mahabharata\",\n      \"type\": \"work\",\n      \"definition\": \"Epic text being translated into English\"\n    },\n    {\n      \"id\": \"Indian journal\",\n      \"type\": \"group\",\n      \"definition\": \"Publication that accused Pratapa Chandra Roy\"\n    },\n    {\n      \"id\": \"Nilakantha\",\n      \"type\": \"sage\",\n      \"definition\": \"Great commentator whose interpretations were used\"\n    },\n    {\n      \"id\": \"Babu Charu Charan Mookerjee\",\n      \"type\": \"person\",\n      \"definition\": \"Assistant in translating portions of the Adi and Sabha Parvas\"\n    },\n    {\n      \"id\": \"Professor Krishna Kamal Bhattacharya\",\n      \"type\": \"person\",\n      \"definition\": \"Translator of about four forms of the Sabha Parva\"\n    },\n    {\n      \"id\": \"Pundit Ram Nath Tarkaratna\",\n      \"type\": \"person\",\n      \"definition\": \"Author of 'Vasudeva Vijayam' acknowledged by the narrator\"\n    },\n    {\n      \"id\": \"Pundit Shyama\",\n      \"type\": \"person\",\n      \"definition\": \"Pundit mentioned in the acknowledgments\"\n    },\n    {\n      \"id\": \"publisher\",\n      \"type\": \"concept\",\n      \"definition\": \"Entity that issued the first fasciculus with two prefaces\"\n    },\n    {\n      \"id\": \"editor\",\n      \"type\": \"person\",\n      \"definition\": \"Editor of the Indian journal who admitted the mistake\"\n    }]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_002",
+      "text": "h I always received from these \npatrons and friends of the enterprise. \n \nLastly, I should name my literary chief and friend, Dr. Sambhu C. Mookherjee. The kind interest he took in my labours, the \nrepeated exhortations he addressed to me inculcating patience, the care with which he read every fasciculus as it came out, \nmarking all those passages which threw light upon topics of antiquarian interest, and the words of praise he uttered when any \nexpression particularly happy met his eyes, served to stimulate me more than anything else in going on with a task that \nsometimes seemed to me endless.  \n \nKisari Mohan Ganguli \nCalcutta \n \nTHE MAHABHARATA \nADI PARVA \n \nSECTION I \n \nOm! Having bowed down to Narayana and Nara, the most exalted male being, and also to the goddess Saraswati, must the \nword Jaya be uttered. \n \nUgrasrava, the son of Lomaharshana, surnamed Sauti, well-versed in the Puranas, bending with humility, one day approached \nthe great sages of rigid vows, sitting at their ease, who had attended the twelve years' sacrifice of Saunaka, surnamed Kulapati, \nin the forest of Naimisha. Those ascetics, wishing to hear his wonderful narrations, presently began to address him who had \nthus arrived at that recluse abode of the inhabitants of the forest of Naimisha. Having been entertained with due respect by \nthose holy men, he saluted those Munis (sages) with joined palms, even all of them, and inquired about the progress of their \nasceticism. Then all the ascetics being again seated, the son of Lomaharshana humbly occupied the seat that was assigned to \nhim. Seeing that he was comfortably seated, and recovered from fatigue, one of the Rishis beginning the conversation, asked \nhim, 'Whence comest thou, O lotus-eyed Sauti, and where hast thou spent the time? Tell me, who ask thee, in detail.' \n \nAccomplished in speech, Sauti, thus questioned, gave in the midst of that big assemblage of contemplative Munis a full and \nproper answer in words consonant with their mode of life. \n \n\"Sauti said, 'Having heard the diverse sacred and wonderful stories which were composed in his Mahabharata by Krishna-\nDwaipayana, and which were recited in full by Vaisampayana at the Snake-sacrifice of the high-souled royal sage Janamejaya \nand in the presence also of that chief of Princes, the son of Parikshit, and having wandered about, visiting many sacred waters \nand holy shrines, I journeyed to the country venerated by the Dwijas (twice-born) and called Samantapanchaka where formerly \nwas fought the battle between the children of Kuru and Pandu, and all the chiefs of the land ranged on either side. Thence, \nanxious to see you, I am come into your presence. Ye reverend sages, all of whom are to me as Brahma; ye greatly blessed who \nshine in this place of sacrifice with the splendour of the solar fire: ye who have concluded the silent meditations and have fed \nthe holy fire; and yet who are sitting--without care, what, O ye Dwijas (twice-born), shall I repeat, shall I recount the sacred \nstories collected in the Puranas containing precepts of religious duty and of worldly profit, or the acts of illustrious saints and \nsovereigns of mankind?\" \n \n\"The Rishi replied, 'The Purana, first promulgated by the great Rishi Dwaipayana, and which after having been heard both by \nthe gods and the Brahmarshis was highly esteemed, being the most eminent narrative that exists, diversified both in diction and \ndivision, possessing subtile meanings logically combined, and gleaned from the Vedas, is a sacred work. Composed in elegant \nlanguage, it includeth the subjects of other books. It is elucidated by other Shastras, and comprehendeth the sense of the four \nVedas. We are desirous of hearing that history also called Bharata, the holy composition of the wonderful Vyasa, which \ndispelleth the fear of evil, just as it was cheerfully recited by the Rishi Vaisampayana, under the direction of Dwaipayana \nhimself, at the snake-sacrifice of Raja Janamejaya?' \n \n\"Sauti then said, 'Having bowed down to the primordial being Isana, to whom multitudes make offerings, and who is adored by \nthe multitude; who is the true incorruptible one, Brahma, perceptible, imperceptible, eternal; who is both a non-existing and an \nexisting-non-existing being; who is the universe and also distinct from the existing and non-existing universe; who is the \ncreator of high and low; the ancient, exalted, inexhaustible one; who is Vishnu, beneficent and the beneficence itself, worthy of \nall preference, pure and immaculate; who is Hari, the ruler of the faculties, the guide of all things moveable and immoveable; I \nwill declare the sacred thoughts of the illustrious sage Vyasa, of marvelous deeds and worshipped here by all. Some bards have \nalready published this history, some are now teaching it, and others, in like manner, will hereafter promulgate it upon the earth. \nIt is a great source of knowledge, established throughout the three regions of the world. It is possessed by the twice-born both \nin detailed and compendious forms. It is the delight of the learned for being embellished with elegant expressions, \nconversations human and divine, and a variety of poetical measures. \n \nIn this world, when it was destitute of brightness and light, and enveloped all around in total darkness, there came into being, as \nthe primal cause of creation, a mighty egg, the one inexhaustible seed of all created beings. It is called Mahadivya, and was \nformed at the beginning of the Yuga, in which we are told, was the true light Brahma, the eternal one, the wonderful and \ninconceivable being present alike in all places; the invisible and subtile cause, whose nature partaketh of entity and non-entity. \nFrom this egg came out the lord Pitamaha Brahma, the one only Prajapati; with Suraguru and Sthanu. Then appeared the \ntwenty-one Prajapatis, viz., Manu, Vasishtha and Parameshthi; ten Prachetas, Daksha, and the seven sons of Daksha. Then \nappeared the man of inconceivable natur",
+      "nodes": [
+        {
+          "id": "Kisari_Mohan_Ganguli",
+          "type": "person",
+          "definition": "Translator and narrator of the Mahabharata"
+        },
+        {
+          "id": "Mahabharata",
+          "type": "work",
+          "definition": "Ancient Indian epic"
+        },
+        {
+          "id": "Narayana",
+          "type": "deity",
+          "definition": "Supreme male deity invoked at the start of the passage"
+        }
+      ],
+      "rels": [],
+      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Kisari_Mohan_Ganguli\",\n      \"type\": \"person\",\n      \"definition\": \"Translator and narrator of the Mahabharata\"\n    },\n    {\n      \"id\": \"Mahabharata\",\n      \"type\": \"work\",\n      \"definition\": \"Ancient Indian epic\"\n    },\n    {\n      \"id\": \"Narayana\",\n      \"type\": \"deity\",\n      \"definition\": \"Supreme male deity invoked at the start of the passage\"\n    }]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_003",
+      "text": "ble being present alike in all places; the invisible and subtile cause, whose nature partaketh of entity and non-entity. \nFrom this egg came out the lord Pitamaha Brahma, the one only Prajapati; with Suraguru and Sthanu. Then appeared the \ntwenty-one Prajapatis, viz., Manu, Vasishtha and Parameshthi; ten Prachetas, Daksha, and the seven sons of Daksha. Then \nappeared the man of inconceivable nature whom all the Rishis know and so the Viswe-devas, the Adityas, the Vasus, and the \ntwin Aswins; the Yakshas, the Sadhyas, the Pisachas, the Guhyakas, and the Pitris. After these were produced the wise and \nmost holy Brahmarshis, and the numerous Rajarshis distinguished by every noble quality. So the water, the heavens, the earth, \nthe air, the sky, the points of the heavens, the years, the seasons, the months, the fortnights, called Pakshas, with day and night \nin due succession. And thus were produced all things which are known to mankind. \n \nAnd what is seen in the universe, whether animate or inanimate, of created things, will at the end of the world, and after the \nexpiration of the Yuga, be again confounded. And, at the commencement of other Yugas, all things will be renovated, and, like \nthe various fruits of the earth, succeed each other in the due order of their seasons. Thus continueth perpetually to revolve in \nthe world, without beginning and without end, this wheel which causeth the destruction of all things. \n \nThe generation of Devas, in brief, was thirty-three thousand, thirty-three hundred and thirty-three. The sons of Div were \nBrihadbhanu, Chakshus, Atma Vibhavasu, Savita, Richika, Arka, Bhanu, Asavaha, and Ravi. Of these Vivaswans of old, \nMahya was the youngest whose son was Deva-vrata. The latter had for his son, Su-vrata who, we learn, had three sons,--Dasa-\njyoti, Sata-jyoti, and Sahasra-jyoti, each of them producing numerous offspring. The illustrious Dasa-jyoti had ten thousand, \nSata-jyoti ten times that number, and Sahasra-jyoti ten times the number of Sata-jyoti's offspring. From these are descended the \nfamily of the Kurus, of the Yadus, and of Bharata; the family of Yayati and of Ikshwaku; also of all the Rajarshis. Numerous \nalso were the generations produced, and very abundant were the creatures and their places of abode. The mystery which is \nthreefold--the Vedas, Yoga, and Vijnana Dharma, Artha, and Kama--also various books upon the subject of Dharma, Artha, \nand Kama; also rules for the conduct of mankind; also histories and discourses with various srutis; all of which having been \nseen by the Rishi Vyasa are here in due order mentioned as a specimen of the book. \n \nThe Rishi Vyasa published this mass of knowledge in both a detailed and an abridged form. It is the wish of the learned in the \nworld to possess the details and the abridgement. Some read the Bharata beginning with the initial mantra (invocation), others \nwith the story of Astika, others with Uparichara, while some Brahmanas study the whole. Men of learning display their various \nknowledge of the institutes in commenting on the composition. Some are skilful in explaining it, while others, in remembering \nits contents. \n \nThe son of Satyavati having, by penance and meditation, analysed the eternal Veda, afterwards composed this holy history, \nwhen that learned Brahmarshi of strict vows, the noble Dwaipayana Vyasa, offspring of Parasara, had finished this greatest of \nnarrations, he began to consider how he might teach it to his disciples. And the possessor of the six attributes, Brahma, the \nworld's preceptor, knowing of the anxiety of the Rishi Dwaipayana, came in person to the place where the latter was, for \ngratifying the saint, and benefiting the people. And when Vyasa, surrounded by all the tribes of Munis, saw him, he was \nsurprised; and, standing with joined palms, he bowed and ordered a seat to be brought. And Vyasa having gone round him who \nis called Hiranyagarbha seated on that distinguished seat stood near it; and being commanded by Brahma Parameshthi, he sat \ndown near the seat, full of affection and smiling in joy. Then the greatly glorious Vyasa, addressing Brahma Parameshthi, said, \n\"O divine Brahma, by me a poem hath been composed which is greatly respected. The mystery of the Veda, and what other \nsubjects have been explained by me; the various rituals of the Upanishads with the Angas; the compilation of the Puranas and \nhistory formed by me and named after the three divisions of time, past, present, and future; the determination of the nature of \ndecay, fear, disease, existence, and non-existence, a description of creeds and of the various modes of life; rule for the four \ncastes, and the import of all the Puranas; an account of asceticism and of the duties of a religious student; the dimensions of the \nsun and moon, the planets, constellations, and stars, together with the duration of the four ages; the Rik, Sama and Yajur \nVedas; also the Adhyatma; the sciences called Nyaya, Orthoephy and Treatment of diseases; charity and Pasupatadharma; birth \ncelestial and human, for particular purposes; also a description of places of pilgrimage and other holy places of rivers, \nmountains, forests, the ocean, of heavenly cities and the kalpas; the art of war; the different kinds of nations and languages: the \nnature of the manners of the people; and the all-pervading spirit;--all these have been represented. But, after all, no writer of \nthis work is to be found on earth.' \n \n\"Brahma said. 'I esteem thee for thy knowledge of divine mysteries, before the whole body of celebrated Munis distinguished \nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in merit to the domestic Asrama. Let \nGanesa be thoug",
+      "nodes": [
+        {
+          "id": "Pitamaha_Brahma",
+          "type": "deity",
+          "definition": "Lord and the only Prajapati who emerged from the cosmic egg"
+        },
+        {
+          "id": "Manu",
+          "type": "person",
+          "definition": "One of the twenty\u2011one Prajapatis"
+        },
+        {
+          "id": "Vasishtha",
+          "type": "person",
+          "definition": "One of the twenty\u2011one Prajapatis"
+        },
+        {
+          "id": "Parameshthi",
+          "type": "person",
+          "definition": "One of the twenty\u2011one Prajapatis"
+        },
+        {
+          "id": "Daksha",
+          "type": "person",
+          "definition": "Praja\u2011pati and father of seven sons"
+        },
+        {
+          "id": "Aswins",
+          "type": "group",
+          "definition": "Twin divine physicians among the Visvedevas"
+        }
+      ],
+      "rels": [],
+      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Pitamaha_Brahma\", \"type\": \"deity\", \"definition\": \"Lord and the only Prajapati who emerged from the cosmic egg\"},\n    {\"id\": \"Manu\", \"type\": \"person\", \"definition\": \"One of the twenty\u2011one Prajapatis\"},\n    {\"id\": \"Vasishtha\", \"type\": \"person\", \"definition\": \"One of the twenty\u2011one Prajapatis\"},\n    {\"id\": \"Parameshthi\", \"type\": \"person\", \"definition\": \"One of the twenty\u2011one Prajapatis\"},\n    {\"id\": \"Daksha\", \"type\": \"person\", \"definition\": \"Praja\u2011pati and father of seven sons\"},\n    {\"id\": \"Aswins\", \"type\": \"group\", \"definition\": \"Twin divine physicians among the Visvedevas\"}]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_004",
+      "text": "\nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in merit to the domestic Asrama. Let \nGanesa be thought of, O Muni, for the purpose of writing the poem.' \n \n\"Sauti said, 'Brahma having thus spoken to Vyasa, retired to his own abode. Then Vyasa began to call to mind Ganesa. And \nGanesa, obviator of obstacles, ready to fulfil the desires of his votaries, was no sooner thought of, than he repaired to the place \nwhere Vyasa was seated. And when he had been saluted, and was seated, Vyasa addressed him thus, 'O guide of the Ganas! be \nthou the writer of the Bharata which I have formed in my imagination, and which I am about to repeat.\" \n \n\"Ganesa, upon hearing this address, thus answered, 'I will become the writer of thy work, provided my pen do not for a \nmoment cease writing.\" And Vyasa said unto that divinity, 'Wherever there be anything thou dost not comprehend, cease to \ncontinue writing.' Ganesa having signified his assent, by repeating the word Om! proceeded to write; and Vyasa began; and by \nway of diversion, he knit the knots of composition exceeding close; by doing which, he dictated this work according to his \nengagement. \n \nI am (continued Sauti) acquainted with eight thousand and eight hundred verses, and so is Suka, and perhaps Sanjaya. From the \nmysteriousness of their meaning, O Muni, no one is able, to this day, to penetrate those closely knit difficult slokas. Even the \nomniscient Ganesa took a moment to consider; while Vyasa, however, continued to compose other verses in great abundance. \n \nThe wisdom of this work, like unto an instrument of applying collyrium, hath opened the eyes of the inquisitive world blinded \nby the darkness of ignorance. As the sun dispelleth the darkness, so doth the Bharata by its discourses on religion, profit, \npleasure and final release, dispel the ignorance of men. As the full-moon by its mild light expandeth the buds of the water-lily, \nso this Purana, by exposing the light of the Sruti hath expanded the human intellect. By the lamp of history, which destroyeth \nthe darkness of ignorance, the whole mansion of nature is properly and completely illuminated. \n \nThis work is a tree, of which the chapter of contents is the seed; the divisions called Pauloma and Astika are the root; the part \ncalled Sambhava is the trunk; the books called Sabha and Aranya are the roosting perches; the books called Arani is the \nknitting knots; the books called Virata and Udyoga the pith; the book named Bhishma, the main branch; the book called Drona, \nthe leaves; the book called Karna, the fair flowers; the book named Salya, their sweet smell; the books entitled Stri and \nAishika, the refreshing shade; the book called Santi, the mighty fruit; the book called Aswamedha, the immortal sap; the \ndenominated Asramavasika, the spot where it groweth; and the book called Mausala, is an epitome of the Vedas and held in \ngreat respect by the virtuous Brahmanas. The tree of the Bharata, inexhaustible to mankind as the clouds, shall be as a source \nof livelihood to all distinguished poets.\" \n \n\"Sauti continued, 'I will now speak of the undying flowery and fruitful productions of this tree, possessed of pure and pleasant \ntaste, and not to be destroyed even by the immortals. Formerly, the spirited and virtuous Krishna-Dwaipayana, by the \ninjunctions of Bhishma, the wise son of Ganga and of his own mother, became the father of three boys who were like the three \nfires by the two wives of Vichitra-virya; and having thus raised up Dhritarashtra, Pandu and Vidura, he returned to his recluse \nabode to prosecute his religious exercise. \n \nIt was not till after these were born, grown up, and departed on the supreme journey, that the great Rishi Vyasa published the \nBharata in this region of mankind; when being solicited by Janamejaya and thousands of Brahmanas, he instructed his disciple \nVaisampayana, who was seated near him; and he, sitting together with the Sadasyas, recited the Bharata, during the intervals of \nthe ceremonies of the sacrifice, being repeatedly urged to proceed. \n \nVyasa hath fully represented the greatness of the house of Kuru, the virtuous principles of Gandhari, the wisdom of Vidura, \nand the constancy of Kunti. The noble Rishi hath also described the divinity of Vasudeva, the rectitude of the sons of Pandu, \nand the evil practices of the sons and partisans of Dhritarashtra. \n \nVyasa executed the compilation of the Bharata, exclusive of the episodes originally in twenty-four thousand verses; and so \nmuch only is called by the learned as the Bharata. Afterwards, he composed an epitome in one hundred and fifty verses, \nconsisting of the introduction with the chapter of contents. This he first taught to his son Suka; and afterwards he gave it to \nothers of his disciples who were possessed of the same qualifications. After that he executed another compilation, consisting of \nsix hundred thousand verses. Of those, thirty hundred thousand are known in the world of the Devas; fifteen hundred thousand \nin the world of the Pitris: fourteen hundred thousand among the Gandharvas, and one hundred thousand in the regions of \nmankind. Narada recited them to the Devas, Devala to the Pitris, and Suka published them to the Gandharvas, Yakshas, and \nRakshasas: and in this world they were recited by Vaisampayana, one of the disciples of Vyasa, a man of just principles and the \nfirst among all those acquainted with the Vedas. Know that I, Sauti, have also repeated one hundred thousand verses. \n \nYudhishthira is a vast tree, formed of religion and virtue; Arjuna is its trunk; Bhimasena, its branches; the two sons of Madri \nare its full-grown fruit and flowers; and its roots are Krishna, Brah",
+      "nodes": [
+        {
+          "id": "Ganesa",
+          "type": "deity",
+          "definition": "Obviator of obstacles, writer of the Bharata"
+        },
+        {
+          "id": "Vyasa",
+          "type": "sage",
+          "definition": "Composer who requested Ganesa to write the Bharata"
+        },
+        {
+          "id": "Sauti",
+          "type": "narrator",
+          "definition": "Speaker of the passage"
+        },
+        {
+          "id": "Suka",
+          "type": "sage",
+          "definition": "One of the learned who knows the verses"
+        },
+        {
+          "id": "Sanjaya",
+          "type": "sage",
+          "definition": "One of the learned who knows the verses"
+        },
+        {
+          "id": "Bharata",
+          "type": "work",
+          "definition": "Epic poem described in the passage"
+        },
+        {
+          "id": "Purana",
+          "type": "concept",
+          "definition": "Scriptural genre that expands human intellect"
+        },
+        {
+          "id": "Krishna-Dwaipayana",
+          "type": "sage",
+          "definition": "Father of Dhritarashtra, Pandu and Vidura"
+        },
+        {
+          "id": "Bhishma",
+          "type": "person",
+          "definition": "Wise son of Ganga, instructor of Krishna-Dwaipayana"
+        },
+        {
+          "id": "Dhritarashtra",
+          "type": "king",
+          "definition": "One of the three sons of Krishna-Dwaipayana"
+        },
+        {
+          "id": "Pandu",
+          "type": "king",
+          "definition": "One of the three sons of Krishna-Dwaipayana"
+        },
+        {
+          "id": "Vidura",
+          "type": "sage",
+          "definition": "One of the three sons of Krishna-Dwaipayana"
+        },
+        {
+          "id": "Janamejaya",
+          "type": "king",
+          "definition": "Patron who solicited the Bharata"
+        },
+        {
+          "id": "Vaisampayana",
+          "type": "sage",
+          "definition": "Disciple of Vyasa"
+        }
+      ],
+      "rels": [
+        {
+          "source": "Vyasa",
+          "target": "Ganesa",
+          "type": "ASKS",
+          "definition": "Vyasa asked Ganesa to write the Bharata"
+        },
+        {
+          "source": "Ganesa",
+          "target": "Bharata",
+          "type": "COMPOSED",
+          "definition": "Ganesa agreed to write the Bharata"
+        },
+        {
+          "source": "Sauti",
+          "target": "Bharata",
+          "type": "NARRATES",
+          "definition": "Sauti narrates the content of the Bharata"
+        }
+      ],
+      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Ganesa\", \"type\": \"deity\", \"definition\": \"Obviator of obstacles, writer of the Bharata\"},\n    {\"id\": \"Vyasa\", \"type\": \"sage\", \"definition\": \"Composer who requested Ganesa to write the Bharata\"},\n    {\"id\": \"Sauti\", \"type\": \"narrator\", \"definition\": \"Speaker of the passage\"},\n    {\"id\": \"Suka\", \"type\": \"sage\", \"definition\": \"One of the learned who knows the verses\"},\n    {\"id\": \"Sanjaya\", \"type\": \"sage\", \"definition\": \"One of the learned who knows the verses\"},\n    {\"id\": \"Bharata\", \"type\": \"work\", \"definition\": \"Epic poem described in the passage\"},\n    {\"id\": \"Purana\", \"type\": \"concept\", \"definition\": \"Scriptural genre that expands human intellect\"},\n    {\"id\": \"Krishna-Dwaipayana\", \"type\": \"sage\", \"definition\": \"Father of Dhritarashtra, Pandu and Vidura\"},\n    {\"id\": \"Bhishma\", \"type\": \"person\", \"definition\": \"Wise son of Ganga, instructor of Krishna-Dwaipayana\"},\n    {\"id\": \"Dhritarashtra\", \"type\": \"king\", \"definition\": \"One of the three sons of Krishna-Dwaipayana\"},\n    {\"id\": \"Pandu\", \"type\": \"king\", \"definition\": \"One of the three sons of Krishna-Dwaipayana\"},\n    {\"id\": \"Vidura\", \"type\": \"sage\", \"definition\": \"One of the three sons of Krishna-Dwaipayana\"},\n    {\"id\": \"Janamejaya\", \"type\": \"king\", \"definition\": \"Patron who solicited the Bharata\"},\n    {\"id\": \"Vaisampayana\", \"type\": \"sage\", \"definition\": \"Disciple of Vyasa\"}\n  ],\n  \"rels\": [\n    {\"source\": \"Vyasa\", \"target\": \"Ganesa\", \"type\": \"ASKS\", \"definition\": \"Vyasa asked Ganesa to write the Bharata\"},\n    {\"source\": \"Ganesa\", \"target\": \"Bharata\", \"type\": \"COMPOSED\", \"definition\": \"Ganesa agreed to write the Bharata\"},\n    {\"source\": \"Sauti\", \"target\": \"Bharata\", \"type\": \"NARRATES\", \"definition\": \"Sauti narrates the content of the Bharata\"}]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_005",
+      "text": "by Vaisampayana, one of the disciples of Vyasa, a man of just principles and the \nfirst among all those acquainted with the Vedas. Know that I, Sauti, have also repeated one hundred thousand verses. \n \nYudhishthira is a vast tree, formed of religion and virtue; Arjuna is its trunk; Bhimasena, its branches; the two sons of Madri \nare its full-grown fruit and flowers; and its roots are Krishna, Brahma, and the Brahmanas. \n \nPandu, after having subdued many countries by his wisdom and prowess, took up his abode with the Munis in a certain forest \nas a sportsman, where he brought upon himself a very severe misfortune for having killed a stag coupling with its mate, which \nserved as a warning for the conduct of the princes of his house as long as they lived. Their mothers, in order that the ordinances \nof the law might be fulfilled, admitted as substitutes to their embraces the gods Dharma, Vayu, Sakra, and the divinities the \ntwin Aswins. And when their offspring grew up, under the care of their two mothers, in the society of ascetics, in the midst of \nsacred groves and holy recluse-abodes of religious men, they were conducted by Rishis into the presence of Dhritarashtra and \nhis sons, following as students in the habit of Brahmacharis, having their hair tied in knots on their heads. 'These our pupils', \nsaid they, 'are as your sons, your brothers, and your friends; they are Pandavas.' Saying this, the Munis disappeared. \n \nWhen the Kauravas saw them introduced as the sons of Pandu, the distinguished class of citizens shouted exceedingly for joy. \nSome, however, said, they were not the sons of Pandu; others said, they were; while a few asked how they could be his \noffspring, seeing he had been so long dead. Still on all sides voices were heard crying, 'They are on all accounts welcome! \nThrough divine Providence we behold the family of Pandu! Let their welcome be proclaimed!' As these acclamations ceased, \nthe plaudits of invisible spirits, causing every point of the heavens to resound, were tremendous. There were showers of sweet-\nscented flowers, and the sound of shells and kettle-drums. Such were the wonders that happened on the arrival of the young \nprinces. The joyful noise of all the citizens, in expression of their satisfaction on the occasion, was so great that it reached the \nvery heavens in magnifying plaudits. \n \nHaving studied the whole of the Vedas and sundry other shastras, the Pandavas resided there, respected by all and without \napprehension from any one. \n \nThe principal men were pleased with the purity of Yudhishthira, the courage of Arjuna, the submissive attention of Kunti to her \nsuperiors, and the humility of the twins, Nakula and Sahadeva; and all the people rejoiced in their heroic virtues. \n \nAfter a while, Arjuna obtained the virgin Krishna at the swayamvara, in the midst of a concourse of Rajas, by performing a \nvery difficult feat of archery. And from this time he became very much respected in this world among all bowmen; and in \nfields of battle also, like the sun, he was hard to behold by foe-men. And having vanquished all the neighbouring princes and \nevery considerable tribe, he accomplished all that was necessary for the Raja (his eldest brother) to perform the great sacrifice \ncalled Rajasuya. \n \nYudhishthira, after having, through the wise counsels of Vasudeva and by the valour of Bhimasena and Arjuna, slain \nJarasandha (the king of Magadha) and the proud Chaidya, acquired the right to perform the grand sacrifice of Rajasuya \nabounding in provisions and offering and fraught with transcendent merits. And Duryodhana came to this sacrifice; and when \nhe beheld the vast wealth of the Pandavas scattered all around, the offerings, the precious stones, gold and jewels; the wealth in \ncows, elephants, and horses; the curious textures, garments, and mantles; the precious shawls and furs and carpets made of the \nskin of the Ranku; he was filled with envy and became exceedingly displeased. And when he beheld the hall of assembly \nelegantly constructed by Maya (the Asura architect) after the fashion of a celestial court, he was inflamed with rage. And \nhaving started in confusion at certain architectural deceptions within this building, he was derided by Bhimasena in the \npresence of Vasudeva, like one of mean descent. \n \nAnd it was represented to Dhritarashtra that his son, while partaking of various objects of enjoyment and diverse precious \nthings, was becoming meagre, wan, and pale. And Dhritarashtra, some time after, out of affection for his son, gave his consent \nto their playing (with the Pandavas) at dice. And Vasudeva coming to know of this, became exceedingly wroth. And being \ndissatisfied, he did nothing to prevent the disputes, but overlooked the gaming and sundry other horried unjustifiable \ntransactions arising therefrom: and in spite of Vidura, Bhishma, Drona, and Kripa, the son of Saradwan, he made the \nKshatriyas kill each other in the terrific war that ensued.' \n \n\"And Dhritarashtra hearing the ill news of the success of the Pandavas and recollecting the resolutions of Duryodhana, Kama, \nand Sakuni, pondered for a while and addressed to Sanjaya the following speech:-- \n \n'Attend, O Sanjaya, to all I am about to say, and it will not become thee to treat me with contempt. Thou art well-versed in the \nshastras, intelligent and endowed with wisdom. My inclination was never to war, not did I delight in the destruction of my race. \nI made no distinction between my own children and the children of Pandu. My own sons were prone to wilfulness and despised \nme because I am old. Blind as I am, because of my miserable plight and through paternal affection, I bore it all. I was foolish \nalter the thoughtless Duryodhana ever growing in folly. Having been a spectator of the riches of the mighty sons of Pandu, my \nson was derided for his awkwardness while ascending the hall. Unable to bear it all and unable himself to overcome the sons of \nPandu in the field, and tho",
+      "nodes": [
+        {
+          "id": "Vaisampayana",
+          "type": "person",
+          "definition": "disciple of Vyasa who narrated the passage"
+        }
+      ],
+      "rels": [],
+      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Vaisampayana\", \"type\": \"person\", \"definition\": \"disciple of Vyasa who narrated the passage\"}]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_006",
+      "text": "I am old. Blind as I am, because of my miserable plight and through paternal affection, I bore it all. I was foolish \nalter the thoughtless Duryodhana ever growing in folly. Having been a spectator of the riches of the mighty sons of Pandu, my \nson was derided for his awkwardness while ascending the hall. Unable to bear it all and unable himself to overcome the sons of \nPandu in the field, and though a soldier, unwilling yet to obtain good fortune by his own exertion, with the help of the king of \nGandhara he concerted an unfair game at dice. \n \n'Hear, O Sanjaya, all that happened thereupon and came to my knowledge. And when thou hast heard all I say, recollecting \neverything as it fell out, thou shall then know me for one with a prophetic eye. When I heard that Arjuna, having bent the bow, \nhad pierced the curious mark and brought it down to the ground, and bore away in triumph the maiden Krishna, in the sight of \nthe assembled princes, then, O Sanjaya I had no hope of success. When I heard that Subhadra of the race of Madhu had, after \nforcible seizure been married by Arjuna in the city of Dwaraka, and that the two heroes of the race of Vrishni (Krishna and \nBalarama the brothers of Subhadra) without resenting it had entered Indraprastha as friends, then, O Sanjaya, I had no hope of \nsuccess. When I heard that Arjuna, by his celestial arrow preventing the downpour by Indra the king of the gods, had gratified \nAgni by making over to him the forest of Khandava, then, O Sanjaya, I had no hope of success. When I heard that the five \nPandavas with their mother Kunti had escaped from the house of lac, and that Vidura was engaged in the accomplishment of \ntheir designs, then, O Sanjaya, I had no hope of success. When I heard that Arjuna, after having pierced the mark in the arena \nhad won Draupadi, and that the brave Panchalas had joined the Pandavas, then, O Sanjaya, I had no hope of success. When I \nheard that Jarasandha, the foremost of the royal line of Magadha, and blazing in the midst of the Kshatriyas, had been slain by \nBhima with his bare arms alone, then, O Sanjaya, I had no hope of success. When I heard that in their general campaign the \nsons of Pandu had conquered the chiefs of the land and performed the grand sacrifice of the Rajasuya, then, O Sanjaya, I had \nno hope of success. When I heard that Draupadi, her voice choked with tears and heart full of agony, in the season of impurity \nand with but one raiment on, had been dragged into court and though she had protectors, she had been treated as if she had \nnone, then, O Sanjaya, I had no hope of success. When I heard that the wicked wretch Duhsasana, was striving to strip her of \nthat single garment, had only drawn from her person a large heap of cloth without being able to arrive at its end, then, O \nSanjaya, I had no hope of success. When I heard that Yudhishthira, beaten by Saubala at the game of dice and deprived of his \nkingdom as a consequence thereof, had still been attended upon by his brothers of incomparable prowess, then, O Sanjaya, I \nhad no hope of success. When I heard that the virtuous Pandavas weeping with affliction had followed their elder brother to the \nwilderness and exerted themselves variously for the mitigation of his discomforts, then, O Sanjaya, I had no hope of success. \n \n'When I heard that Yudhishthira had been followed into the wilderness by Snatakas and noble-minded Brahmanas who live \nupon alms, then, O Sanjaya, I had no hope of success. When I heard that Arjuna, having, in combat, pleased the god of gods, \nTryambaka (the three-eyed) in the disguise of a hunter, obtained the great weapon Pasupata, then O Sanjaya, I had no hope of \nsuccess. When I heard that the just and renowned Arjuna after having been to the celestial regions, had there obtained celestial \nweapons from Indra himself then, O Sanjaya, I had no hope of success. When I heard that afterwards Arjuna had vanquished \nthe Kalakeyas and the Paulomas proud with the boon they had obtained and which had rendered them invulnerable even to the \ncelestials, then, O Sanjaya, I had no hope of success. When I heard that Arjuna, the chastiser of enemies, having gone to the \nregions of Indra for the destruction of the Asuras, had returned thence successful, then, O Sanjaya, I had no hope of success. \nWhen I heard that Bhima and the other sons of Pritha (Kunti) accompanied by Vaisravana had arrived at that country which is \ninaccessible to man then, O Sanjaya, I had no hope of success. When I heard that my sons, guided by the counsels of Karna, \nwhile on their journey of Ghoshayatra, had been taken prisoners by the Gandharvas and were set free by Arjuna, then, O \nSanjaya, I had no hope of success. When I heard that Dharma (the god of justice) having come under the form of a Yaksha had \nproposed certain questions to Yudhishthira then, O Sanjaya, I had no hope of success. When I heard that my sons had failed to \ndiscover the Pandavas under their disguise while residing with Draupadi in the dominions of Virata, then, O Sanjaya, I had no \nhope of success. When I heard that the principal men of my side had all been vanquished by the noble Arjuna with a single \nchariot while residing in the dominions of Virata, then, O Sanjaya, I had no hope of success. When I heard that Vasudeva of \nthe race of Madhu, who covered this whole earth by one foot, was heartily interested in the welfare of the Pandavas, then, O \nSanjaya, I had no hope of success. When I heard that the king of Matsya, had offered his virtuous daughter Uttara to Arjuna \nand that Arjuna had accepted her for his son, then, O Sanjaya, I had no hope of success. When I heard that Yudhishthira, beaten \nat dice, deprived of wealth, exiled and separated from his connections, had assembled yet an army of seven Akshauhinis, then, \nO Sanjaya, I had no hope of success. When I heard Narada, declare that Krishna and Arjuna were Nara and Narayana and he \n(Narada) had seen them together in the regions of Brahma,",
+      "nodes": [
+        {
+          "id": "Sanjaya",
+          "type": "person",
+          "definition": "Narrator addressed in the passage"
+        },
+        {
+          "id": "Arjuna",
+          "type": "person",
+          "definition": "Hero of the Mahabharata, central figure in many events"
+        },
+        {
+          "id": "Krishna",
+          "type": "deity",
+          "definition": "Divine figure, brother of Balarama and Subhadra"
+        },
+        {
+          "id": "Balarama",
+          "type": "person",
+          "definition": "Brother of Krishna and Subhadra"
+        },
+        {
+          "id": "Subhadra",
+          "type": "person",
+          "definition": "Sister of Krishna and Balarama, married to Arjuna"
+        },
+        {
+          "id": "Pandavas",
+          "type": "group",
+          "definition": "The five sons of Pandu, including Arjuna, Bhima, Yudhishthira, etc."
+        },
+        {
+          "id": "Yudhishthira",
+          "type": "person",
+          "definition": "Eldest Pandava, king who lost at dice"
+        },
+        {
+          "id": "Draupadi",
+          "type": "person",
+          "definition": "Wife of the Pandavas, subject of humiliation"
+        },
+        {
+          "id": "Bhima",
+          "type": "person",
+          "definition": "Pandava who slew Jarasandha"
+        }
+      ],
+      "rels": [],
+      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Sanjaya\", \"type\": \"person\", \"definition\": \"Narrator addressed in the passage\"},\n    {\"id\": \"Arjuna\", \"type\": \"person\", \"definition\": \"Hero of the Mahabharata, central figure in many events\"},\n    {\"id\": \"Krishna\", \"type\": \"deity\", \"definition\": \"Divine figure, brother of Balarama and Subhadra\"},\n    {\"id\": \"Balarama\", \"type\": \"person\", \"definition\": \"Brother of Krishna and Subhadra\"},\n    {\"id\": \"Subhadra\", \"type\": \"person\", \"definition\": \"Sister of Krishna and Balarama, married to Arjuna\"},\n    {\"id\": \"Pandavas\", \"type\": \"group\", \"definition\": \"The five sons of Pandu, including Arjuna, Bhima, Yudhishthira, etc.\"},\n    {\"id\": \"Yudhishthira\", \"type\": \"person\", \"definition\": \"Eldest Pandava, king who lost at dice\"},\n    {\"id\": \"Draupadi\", \"type\": \"person\", \"definition\": \"Wife of the Pandavas, subject of humiliation\"},\n    {\"id\": \"Bhima\", \"type\": \"person\", \"definition\": \"Pandava who slew Jarasandha\"}]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_007",
+      "text": "or his son, then, O Sanjaya, I had no hope of success. When I heard that Yudhishthira, beaten \nat dice, deprived of wealth, exiled and separated from his connections, had assembled yet an army of seven Akshauhinis, then, \nO Sanjaya, I had no hope of success. When I heard Narada, declare that Krishna and Arjuna were Nara and Narayana and he \n(Narada) had seen them together in the regions of Brahma, then, O Sanjaya, I had no hope of success. When I heard that \nKrishna, anxious to bring about peace, for the welfare of mankind had repaired to the Kurus, and went away without having \nbeen able to effect his purpose, then, O Sanjaya, I had no hope of success. When I heard that Kama and Duryodhana resolved \nupon imprisoning Krishna displayed in himself the whole universe, then, O Sanjaya, I had no hope of success. Then I heard \nthat at the time of his departure, Pritha (Kunti) standing, full of sorrow, near his chariot received consolation from Krishna, \nthen, O Sanjaya, I had no hope of success. When I heard that Vasudeva and Bhishma the son of Santanu were the counsellors \nof the Pandavas and Drona the son of Bharadwaja pronounced blessings on them, then, O Sanjaya, I had no hope of success. \nWhen Kama said unto Bhishma\u2014I will not fight when thou art fighting--and, quitting the army, went away, then, O Sanjaya, I \nhad no hope of success. When I heard that Vasudeva and Arjuna and the bow Gandiva of immeasurable prowess, these three of \ndreadful energy had come together, then, O Sanjaya, I had no hope of success. When I heard that upon Arjuna having been \nseized with compunction on his chariot and ready to sink, Krishna showed him all the worlds within his body, then, O Sanjaya, \nI had no hope of success. When I heard that Bhishma, the desolator of foes, killing ten thousand charioteers every day in the \nfield of battle, had not slain any amongst the Pandavas then, O Sanjaya, I had no hope of success. When I heard that Bhishma, \nthe righteous son of Ganga, had himself indicated the means of his defeat in the field of battle and that the same were \naccomplished by the Pandavas with joyfulness, then, O Sanjaya, I had no hope of success. When I heard that Arjuna, having \nplaced Sikhandin before himself in his chariot, had wounded Bhishma of infinite courage and invincible in battle, then, O \nSanjaya, I had no hope of success. When I heard that the aged hero Bhishma, having reduced the numbers of the race of \nshomaka to a few, overcome with various wounds was lying on a bed of arrows, then, O Sanjaya, I had no hope of success. \nWhen I heard that upon Bhishma's lying on the ground with thirst for water, Arjuna, being requested, had pierced the ground \nand allayed his thirst, then, O Sanjaya, I had no hope of success. When Bayu together with Indra and Suryya united as allies for \nthe success of the sons of Kunti, and the beasts of prey (by their inauspicious presence) were putting us in fear, then, O \nSanjaya, I had no hope of success. When the wonderful warrior Drona, displaying various modes of fight in the field, did not \nslay any of the superior Pandavas, then, O Sanjaya, I had no hope of success. When I heard that the Maharatha Sansaptakas of \nour army appointed for the overthrow of Arjuna were all slain by Arjuna himself, then, O Sanjaya, I had no hope of success. \nWhen I heard that our disposition of forces, impenetrable by others, and defended by Bharadwaja himself well-armed, had \nbeen singly forced and entered by the brave son of Subhadra, then, O Sanjaya, I had no hope of success. When I heard that our \nMaharathas, unable to overcome Arjuna, with jubilant faces after having jointly surrounded and slain the boy Abhimanyu, \nthen, O Sanjaya, I had no hope of success. When I heard that the blind Kauravas were shouting for joy after having slain \nAbhimanyu and that thereupon Arjuna in anger made his celebrated speech referring to Saindhava, then, O Sanjaya, I had no \nhope of success. When I heard that Arjuna had vowed the death of Saindhava and fulfilled his vow in the presence of his \nenemies, then, O Sanjaya, I had no hope of success. When I heard that upon the horses of Arjuna being fatigued, Vasudeva \nreleasing them made them drink water and bringing them back and reharnessing them continued to guide them as before, then, \nO Sanjaya, I had no hope of success. When I heard that while his horses were fatigued, Arjuna staying in his chariot checked \nall his assailants, then, O Sanjaya, I had no hope of success. When I heard that Yuyudhana of the race of Vrishni, after having \nthrown into confusion the army of Drona rendered unbearable in prowess owing to the presence of elephants, retired to where \nKrishna and Arjuna were, then, O Sanjaya, I had no hope of success. When I heard that Karna even though he had got Bhima \nwithin his power allowed him to escape after only addressing him in contemptuous terms and dragging him with the end of his \nbow, then, O Sanjaya, I had no hope of success. When I heard that Drona, Kritavarma, Kripa, Karna, the son of Drona, and the \nvaliant king of Madra (Salya) suffered Saindhava to be slain, then, O Sanjaya, I had no hope of success. When I heard that the \ncelestial Sakti given by Indra (to Karna) was by Madhava's machinations caused to be hurled upon Rakshasa Ghatotkacha of \nfrightful countenance, then, O Sanjaya, I had no hope of success. When I heard that in the encounter between Karna and \nGhatotkacha, that Sakti was hurled against Ghatotkacha by Karna, the same which was certainly to have slain Arjuna in battle, \nthen, O Sanjaya. I had no hope of success. When I heard that Dhristadyumna, transgressing the laws of battle, slew Drona \nwhile alone in his chariot and resolved on death, then, O Sanjaya, I had no hope of success. When I heard that Nakula. the son \nof Madri, having in the presence of the whole army engaged in single combat with the son of Drona and showing himself equal \nto him drove his chariot in circles around, then, O Sanjaya, I had no hope ",
+      "nodes": [
+        {
+          "id": "Sanjaya",
+          "type": "narrator",
+          "definition": "the listener addressed in the passage"
+        },
+        {
+          "id": "Yudhishthira",
+          "type": "person",
+          "definition": "the Pandava king who was beaten at dice and exiled"
+        },
+        {
+          "id": "Krishna",
+          "type": "deity",
+          "definition": "divine figure who tried to bring peace and showed Arjuna the worlds"
+        },
+        {
+          "id": "Arjuna",
+          "type": "person",
+          "definition": "Pandava warrior, wielder of the bow Gandiva"
+        },
+        {
+          "id": "Duryodhana",
+          "type": "person",
+          "definition": "Kaurava leader who plotted to imprison Krishna"
+        }
+      ],
+      "rels": [],
+      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Sanjaya\",\n      \"type\": \"narrator\",\n      \"definition\": \"the listener addressed in the passage\"\n    },\n    {\n      \"id\": \"Yudhishthira\",\n      \"type\": \"person\",\n      \"definition\": \"the Pandava king who was beaten at dice and exiled\"\n    },\n    {\n      \"id\": \"Krishna\",\n      \"type\": \"deity\",\n      \"definition\": \"divine figure who tried to bring peace and showed Arjuna the worlds\"\n    },\n    {\n      \"id\": \"Arjuna\",\n      \"type\": \"person\",\n      \"definition\": \"Pandava warrior, wielder of the bow Gandiva\"\n    },\n    {\n      \"id\": \"Duryodhana\",\n      \"type\": \"person\",\n      \"definition\": \"Kaurava leader who plotted to imprison Krishna\"\n    }]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_008",
+      "text": "heard that Dhristadyumna, transgressing the laws of battle, slew Drona \nwhile alone in his chariot and resolved on death, then, O Sanjaya, I had no hope of success. When I heard that Nakula. the son \nof Madri, having in the presence of the whole army engaged in single combat with the son of Drona and showing himself equal \nto him drove his chariot in circles around, then, O Sanjaya, I had no hope of success. When upon the death of Drona, his son \nmisused the weapon called Narayana but failed to achieve the destruction of the Pandavas, then, O Sanjaya, I had no hope of \nsuccess. When I heard that Bhimasena drank the blood of his brother Duhsasana in the field of battle without anybody being \nable to prevent him, then, O Sanjaya, I had no hope of success. When I heard that the infinitely brave Karna, invincible in \nbattle, was slain by Arjuna in that war of brothers mysterious even to the gods, then, O Sanjaya, I had no hope of success. \nWhen I heard that Yudhishthira, the Just, overcame the heroic son of Drona, Duhsasana, and the fierce Kritavarman, then, O \nSanjaya, I had no hope of success. When I heard that the brave king of Madra who ever dared Krishna in battle was slain by \nYudhishthira, then, O Sanjaya, I had no hope of success. When I heard that the wicked Suvala of magic power, the root of the \ngaming and the feud, was slain in battle by Sahadeva, the son of Pandu, then, O Sanjaya, I had no hope of success. When I \nheard that Duryodhana, spent with fatigue, having gone to a lake and made a refuge for himself within its waters, was lying \nthere alone, his strength gone and without a chariot, then, O Sanjaya, I had no hope of success. When I heard that the Pandavas \nhaving gone to that lake accompanied by Vasudeva and standing on its beach began to address contemptuously my son who \nwas incapable of putting up with affronts, then, O Sanjaya, I had no hope of success. When I heard that while, displaying in \ncircles a variety of curious modes (of attack and defence) in an encounter with clubs, he was unfairly slain according to the \ncounsels of Krishna, then, O Sanjaya, I had no hope of success. When I heard the son of Drona and others by slaying the \nPanchalas and the sons of Draupadi in their sleep, perpetrated a horrible and infamous deed, then, O Sanjaya, I had no hope of \nsuccess. When I heard that Aswatthaman while being pursued by Bhimasena had discharged the first of weapons called \nAishika, by which the embryo in the womb (of Uttara) was wounded, then, O Sanjaya, I had no hope of success. When I heard \nthat the weapon Brahmashira (discharged by Aswatthaman) was repelled by Arjuna with another weapon over which he had \npronounced the word \"Sasti\" and that Aswatthaman had to give up the jewel-like excrescence on his head, then, O Sanjaya, I \nhad no hope of success. When I heard that upon the embryo in the womb of Virata's daughter being wounded by Aswatthaman \nwith a mighty weapon, Dwaipayana and Krishna pronounced curses on him, then, O Sanjaya, I had no hope of success. \n \n'Alas! Gandhari, destitute of children, grand-children, parents, brothers, and kindred, is to be pitied. Difficult is the task that \nhath been performed by the Pandavas: by them hath a kingdom been recovered without a rival. \n \n'Alas! I have heard that the war hath left only ten alive: three of our side, and the Pandavas, seven, in that dreadful conflict \neighteen Akshauhinis of Kshatriyas have been slain! All around me is utter darkness, and a fit of swoon assaileth me: \nconsciousness leaves me, O Suta, and my mind is distracted.\" \n \n\"Sauti said, 'Dhritarashtra, bewailing his fate in these words, was overcome with extreme anguish and for a time deprived of \nsense; but being revived, he addressed Sanjaya in the following words. \n \n\"After what hath come to pass, O Sanjaya, I wish to put an end to my life without delay; I do not find the least advantage in \ncherishing it any longer.\" \n \n\"Sauti said, 'The wise son of Gavalgana (Sanjaya) then addressed the distressed lord of Earth while thus talking and bewailing, \nsighing like a serpent and repeatedly tainting, in words of deep import. \n \n\"Thou hast heard, O Raja, of the greatly powerful men of vast exertions, spoken of by Vyasa and the wise Narada; men born of \ngreat royal families, resplendent with worthy qualities, versed in the science of celestial arms, and in glory emblems of Indra; \nmen who having conquered the world by justice and performed sacrifices with fit offerings (to the Brahmanas), obtained \nrenown in this world and at last succumbed to the sway of time. Such were Saivya; the valiant Maharatha; Srinjaya, great \namongst conquerors. Suhotra; Rantideva, and Kakshivanta, great in glory; Valhika, Damana, Saryati, Ajita, and Nala; \nViswamitra the destroyer of foes; Amvarisha, great in strength; Marutta, Manu, Ikshaku, Gaya, and Bharata; Rama the son of \nDasaratha; Sasavindu, and Bhagiratha; Kritavirya, the greatly fortunate, and Janamejaya too; and Yayati of good deeds who \nperformed sacrifices, being assisted therein by the celestials themselves, and by whose sacrificial altars and stakes this earth \nwith her habited and uninhabited regions hath been marked all over. These twenty-four Rajas were formerly spoken of by the \ncelestial Rishi Narada unto Saivya when much afflicted for the loss of his children. Besides these, other Rajas had gone before, \nstill more powerful than they, mighty charioteers noble in mind, and resplendent with every worthy quality. These were Puru, \nKuru, Yadu, Sura and Viswasrawa of great glory; Anuha, Yuvanaswu, Kakutstha, Vikrami, and Raghu; Vijava, Virihorta, \nAnga, Bhava, Sweta, and Vripadguru; Usinara, Sata-ratha, Kanka, Duliduha, and Druma; Dambhodbhava, Para, Vena, Sagara, \nSankriti, and Nimi; Ajeya, Parasu, Pundra, Sambhu, and holy Deva-Vridha; Devahuya, Supratika, and Vrihad-ratha; \nMahatsaha, Vinitatma, Sukratu, and Nala, the king of the Nishadas; Satyavrata, Santabhaya, Sumitra, and the chief Subala; \nJanujangha,",
+      "nodes": [
+        {
+          "id": "Dhristadyumna",
+          "type": "person",
+          "definition": "Warrior who slew Drona"
+        },
+        {
+          "id": "Drona",
+          "type": "person",
+          "definition": "Teacher of the Pandavas, killed by Dhristadyumna"
+        },
+        {
+          "id": "Nakula",
+          "type": "person",
+          "definition": "Son of Madri who fought the son of Drona"
+        },
+        {
+          "id": "Madri",
+          "type": "person",
+          "definition": "Mother of Nakula"
+        },
+        {
+          "id": "Bhimasena",
+          "type": "person",
+          "definition": "Brother of the Pandavas who drank Duhsasana's blood"
+        },
+        {
+          "id": "Karna",
+          "type": "person",
+          "definition": "Great warrior slain by Arjuna"
+        },
+        {
+          "id": "Arjuna",
+          "type": "person",
+          "definition": "Pandava hero who slew Karna and repelled Brahmashira"
+        },
+        {
+          "id": "Yudhishthira",
+          "type": "person",
+          "definition": "The Just, king of the Pandavas"
+        },
+        {
+          "id": "Krishna",
+          "type": "deity",
+          "definition": "Divine guide of the Pandavas"
+        },
+        {
+          "id": "Sahadeva",
+          "type": "person",
+          "definition": "Pandava who slew Suvala"
+        }
+      ],
+      "rels": [],
+      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Dhristadyumna\", \"type\": \"person\", \"definition\": \"Warrior who slew Drona\"},\n    {\"id\": \"Drona\", \"type\": \"person\", \"definition\": \"Teacher of the Pandavas, killed by Dhristadyumna\"},\n    {\"id\": \"Nakula\", \"type\": \"person\", \"definition\": \"Son of Madri who fought the son of Drona\"},\n    {\"id\": \"Madri\", \"type\": \"person\", \"definition\": \"Mother of Nakula\"},\n    {\"id\": \"Bhimasena\", \"type\": \"person\", \"definition\": \"Brother of the Pandavas who drank Duhsasana's blood\"},\n    {\"id\": \"Karna\", \"type\": \"person\", \"definition\": \"Great warrior slain by Arjuna\"},\n    {\"id\": \"Arjuna\", \"type\": \"person\", \"definition\": \"Pandava hero who slew Karna and repelled Brahmashira\"},\n    {\"id\": \"Yudhishthira\", \"type\": \"person\", \"definition\": \"The Just, king of the Pandavas\"},\n    {\"id\": \"Krishna\", \"type\": \"deity\", \"definition\": \"Divine guide of the Pandavas\"},\n    {\"id\": \"Sahadeva\", \"type\": \"person\", \"definition\": \"Pandava who slew Suvala\"}]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_009",
+      "text": ", and Raghu; Vijava, Virihorta, \nAnga, Bhava, Sweta, and Vripadguru; Usinara, Sata-ratha, Kanka, Duliduha, and Druma; Dambhodbhava, Para, Vena, Sagara, \nSankriti, and Nimi; Ajeya, Parasu, Pundra, Sambhu, and holy Deva-Vridha; Devahuya, Supratika, and Vrihad-ratha; \nMahatsaha, Vinitatma, Sukratu, and Nala, the king of the Nishadas; Satyavrata, Santabhaya, Sumitra, and the chief Subala; \nJanujangha, Anaranya, Arka, Priyabhritya, Chuchi-vrata, Balabandhu, Nirmardda, Ketusringa, and Brhidbala; Dhrishtaketu, \nBrihatketu, Driptaketu, and Niramaya; Abikshit, Chapala, Dhurta, Kritbandhu, and Dridhe-shudhi; Mahapurana-sambhavya, \nPratyanga, Paraha and Sruti. These, O chief, and other Rajas, we hear enumerated by hundreds and by thousands, and still \nothers by millions, princes of great power and wisdom, quitting very abundant enjoyments met death as thy sons have done! \nTheir heavenly deeds, valour, and generosity, their magnanimity, faith, truth, purity, simplicity and mercy, are published to the \nworld in the records of former times by sacred bards of great learning. Though endued with every noble virtue, these have \nyielded up their lives. Thy sons were malevolent, inflamed with passion, avaricious, and of very evil-disposition. Thou art \nversed in the Sastras, O Bharata, and art intelligent and wise; they never sink under misfortunes whose understandings are \nguided by the Sastras. Thou art acquainted, O prince, with the lenity and severity of fate; this anxiety therefore for the safety of \nthy children is unbecoming. Moreover, it behoveth thee not to grieve for that which must happen: for who can avert, by his \nwisdom, the decrees of fate? No one can leave the way marked out for him by Providence. Existence and non-existence, \npleasure and pain all have Time for their root. Time createth all things and Time destroyeth all creatures. It is Time that burneth \ncreatures and it is Time that extinguisheth the fire. All states, the good and the evil, in the three worlds, are caused by Time. \nTime cutteth short all things and createth them anew. Time alone is awake when all things are asleep: indeed, Time is \nincapable of being overcome. Time passeth over all things without being retarded. Knowing, as thou dost, that all things past \nand future and all that exist at the present moment, are the offspring of Time, it behoveth thee not to throw away thy reason.' \n \n\"Sauti said, 'The son of Gavalgana having in this manner administered comfort to the royal Dhritarashtra overwhelmed with \ngrief for his sons, then restored his mind to peace. Taking these facts for his subject, Dwaipayana composed a holy Upanishad \nthat has been published to the world by learned and sacred bards in the Puranas composed by them. \n \n\"The study of the Bharata is an act of piety. He that readeth even one foot, with belief, hath his sins entirely purged away. \nHerein Devas, Devarshis, and immaculate Brahmarshis of good deeds, have been spoken of; and likewise Yakshas and great \nUragas (Nagas). Herein also hath been described the eternal Vasudeva possessing the six attributes. He is the true and just, the \npure and holy, the eternal Brahma, the supreme soul, the true constant light, whose divine deeds wise and learned recount; from \nwhom hath proceeded the non-existent and existent-non-existent universe with principles of generation and progression, and \nbirth, death and re-birth. That also hath been treated of which is called Adhyatma (the superintending spirit of nature) that \npartaketh of the attributes of the five elements. That also hath been described who is purusha being above such epithets as \n'undisplayed' and the like; also that which the foremost yatis exempt from the common destiny and endued with the power of \nmeditation and Tapas behold dwelling in their hearts as a reflected image in the mirror. \n \n\"The man of faith, devoted to piety, and constant in the exercise of virtue, on reading this section is freed from sin. The \nbeliever that constantly heareth recited this section of the Bharata, called the Introduction, from the beginning, falleth not into \ndifficulties. The man repeating any part of the introduction in the two twilights is during such act freed from the sins contracted \nduring the day or the night. This section, the body of the Bharata, is truth and nectar. As butter is in curd, Brahmana among \nbipeds, the Aranyaka among the Vedas, and nectar among medicines; as the sea is eminent among receptacles of water, and the \ncow among quadrupeds; as are these (among the things mentioned) so is the Bharata said to be among histories. \n \n\"He that causeth it, even a single foot thereof, to be recited to Brahmanas during a Sradha, his offerings of food and drink to the \nmanes of his ancestors become inexhaustible. \n \n\"By the aid of history and the Puranas, the Veda may be expounded; but the Veda is afraid of one of little information lest he \nshould it. The learned man who recites to other this Veda of Vyasa reapeth advantage. It may without doubt destroy even the \nsin of killing the embryo and the like. He that readeth this holy chapter of the moon, readeth the whole of the Bharata, I ween. \nThe man who with reverence daily listeneth to this sacred work acquireth long life and renown and ascendeth to heaven. \n \n\"In former days, having placed the four Vedas on one side and the Bharata on the other, these were weighed in the balance by \nthe celestials assembled for that purpose. And as the latter weighed heavier than the four Vedas with their mysteries, from that \nperiod it hath been called in the world Mahabharata (the great Bharata). Being esteemed superior both in substance and gravity \nof import it is denominated Mahabharata on account of such substance and gravity of import. He that knoweth its meaning is \nsaved from all his sins. \n \n'Tapa is innocent, study is harmless, the ordinance of the Vedas prescribed for all the tribes are harmless, the acquisition of \nwealth by exertion is harmless; but when they are ",
+      "nodes": [
+        {
+          "id": "Raghu",
+          "type": "person",
+          "definition": "One of the enumerated princes"
+        },
+        {
+          "id": "Bharata",
+          "type": "work",
+          "definition": "The text being studied, described as an act of piety"
+        },
+        {
+          "id": "Dhritarashtra",
+          "type": "king",
+          "definition": "Royal figure overwhelmed with grief for his sons"
+        },
+        {
+          "id": "Sauti",
+          "type": "narrator",
+          "definition": "Speaker who relates the story"
+        },
+        {
+          "id": "Dwaipayana",
+          "type": "sage",
+          "definition": "Composer of a holy Upanishad"
+        },
+        {
+          "id": "Upanishad",
+          "type": "work",
+          "definition": "Holy text composed by Dwaipayana"
+        },
+        {
+          "id": "Puranas",
+          "type": "work",
+          "definition": "Collection of sacred bards' records where the Upanishad is published"
+        },
+        {
+          "id": "Vasudeva",
+          "type": "deity",
+          "definition": "Eternal being possessing six attributes"
+        },
+        {
+          "id": "Time",
+          "type": "concept",
+          "definition": "Primordial force that creates and destroys all things"
+        }
+      ],
+      "rels": [
+        {
+          "source": "Sauti",
+          "target": "Dhritarashtra",
+          "type": "COMFORTS",
+          "definition": "Sauti comforts Dhritarashtra"
+        },
+        {
+          "source": "Dwaipayana",
+          "target": "Upanishad",
+          "type": "COMPOSED",
+          "definition": "Dwaipayana composed the Upanishad"
+        },
+        {
+          "source": "Upanishad",
+          "target": "Puranas",
+          "type": "PUBLISHED_IN",
+          "definition": "The Upanishad is published in the Puranas"
+        }
+      ],
+      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Raghu\",\n      \"type\": \"person\",\n      \"definition\": \"One of the enumerated princes\"\n    },\n    {\n      \"id\": \"Bharata\",\n      \"type\": \"work\",\n      \"definition\": \"The text being studied, described as an act of piety\"\n    },\n    {\n      \"id\": \"Dhritarashtra\",\n      \"type\": \"king\",\n      \"definition\": \"Royal figure overwhelmed with grief for his sons\"\n    },\n    {\n      \"id\": \"Sauti\",\n      \"type\": \"narrator\",\n      \"definition\": \"Speaker who relates the story\"\n    },\n    {\n      \"id\": \"Dwaipayana\",\n      \"type\": \"sage\",\n      \"definition\": \"Composer of a holy Upanishad\"\n    },\n    {\n      \"id\": \"Upanishad\",\n      \"type\": \"work\",\n      \"definition\": \"Holy text composed by Dwaipayana\"\n    },\n    {\n      \"id\": \"Puranas\",\n      \"type\": \"work\",\n      \"definition\": \"Collection of sacred bards' records where the Upanishad is published\"\n    },\n    {\n      \"id\": \"Vasudeva\",\n      \"type\": \"deity\",\n      \"definition\": \"Eternal being possessing six attributes\"\n    },\n    {\n      \"id\": \"Time\",\n      \"type\": \"concept\",\n      \"definition\": \"Primordial force that creates and destroys all things\"\n    }\n  ],\n  \"rels\": [\n    {\n      \"source\": \"Sauti\",\n      \"target\": \"Dhritarashtra\",\n      \"type\": \"COMFORTS\",\n      \"definition\": \"Sauti comforts Dhritarashtra\"\n    },\n    {\n      \"source\": \"Dwaipayana\",\n      \"target\": \"Upanishad\",\n      \"type\": \"COMPOSED\",\n      \"definition\": \"Dwaipayana composed the Upanishad\"\n    },\n    {\n      \"source\": \"Upanishad\",\n      \"target\": \"Puranas\",\n      \"type\": \"PUBLISHED_IN\",\n      \"definition\": \"The Upanishad is published in the Puranas\"\n    }]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_010",
+      "text": "eat Bharata). Being esteemed superior both in substance and gravity \nof import it is denominated Mahabharata on account of such substance and gravity of import. He that knoweth its meaning is \nsaved from all his sins. \n \n'Tapa is innocent, study is harmless, the ordinance of the Vedas prescribed for all the tribes are harmless, the acquisition of \nwealth by exertion is harmless; but when they are abused in their practices it is then that they become sources of evil.'\" \n \nSECTION II \n \n\"The Rishis said, 'O son of Suta, we wish to hear a full and circumstantial account of the place mentioned by you as Samanta-\npanchaya.' \n \n\"Sauti said, 'Listen, O ye Brahmanas, to the sacred descriptions I utter O ye best of men, ye deserve to hear of the place known \nas Samanta-panchaka. In the interval between the Treta and Dwapara Yugas, Rama (the son of Jamadagni) great among all \nwho have borne arms, urged by impatience of wrongs, repeatedly smote the noble race of Kshatriyas. And when that fiery \nmeteor, by his own valour, annihilated the entire tribe of the Kshatriyas, he formed at Samanta-panchaka five lakes of blood. \nWe are told that his reason being overpowered by anger he offered oblations of blood to the manes of his ancestors, standing in \nthe midst of the sanguine waters of those lakes. It was then that his forefathers of whom Richika was the first having arrived \nthere addressed him thus, 'O Rama, O blessed Rama, O offspring of Bhrigu, we have been gratified with the reverence thou \nhast shown for thy ancestors and with thy valour, O mighty one! Blessings be upon thee. O thou illustrious one, ask the boon \nthat thou mayst desire.' \n \n\"Rama said, 'If, O fathers, ye are favourably disposed towards me, the boon I ask is that I may be absolved from the sins born \nof my having annihilated the Kshatriyas in anger, and that the lakes I have formed may become famous in the world as holy \nshrines.' The Pitris then said, 'So shall it be. But be thou pacified.' And Rama was pacified accordingly. The region that lieth \nnear unto those lakes of gory water, from that time hath been celebrated as Samanta-panchaka the holy. The wise have declared \nthat every country should be distinguished by a name significant of some circumstance which may have rendered it famous. In \nthe interval between the Dwapara and the Kali Yugas there happened at Samanta-panchaka the encounter between the armies \nof the Kauravas and the Pandavas. In that holy region, without ruggedness of any kind, were assembled eighteen Akshauhinis \nof soldiers eager for battle. And, O Brahmanas, having come thereto, they were all slain on the spot. Thus the name of that \nregion, O Brahmanas, hath been explained, and the country described to you as a sacred and delightful one. I have mentioned \nthe whole of what relateth to it as the region is celebrated throughout the three worlds.' \n \n\"The Rishis said, 'We have a desire to know, O son of Suta, what is implied by the term Akshauhini that hath been used by \nthee. Tell us in full what is the number of horse and foot, chariots and elephants, which compose an Akshauhini for thou art \nfully informed.' \n \n\"Sauti said, 'One chariot, one elephant, five foot-soldiers, and three horses form one Patti; three pattis make one Sena-mukha; \nthree sena-mukhas are called a Gulma; three gulmas, a Gana; three ganas, a Vahini; three vahinis together are called a Pritana; \nthree pritanas form a Chamu; three chamus, one Anikini; and an anikini taken ten times forms, as it is styled by those who \nknow, an Akshauhini. O ye best of Brahmanas, arithmeticians have calculated that the number of chariots in an Akshauhini is \ntwenty-one thousand eight hundred and seventy. The measure of elephants must be fixed at the same number. O ye pure, you \nmust know that the number of foot-soldiers is one hundred and nine thousand, three hundred and fifty, the number of horse is \nsixty-five thousand, six hundred and ten. These, O Brahmanas, as fully explained by me, are the numbers of an Akshauhini as \nsaid by those acquainted with the principles of numbers. O best of Brahmanas, according to this calculation were composed the \neighteen Akshauhinis of the Kaurava and the Pandava army. Time, whose acts are wonderful assembled them on that spot and \nhaving made the Kauravas the cause, destroyed them all. Bhishma acquainted with choice of weapons, fought for ten days. \nDrona protected the Kaurava Vahinis for five days. Kama the desolator of hostile armies fought for two days; and Salya for \nhalf a day. After that lasted for half a day the encounter with clubs between Duryodhana and Bhima. At the close of that day, \nAswatthaman and Kripa destroyed the army of Yudishthira in the night while sleeping without suspicion of danger. \n \n'O Saunaka, this best of narrations called Bharata which has begun to be repeated at thy sacrifice, was formerly repeated at the \nsacrifice of Janamejaya by an intelligent disciple of Vyasa. It is divided into several sections; in the beginning are Paushya, \nPauloma, and Astika parvas, describing in full the valour and renown of kings. It is a work whose description, diction, and \nsense are varied and wonderful. It contains an account of various manners and rites. It is accepted by the wise, as the state \ncalled Vairagya is by men desirous of final release. As Self among things to be known, as life among things that are dear, so is \nthis history that furnisheth the means of arriving at the knowledge of Brahma the first among all the sastras. There is not a story \ncurrent in this world but doth depend upon this history even as the body upon the foot that it taketh. As masters of good lineage \nare ever attended upon by servants desirous of preferment so is the Bharata cherished by all poets. As the words constituting \nthe several branches of knowledge appertaining to the world and the Veda display only vowels and consonants, so this \nexcellent history displayeth only the highest wisdom. \n \n'Listen, O ye ascetics, to",
+      "nodes": [
+        {
+          "id": "Mahabharata",
+          "type": "work",
+          "definition": "Epic text referenced as superior in substance and gravity"
+        },
+        {
+          "id": "Suta",
+          "type": "person",
+          "definition": "Father of the narrator Sauti"
+        },
+        {
+          "id": "Sauti",
+          "type": "person",
+          "definition": "Narrator who answers the Rishis"
+        },
+        {
+          "id": "Rama",
+          "type": "person",
+          "definition": "Son of Jamadagni, hero who slays Kshatriyas"
+        },
+        {
+          "id": "Jamadagni",
+          "type": "person",
+          "definition": "Father of Rama"
+        },
+        {
+          "id": "Bhrigu",
+          "type": "sage",
+          "definition": "Ancestor of Rama"
+        },
+        {
+          "id": "Richika",
+          "type": "sage",
+          "definition": "First forefather who appears at Samanta-panchaka"
+        },
+        {
+          "id": "Pitris",
+          "type": "group",
+          "definition": "Spirits of ancestors who speak to Rama"
+        },
+        {
+          "id": "Samanta-panchaka",
+          "type": "place",
+          "definition": "Holy region where Rama creates lakes of blood"
+        },
+        {
+          "id": "Kshatriyas",
+          "type": "group",
+          "definition": "Warrior caste slain by Rama"
+        },
+        {
+          "id": "Kauravas",
+          "type": "group",
+          "definition": "One of the two rival armies in the Mahabharata"
+        },
+        {
+          "id": "Pandavas",
+          "type": "group",
+          "definition": "The other rival army in the Mahabharata"
+        },
+        {
+          "id": "Akshauhini",
+          "type": "concept",
+          "definition": "Military formation with specific numbers of chariots, elephants, foot\u2011soldiers and horses"
+        },
+        {
+          "id": "Treta",
+          "type": "concept",
+          "definition": "Yuga preceding Dwapara"
+        },
+        {
+          "id": "Dwapara",
+          "type": "concept",
+          "definition": "Yuga between Treta and Kali"
+        },
+        {
+          "id": "Kali",
+          "type": "concept",
+          "definition": "Current Yuga"
+        }
+      ],
+      "rels": [],
+      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Mahabharata\", \"type\": \"work\", \"definition\": \"Epic text referenced as superior in substance and gravity\"},\n    {\"id\": \"Suta\", \"type\": \"person\", \"definition\": \"Father of the narrator Sauti\"},\n    {\"id\": \"Sauti\", \"type\": \"person\", \"definition\": \"Narrator who answers the Rishis\"},\n    {\"id\": \"Rama\", \"type\": \"person\", \"definition\": \"Son of Jamadagni, hero who slays Kshatriyas\"},\n    {\"id\": \"Jamadagni\", \"type\": \"person\", \"definition\": \"Father of Rama\"},\n    {\"id\": \"Bhrigu\", \"type\": \"sage\", \"definition\": \"Ancestor of Rama\"},\n    {\"id\": \"Richika\", \"type\": \"sage\", \"definition\": \"First forefather who appears at Samanta-panchaka\"},\n    {\"id\": \"Pitris\", \"type\": \"group\", \"definition\": \"Spirits of ancestors who speak to Rama\"},\n    {\"id\": \"Samanta-panchaka\", \"type\": \"place\", \"definition\": \"Holy region where Rama creates lakes of blood\"},\n    {\"id\": \"Kshatriyas\", \"type\": \"group\", \"definition\": \"Warrior caste slain by Rama\"},\n    {\"id\": \"Kauravas\", \"type\": \"group\", \"definition\": \"One of the two rival armies in the Mahabharata\"},\n    {\"id\": \"Pandavas\", \"type\": \"group\", \"definition\": \"The other rival army in the Mahabharata\"},\n    {\"id\": \"Akshauhini\", \"type\": \"concept\", \"definition\": \"Military formation with specific numbers of chariots, elephants, foot\u2011soldiers and horses\"},\n    {\"id\": \"Treta\", \"type\": \"concept\", \"definition\": \"Yuga preceding Dwapara\"},\n    {\"id\": \"Dwapara\", \"type\": \"concept\", \"definition\": \"Yuga between Treta and Kali\"},\n    {\"id\": \"Kali\", \"type\": \"concept\", \"definition\": \"Current Yuga\"}]}",
+      "mode": "json_schema_strict"
+    },
+    {
+      "chunk_id": "chunk_011",
+      "text": "n as the body upon the foot that it taketh. As masters of good lineage \nare ever attended upon by servants desirous of preferment so is the Bharata cherished by all poets. As the words constituting \nthe several branches of knowledge appertaining to the world and the Veda display only vowels and consonants, so this \nexcellent history displayeth only the highest wisdom. \n \n'Listen, O ye ascetics, to the outlines of the several divisions (parvas) of this history called Bharata, endued with great wisdom, \nof sections and feet that are wonderful and various, of subtile meanings and logical connections, and embellished with the \nsubstance of the Vedas. \n \n'The first parva is called Anukramanika; the second, Sangraha; then Paushya; then Pauloma; the Astika; then \nAdivansavatarana. Then comes the Sambhava of wonderful and thrilling incidents. Then comes Jatugrihadaha (setting fire to \nthe house of lac) and then Hidimbabadha (the killing of Hidimba) parvas; then comes Baka-badha (slaughter of Baka) and then \nChitraratha. The next is called Swayamvara (selection of husband by Panchali), in which Arjuna by the exercise of Kshatriya \nvirtues, won Draupadi for wife. Then comes Vaivahika (marriage). Then comes Viduragamana (advent of Vidura), Rajyalabha \n(acquirement of kingdom), Arjuna-banavasa (exile of Arjuna) and Subhadra-harana (the carrying away of Subhadra). After ",
+      "nodes": [
+        {
+          "id": "Bharata",
+          "type": "work",
+          "definition": "The history called Bharata described in the passage"
+        },
+        {
+          "id": "Anukramanika",
+          "type": "parva",
+          "definition": "The first parva of the Bharata"
+        },
+        {
+          "id": "Swayamvara",
+          "type": "parva",
+          "definition": "Parva describing the selection of husband by Panchali"
+        },
+        {
+          "id": "Arjuna",
+          "type": "person",
+          "definition": "Kshatriya hero who wins Draupadi in the Swayamvara"
+        },
+        {
+          "id": "Draupadi",
+          "type": "person",
+          "definition": "Wife won by Arjuna; also known as Panchali"
+        },
+        {
+          "id": "Panchali",
+          "type": "person",
+          "definition": "Another name for Draupadi"
+        },
+        {
+          "id": "Vidura",
+          "type": "person",
+          "definition": "Character whose advent is mentioned in the Bharata"
+        },
+        {
+          "id": "Subhadra",
+          "type": "person",
+          "definition": "Character whose carrying away is mentioned in the Bharata"
+        },
+        {
+          "id": "Kshatriya",
+          "type": "concept",
+          "definition": "Warrior virtue exemplified by Arjuna"
+        }
+      ],
+      "rels": [
+        {
+          "source": "Bharata",
+          "target": "Anukramanika",
+          "type": "HAS_PARVA",
+          "definition": "Bharata contains the parva Anukramanika"
+        }
+      ],
+      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Bharata\",\n      \"type\": \"work\",\n      \"definition\": \"The history called Bharata described in the passage\"\n    },\n    {\n      \"id\": \"Anukramanika\",\n      \"type\": \"parva\",\n      \"definition\": \"The first parva of the Bharata\"\n    },\n    {\n      \"id\": \"Swayamvara\",\n      \"type\": \"parva\",\n      \"definition\": \"Parva describing the selection of husband by Panchali\"\n    },\n    {\n      \"id\": \"Arjuna\",\n      \"type\": \"person\",\n      \"definition\": \"Kshatriya hero who wins Draupadi in the Swayamvara\"\n    },\n    {\n      \"id\": \"Draupadi\",\n      \"type\": \"person\",\n      \"definition\": \"Wife won by Arjuna; also known as Panchali\"\n    },\n    {\n      \"id\": \"Panchali\",\n      \"type\": \"person\",\n      \"definition\": \"Another name for Draupadi\"\n    },\n    {\n      \"id\": \"Vidura\",\n      \"type\": \"person\",\n      \"definition\": \"Character whose advent is mentioned in the Bharata\"\n    },\n    {\n      \"id\": \"Subhadra\",\n      \"type\": \"person\",\n      \"definition\": \"Character whose carrying away is mentioned in the Bharata\"\n    },\n    {\n      \"id\": \"Kshatriya\",\n      \"type\": \"concept\",\n      \"definition\": \"Warrior virtue exemplified by Arjuna\"\n    }\n  ],\n  \"rels\": [\n    {\n      \"source\": \"Bharata\",\n      \"target\": \"Anukramanika\",\n      \"type\": \"HAS_PARVA\",\n      \"definition\": \"Bharata contains the parva Anukramanika\"\n    }]}",
+      "mode": "json_schema_strict"
+    }
+  ],
+  "extraction_summary": {
+    "chunk_extraction_calls": 12,
+    "total_extracted_nodes": 103,
+    "total_extracted_relationships": 9,
+    "per_chunk_usage": [
+      {
+        "chunk_id": "chunk_000",
+        "usage": {
+          "queue_time": 0.05653515,
+          "prompt_tokens": 1323,
+          "prompt_time": 0.087566611,
+          "completion_tokens": 700,
+          "completion_time": 1.5004560219999998,
+          "total_tokens": 2023,
+          "total_time": 1.588022633,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 134
+          }
+        },
+        "node_count": 10,
+        "relationship_count": 2,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_001",
+        "usage": null,
+        "node_count": 11,
+        "relationship_count": 0,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_002",
+        "usage": null,
+        "node_count": 3,
+        "relationship_count": 0,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_003",
+        "usage": null,
+        "node_count": 6,
+        "relationship_count": 0,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_004",
+        "usage": {
+          "queue_time": 0.052522874,
+          "prompt_tokens": 1391,
+          "prompt_time": 0.426563723,
+          "completion_tokens": 700,
+          "completion_time": 1.568909193,
+          "total_tokens": 2091,
+          "total_time": 1.995472916,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 145
+          }
+        },
+        "node_count": 14,
+        "relationship_count": 3,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_005",
+        "usage": null,
+        "node_count": 1,
+        "relationship_count": 0,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_006",
+        "usage": null,
+        "node_count": 9,
+        "relationship_count": 0,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_007",
+        "usage": null,
+        "node_count": 5,
+        "relationship_count": 0,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_008",
+        "usage": null,
+        "node_count": 10,
+        "relationship_count": 0,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_009",
+        "usage": {
+          "queue_time": 0.054739965,
+          "prompt_tokens": 1450,
+          "prompt_time": 0.202640214,
+          "completion_tokens": 700,
+          "completion_time": 2.005498799,
+          "total_tokens": 2150,
+          "total_time": 2.208139013,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 180
+          }
+        },
+        "node_count": 9,
+        "relationship_count": 3,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_010",
+        "usage": null,
+        "node_count": 16,
+        "relationship_count": 0,
+        "mode": "json_schema_strict"
+      },
+      {
+        "chunk_id": "chunk_011",
+        "usage": {
+          "queue_time": 0.056227713,
+          "prompt_tokens": 721,
+          "prompt_time": 0.025468482,
+          "completion_tokens": 700,
+          "completion_time": 1.5173459980000001,
+          "total_tokens": 1421,
+          "total_time": 1.54281448,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 292
+          }
+        },
+        "node_count": 9,
+        "relationship_count": 1,
+        "mode": "json_schema_strict"
+      }
+    ]
+  }
+}

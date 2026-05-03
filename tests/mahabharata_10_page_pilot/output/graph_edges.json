@@ -1,0 +1,65 @@
+[
+  {
+    "source": "Krishna-Dwaipayana_Vyasa",
+    "target": "Mahabharata",
+    "type": "AUTHORED",
+    "definition": "Vyasa is the traditional author of the Mahabharata",
+    "chunk_id": "chunk_000"
+  },
+  {
+    "source": "Kisari_Mohan_Ganguli",
+    "target": "Complete_Mahabharata_in_English",
+    "type": "TRANSLATED",
+    "definition": "Ganguli translated the Mahabharata into English",
+    "chunk_id": "chunk_000"
+  },
+  {
+    "source": "Vyasa",
+    "target": "Ganesa",
+    "type": "ASKS",
+    "definition": "Vyasa asked Ganesa to write the Bharata",
+    "chunk_id": "chunk_004"
+  },
+  {
+    "source": "Ganesa",
+    "target": "Bharata",
+    "type": "COMPOSED",
+    "definition": "Ganesa agreed to write the Bharata",
+    "chunk_id": "chunk_004"
+  },
+  {
+    "source": "Sauti",
+    "target": "Bharata",
+    "type": "NARRATES",
+    "definition": "Sauti narrates the content of the Bharata",
+    "chunk_id": "chunk_004"
+  },
+  {
+    "source": "Sauti",
+    "target": "Dhritarashtra",
+    "type": "COMFORTS",
+    "definition": "Sauti comforts Dhritarashtra",
+    "chunk_id": "chunk_009"
+  },
+  {
+    "source": "Bharata",
+    "target": "Anukramanika",
+    "type": "HAS_PARVA",
+    "definition": "Bharata contains the parva Anukramanika",
+    "chunk_id": "chunk_011"
+  },
+  {
+    "source": "Dwaipayana",
+    "target": "Upanishad",
+    "type": "COMPOSED",
+    "definition": "Dwaipayana composed the Upanishad",
+    "chunk_id": "chunk_009"
+  },
+  {
+    "source": "Upanishad",
+    "target": "Puranas",
+    "type": "PUBLISHED_IN",
+    "definition": "The Upanishad is published in the Puranas",
+    "chunk_id": "chunk_009"
+  }
+]

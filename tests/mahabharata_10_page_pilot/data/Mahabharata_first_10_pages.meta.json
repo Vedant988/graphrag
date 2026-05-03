@@ -1,0 +1,11 @@
+{
+  "source_pdf": "D:\\github\\graphrag\\database\\Mahabharata (Unabridged in English).pdf",
+  "sample_pdf": "D:\\github\\graphrag\\tests\\mahabharata_10_page_pilot\\data\\Mahabharata_first_10_pages.pdf",
+  "sample_text": "D:\\github\\graphrag\\tests\\mahabharata_10_page_pilot\\data\\Mahabharata_first_10_pages.txt",
+  "pages": 10,
+  "chars": 62980,
+  "words": 10564,
+  "source_size": 19969973,
+  "source_mtime_ns": 1777720975717285700,
+  "sample_text_sha256": "33013f3fae0d3e2526c4f4ba35bcf66bc11f19e1555a993e729b534ded490e3b"
+}
