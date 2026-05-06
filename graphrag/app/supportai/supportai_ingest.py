@@ -1,16 +1,13 @@
-from common.metrics.tg_proxy import TigerGraphConnectionProxy
-from common.storage.azure_blob_store import AzureBlobStore
-from common.storage.google_blob_store import GoogleBlobStore
-from common.storage.s3_blob_store import S3BlobStore
-from common.py_schemas import BatchDocumentIngest, Document, DocumentChunk, KnowledgeGraph
-from typing import List, Union
-import json
+from common.py_schemas import BatchDocumentIngest, Document, DocumentChunk
+from typing import TYPE_CHECKING, Any, List, Union
 from datetime import datetime
 from common.status import Status, IngestionProgress
 from common.extractors import LLMEntityRelationshipExtractor
 
-from langchain.prompts import ChatPromptTemplate
-from langchain.output_parsers import PydanticOutputParser
+if TYPE_CHECKING:
+    from common.metrics.tg_proxy import TigerGraphConnectionProxy
+else:
+    TigerGraphConnectionProxy = Any
 
 
 class BaseIngestion:
@@ -25,6 +22,12 @@ class BaseIngestion:
         self.llm_service = llm_service
         self.conn = conn
         self.status = status
+        self.extractor = LLMEntityRelationshipExtractor(self.llm_service)
+
+    def _get_document_text(self, document: Union[Document, DocumentChunk, str]) -> str:
+        if isinstance(document, str):
+            return document
+        return document.text
 
     def chunk_documents(self, documents, chunker, chunker_params):
         for doc in documents:
@@ -77,12 +80,13 @@ class BaseIngestion:
         return chunks
 
     def document_er_extraction(self, document: Union[Document, DocumentChunk]):
-        extractor = LLMEntityRelationshipExtractor(self.llm_service)
-        return extractor.extract(document)
+        return self.extractor.extract(self._get_document_text(document))
 
     def documents_er_extraction(self, documents: List[Document]):
         for doc in documents:
-            self.document_er_extraction(doc)
+            res = self.document_er_extraction(doc)
+            doc.entities = res["nodes"]
+            doc.relationships = res["rels"]
 
     def upsert_documents(self, documents: List[Document]):
         for doc in documents:
@@ -126,7 +130,7 @@ class BaseIngestion:
         except Exception as e:
             self.status.progress.chunk_failures[chunk_id].append(e)
 
-        if chunk.entities != []:
+        if chunk.entities:
             try:
                 self.conn.upsertVertices(
                     "Entity",
@@ -150,7 +154,7 @@ class BaseIngestion:
             except Exception as e:
                 self.status.progress.chunk_failures[chunk_id].append(e)
 
-        if chunk.relationships != []:
+        if chunk.relationships:
             try:
                 self.conn.upsertVertices(
                     "RelationshipType",
@@ -229,7 +233,7 @@ class BaseIngestion:
         except Exception as e:
             self.status.progress.doc_failures[doc_id].append(e)
 
-        if document.entities != []:
+        if document.entities:
             try:
                 self.conn.upsertVertices(
                     "Entity",
@@ -253,7 +257,7 @@ class BaseIngestion:
             except Exception as e:
                 self.status.progress.doc_failures[doc_id].append(e)
 
-        if document.relationships != []:
+        if document.relationships:
             try:
                 self.conn.upsertVertices(
                     "RelationshipType",
@@ -348,15 +352,21 @@ class BatchIngestion(BaseIngestion):
 
     def ingest_blobs(self, doc_source: BatchDocumentIngest):
         if doc_source.service == "s3":
+            from common.storage.s3_blob_store import S3BlobStore
+
             blob_store = S3BlobStore(
                 doc_source.service_params["aws_access_key_id"],
                 doc_source.service_params["aws_secret_access_key"],
             )
         elif doc_source.service == "google":
+            from common.storage.google_blob_store import GoogleBlobStore
+
             blob_store = GoogleBlobStore(
                 doc_source.service_params["google_credentials"]
             )
         elif doc_source.service == "azure":
+            from common.storage.azure_blob_store import AzureBlobStore
+
             blob_store = AzureBlobStore(
                 doc_source.service_params["azure_connection_string"]
             )

@@ -1,6 +1,7 @@
 import argparse
 import hashlib
 import json
+import logging
 import os
 import re
 import sys
@@ -29,6 +30,7 @@ TEN_PAGE_TEXT = DATA_DIR / "Mahabharata_first_10_pages.txt"
 TEN_PAGE_META = DATA_DIR / "Mahabharata_first_10_pages.meta.json"
 EMBEDDING_CACHE = OUTPUT_DIR / "chunk_embeddings_cache.json"
 GRAPH_CACHE = OUTPUT_DIR / "graph_extraction_cache.json"
+DEBUG_LOG_PATH = OUTPUT_DIR / "graph_debug.log"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_PROACTIVE_TPM_COOLDOWN_TOKENS = 5500
 GROQ_PROACTIVE_TPM_COOLDOWN_SECONDS = 60.0
@@ -41,6 +43,8 @@ for maybe_proxy in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "A
 os.environ["NO_PROXY"] = "*"
 
 sys.path.insert(0, str(REPO_ROOT))
+
+LOGGER = logging.getLogger("mahabharata_10_page_pilot")
 
 
 GRAPH_RESPONSE_SCHEMA: dict[str, Any] = {
@@ -136,6 +140,18 @@ def ensure_dirs() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def setup_logging() -> None:
+    LOGGER.setLevel(logging.DEBUG)
+    LOGGER.handlers.clear()
+    handler = logging.FileHandler(DEBUG_LOG_PATH, mode="w", encoding="utf-8")
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    LOGGER.addHandler(handler)
+    LOGGER.propagate = False
+    LOGGER.info("Logging initialized")
+
+
 def load_env() -> tuple[str, str]:
     load_dotenv(REPO_ROOT / ".env")
     groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
@@ -226,9 +242,10 @@ def prepare_sample_assets(max_pages: int) -> dict[str, Any]:
                 and cached.get("source_size") == source_stat.st_size
                 and cached.get("source_mtime_ns") == source_stat.st_mtime_ns
             ):
+                LOGGER.info("Sample asset cache hit for %s pages", max_pages)
                 return cached
         except (json.JSONDecodeError, OSError, ValueError):
-            pass
+            LOGGER.exception("Failed to read sample metadata cache")
 
     reader = PdfReader(str(SOURCE_PDF))
     writer = PdfWriter()
@@ -255,6 +272,7 @@ def prepare_sample_assets(max_pages: int) -> dict[str, Any]:
         "sample_text_sha256": sha256_text(joined),
     }
     TEN_PAGE_META.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    LOGGER.info("Prepared sample assets for %s pages chars=%s words=%s", max_pages, metadata["chars"], metadata["words"])
     return metadata
 
 
@@ -279,10 +297,14 @@ def select_questions(questions: list[dict[str, str]], question_id: str | None, a
 
 def load_json_file(path: Path) -> dict[str, Any] | None:
     if not path.exists():
+        LOGGER.debug("Cache/file missing: %s", path)
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        LOGGER.debug("Loaded JSON file: %s", path)
+        return data
     except (json.JSONDecodeError, OSError, ValueError):
+        LOGGER.exception("Failed to load JSON file: %s", path)
         return None
 
 
@@ -315,6 +337,10 @@ class GroqClient:
         self.calls: list[dict[str, Any]] = []
         self.proactive_tpm_cooldown_tokens = GROQ_PROACTIVE_TPM_COOLDOWN_TOKENS
         self.proactive_tpm_cooldown_seconds = GROQ_PROACTIVE_TPM_COOLDOWN_SECONDS
+        self.last_seen_remaining_tokens: int | None = None
+        self.last_seen_reset_tokens_seconds: float | None = None
+        self.last_seen_tokens_timestamp: float | None = None
+        self.preflight_tpm_safety_margin = 500
 
     @staticmethod
     def _parse_reset_duration(value: str | None) -> float:
@@ -331,6 +357,39 @@ class GroqClient:
         if value.endswith("s"):
             total += float(value[:-1])
         return total
+
+    def _estimate_request_tokens(self, messages: list[dict[str, str]], max_completion_tokens: int) -> int:
+        prompt_chars = sum(len(message.get("content", "")) for message in messages)
+        estimated_prompt_tokens = max(1, int(prompt_chars / 3.2))
+        return estimated_prompt_tokens + max_completion_tokens
+
+    def _update_last_seen_token_budget(self, headers: dict[str, str]) -> None:
+        remaining_tokens_header = headers.get("x-ratelimit-remaining-tokens")
+        reset_tokens_header = headers.get("x-ratelimit-reset-tokens")
+        if remaining_tokens_header is not None:
+            try:
+                self.last_seen_remaining_tokens = int(remaining_tokens_header)
+            except ValueError:
+                self.last_seen_remaining_tokens = None
+        if reset_tokens_header is not None:
+            self.last_seen_reset_tokens_seconds = self._parse_reset_duration(reset_tokens_header)
+        self.last_seen_tokens_timestamp = time.time()
+
+    def _maybe_wait_for_tpm_budget(self, messages: list[dict[str, str]], max_completion_tokens: int) -> float:
+        if self.last_seen_remaining_tokens is None:
+            return 0.0
+        estimated_needed = self._estimate_request_tokens(messages, max_completion_tokens) + self.preflight_tpm_safety_margin
+        if self.last_seen_remaining_tokens >= estimated_needed:
+            return 0.0
+
+        wait_seconds = self.last_seen_reset_tokens_seconds or self.proactive_tpm_cooldown_seconds
+        if wait_seconds <= 0:
+            wait_seconds = self.proactive_tpm_cooldown_seconds
+        time.sleep(wait_seconds + 0.25)
+        self.last_seen_remaining_tokens = None
+        self.last_seen_reset_tokens_seconds = None
+        self.last_seen_tokens_timestamp = None
+        return wait_seconds + 0.25
 
     def chat(
         self,
@@ -356,6 +415,7 @@ class GroqClient:
         if reasoning_effort is not None:
             payload["reasoning_effort"] = reasoning_effort
 
+        preflight_wait = self._maybe_wait_for_tpm_budget(messages, max_completion_tokens)
         for attempt in range(max_retries + 1):
             response = self.session.post(
                 GROQ_API_URL,
@@ -378,7 +438,10 @@ class GroqClient:
                 "usage": body.get("usage"),
                 "headers": headers,
             }
+            if preflight_wait > 0 and attempt == 0:
+                record["preflight_wait_seconds"] = preflight_wait
             self.calls.append(record)
+            self._update_last_seen_token_budget(headers)
 
             if response.status_code < 400:
                 usage = body.get("usage") or {}
@@ -506,8 +569,10 @@ def load_or_embed_chunks(embedder: GeminiEmbedder, chunks: list[dict[str, Any]],
                         "embedding": cached_chunk["embedding"],
                     }
                 )
+            LOGGER.info("Embedding cache hit chunks=%s", len(restored))
             return restored, True
 
+    LOGGER.info("Embedding cache miss chunks=%s", len(chunks))
     chunk_vectors = embedder.embed_documents([chunk["text"] for chunk in chunks])
     enriched_chunks = []
     for chunk, vector in zip(chunks, chunk_vectors):
@@ -523,6 +588,7 @@ def load_or_embed_chunks(embedder: GeminiEmbedder, chunks: list[dict[str, Any]],
         ),
         encoding="utf-8",
     )
+    LOGGER.info("Embedding cache written: %s", EMBEDDING_CACHE)
     return enriched_chunks, False
 
 
@@ -658,10 +724,15 @@ def canonicalize_entity_id(node_id: str, node_type: str, definition: str) -> str
 def canonicalize_chunk_graph(chunk_graph: dict[str, Any]) -> dict[str, Any]:
     canonical_nodes: dict[str, dict[str, Any]] = {}
     node_alias_map: dict[str, str] = {}
+    node_merges: list[dict[str, str]] = []
+    dropped_relationships: list[dict[str, str]] = []
+    dropped_nodes: list[str] = []
 
     for node in chunk_graph["nodes"]:
         canonical_id = canonicalize_entity_id(node["id"], node["type"], node["definition"])
         node_alias_map[node["id"]] = canonical_id
+        if canonical_id != node["id"]:
+            node_merges.append({"from": node["id"], "to": canonical_id})
         if canonical_id not in canonical_nodes:
             canonical_nodes[canonical_id] = {
                 "id": canonical_id,
@@ -684,11 +755,14 @@ def canonicalize_chunk_graph(chunk_graph: dict[str, Any]) -> dict[str, Any]:
         source = node_alias_map.get(rel["source"], rel["source"])
         target = node_alias_map.get(rel["target"], rel["target"])
         if source == target:
+            dropped_relationships.append({"reason": "self_loop_after_canonicalization", "source": source, "target": target, "type": rel["type"]})
             continue
         if source not in canonical_nodes or target not in canonical_nodes:
+            dropped_relationships.append({"reason": "missing_endpoint_after_canonicalization", "source": source, "target": target, "type": rel["type"]})
             continue
         rel_key = (source, target, rel["type"])
         if rel_key in seen_rels:
+            dropped_relationships.append({"reason": "duplicate_relationship", "source": source, "target": target, "type": rel["type"]})
             continue
         seen_rels.add(rel_key)
         canonical_rels.append(
@@ -708,6 +782,11 @@ def canonicalize_chunk_graph(chunk_graph: dict[str, Any]) -> dict[str, Any]:
             for canonical_id, node in canonical_nodes.items()
             if canonical_id in participating or canonical_id in essential_isolates
         ]
+        dropped_nodes = [
+            canonical_id
+            for canonical_id in canonical_nodes
+            if canonical_id not in {node["id"] for node in filtered_nodes}
+        ]
     else:
         filtered_nodes = list(canonical_nodes.values())
 
@@ -717,10 +796,34 @@ def canonicalize_chunk_graph(chunk_graph: dict[str, Any]) -> dict[str, Any]:
         if rel["source"] in filtered_node_ids and rel["target"] in filtered_node_ids
     ]
 
+    diagnostics = {
+        "raw_node_count": len(chunk_graph["nodes"]),
+        "raw_rel_count": len(chunk_graph["rels"]),
+        "canonical_node_count_before_filter": len(canonical_nodes),
+        "canonical_rel_count_before_filter": len(canonical_rels),
+        "final_node_count": len(filtered_nodes),
+        "final_rel_count": len(filtered_rels),
+        "node_merges": node_merges,
+        "dropped_relationships": dropped_relationships,
+        "dropped_nodes": dropped_nodes,
+        "node_alias_map": node_alias_map,
+    }
+    LOGGER.debug(
+        "Chunk %s canonicalization raw_nodes=%s raw_rels=%s final_nodes=%s final_rels=%s merges=%s dropped_rels=%s",
+        chunk_graph.get("chunk_id"),
+        diagnostics["raw_node_count"],
+        diagnostics["raw_rel_count"],
+        diagnostics["final_node_count"],
+        diagnostics["final_rel_count"],
+        len(node_merges),
+        len(dropped_relationships),
+    )
+
     return {
         **chunk_graph,
         "nodes": filtered_nodes,
         "rels": filtered_rels,
+        "diagnostics": diagnostics,
     }
 
 
@@ -826,6 +929,7 @@ def extract_chunk_graph(client: GroqClient, chunk_text_value: str) -> dict[str, 
     last_usage: dict[str, Any] | None = None
     last_raw_text = ""
     for attempt in attempts:
+        LOGGER.debug("Extraction attempt=%s text_chars=%s", attempt["name"], len(chunk_text_value))
         try:
             body = client.chat(
                 messages=[{"role": "user", "content": instructions}],
@@ -837,6 +941,7 @@ def extract_chunk_graph(client: GroqClient, chunk_text_value: str) -> dict[str, 
             )
         except RuntimeError as exc:
             last_raw_text = str(exc)
+            LOGGER.warning("Extraction attempt failed attempt=%s error=%s", attempt["name"], exc)
             continue
 
         content = body["choices"][0]["message"]["content"]
@@ -845,14 +950,22 @@ def extract_chunk_graph(client: GroqClient, chunk_text_value: str) -> dict[str, 
         try:
             raw = parse_json_output(content)
         except Exception:
+            LOGGER.exception("JSON parse failed for extraction attempt=%s content_preview=%s", attempt["name"], content[:300])
             continue
 
+        raw_nodes = len(raw.get("nodes", [])) if isinstance(raw, dict) else 0
+        raw_rels = len(raw.get("rels", [])) if isinstance(raw, dict) and isinstance(raw.get("rels", []), list) else 0
+        LOGGER.debug("Extraction parsed attempt=%s raw_nodes=%s raw_rels=%s", attempt["name"], raw_nodes, raw_rels)
         graph = _normalized_graph_from_raw(raw, last_usage, content)
         if graph["nodes"] or graph["rels"]:
             graph["mode"] = attempt["name"]
+            graph["raw_counts"] = {"nodes": raw_nodes, "rels": raw_rels}
+            if raw_nodes > 1 and raw_rels == 0:
+                LOGGER.warning("Node-only extraction accepted attempt=%s nodes=%s rels=%s", attempt["name"], raw_nodes, raw_rels)
             return graph
 
-    return {"nodes": [], "rels": [], "usage": last_usage, "raw_text": sanitize_model_text(last_raw_text), "mode": "failed"}
+    LOGGER.error("All extraction attempts failed content_preview=%s", sanitize_model_text(last_raw_text)[:300])
+    return {"nodes": [], "rels": [], "usage": last_usage, "raw_text": sanitize_model_text(last_raw_text), "mode": "failed", "raw_counts": {"nodes": 0, "rels": 0}}
 
 
 def load_or_extract_chunk_graphs(client: GroqClient, chunks: list[dict[str, Any]], sample_text: str, config: PilotConfig) -> tuple[list[dict[str, Any]], dict[str, Any], bool]:
@@ -865,11 +978,11 @@ def load_or_extract_chunk_graphs(client: GroqClient, chunks: list[dict[str, Any]
             for cached_chunk, chunk in zip(cached_chunk_graphs, chunks)
         ):
             cached_summary = cached.get("extraction_summary", {})
+            LOGGER.info("Graph extraction cache hit chunks=%s", len(cached_chunk_graphs))
             return cached_chunk_graphs, cached_summary, True
 
+    LOGGER.info("Graph extraction cache miss chunks=%s", len(chunks))
     chunk_graphs: list[dict[str, Any]] = []
-    total_nodes = 0
-    total_rels = 0
     extraction_usage: list[dict[str, Any]] = []
     for chunk in chunks:
         extracted = extract_chunk_graph(
@@ -883,9 +996,8 @@ def load_or_extract_chunk_graphs(client: GroqClient, chunks: list[dict[str, Any]
             "rels": extracted["rels"],
             "raw_text": extracted["raw_text"],
             "mode": extracted.get("mode", "unknown"),
+            "raw_counts": extracted.get("raw_counts", {"nodes": 0, "rels": 0}),
         })
-        total_nodes += len(extracted["nodes"])
-        total_rels += len(extracted["rels"])
         extraction_usage.append(
             {
                 "chunk_id": chunk["chunk_id"],
@@ -893,7 +1005,19 @@ def load_or_extract_chunk_graphs(client: GroqClient, chunks: list[dict[str, Any]
                 "node_count": len(chunk_graph["nodes"]),
                 "relationship_count": len(chunk_graph["rels"]),
                 "mode": extracted.get("mode", "unknown"),
+                "raw_node_count": extracted.get("raw_counts", {}).get("nodes", 0),
+                "raw_relationship_count": extracted.get("raw_counts", {}).get("rels", 0),
+                "diagnostics": chunk_graph.get("diagnostics", {}),
             }
+        )
+        LOGGER.info(
+            "Chunk extraction result chunk=%s mode=%s raw_nodes=%s raw_rels=%s final_nodes=%s final_rels=%s",
+            chunk["chunk_id"],
+            extracted.get("mode", "unknown"),
+            extracted.get("raw_counts", {}).get("nodes", 0),
+            extracted.get("raw_counts", {}).get("rels", 0),
+            len(chunk_graph["nodes"]),
+            len(chunk_graph["rels"]),
         )
         chunk_graphs.append(chunk_graph)
 
@@ -914,11 +1038,19 @@ def load_or_extract_chunk_graphs(client: GroqClient, chunks: list[dict[str, Any]
         ),
         encoding="utf-8",
     )
+    LOGGER.info(
+        "Graph extraction cache written chunks=%s total_nodes=%s total_rels=%s path=%s",
+        len(chunk_graphs),
+        extraction_summary["total_extracted_nodes"],
+        extraction_summary["total_extracted_relationships"],
+        GRAPH_CACHE,
+    )
     return chunk_graphs, extraction_summary, False
 
 
 def build_graph(chunk_graphs: list[dict[str, Any]]) -> nx.MultiDiGraph:
     graph = nx.MultiDiGraph()
+    edge_insertions = 0
     for chunk in chunk_graphs:
         chunk_id = chunk["chunk_id"]
         for node in chunk["nodes"]:
@@ -928,6 +1060,15 @@ def build_graph(chunk_graphs: list[dict[str, Any]]) -> nx.MultiDiGraph:
                     type=node["type"],
                     definition=node["definition"],
                     chunk_ids=set(),
+                )
+            else:
+                graph.nodes[node["id"]]["type"] = choose_better_type(
+                    graph.nodes[node["id"]]["type"],
+                    node["type"],
+                )
+                graph.nodes[node["id"]]["definition"] = choose_better_definition(
+                    graph.nodes[node["id"]]["definition"],
+                    node["definition"],
                 )
             graph.nodes[node["id"]]["chunk_ids"].add(chunk_id)
         for rel in chunk["rels"]:
@@ -939,6 +1080,21 @@ def build_graph(chunk_graphs: list[dict[str, Any]]) -> nx.MultiDiGraph:
                 definition=rel["definition"],
                 chunk_id=chunk_id,
             )
+            edge_insertions += 1
+        LOGGER.debug(
+            "Build graph chunk=%s nodes=%s rels=%s cumulative_graph_nodes=%s cumulative_graph_edges=%s",
+            chunk_id,
+            len(chunk["nodes"]),
+            len(chunk["rels"]),
+            graph.number_of_nodes(),
+            graph.number_of_edges(),
+        )
+    LOGGER.info(
+        "Graph build complete graph_nodes=%s graph_edges=%s inserted_edges=%s",
+        graph.number_of_nodes(),
+        graph.number_of_edges(),
+        edge_insertions,
+    )
     return graph
 
 
@@ -1006,7 +1162,20 @@ def compact_chunk_view(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def main() -> None:
     ensure_dirs()
+    setup_logging()
     config = parse_args()
+    LOGGER.info(
+        "Pilot start model=%s embedding_model=%s max_pages=%s chunk_size=%s chunk_overlap=%s top_k=%s graph_only=%s all_questions=%s question_id=%s",
+        config.groq_model,
+        config.gemini_embedding_model,
+        config.max_pages,
+        config.chunk_size,
+        config.chunk_overlap,
+        config.top_k,
+        config.graph_only,
+        config.all_questions,
+        config.question_id,
+    )
     groq_api_key, google_api_key = load_env()
     metadata = prepare_sample_assets(config.max_pages)
     questions = load_questions()
@@ -1185,6 +1354,13 @@ def main() -> None:
     else:
         result_path = OUTPUT_DIR / "graph_only_results.json"
     result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    LOGGER.info(
+        "Pilot complete result_path=%s graph_nodes=%s graph_edges=%s groq_calls=%s",
+        result_path,
+        graph.number_of_nodes(),
+        graph.number_of_edges(),
+        len(groq_client.calls),
+    )
 
     print(f"Saved pilot results to {result_path}")
     print(f"Saved graph nodes to {nodes_path}")

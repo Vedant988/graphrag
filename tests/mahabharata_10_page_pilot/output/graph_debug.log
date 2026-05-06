@@ -1,0 +1,92 @@
+2026-05-06 01:00:53,264 INFO Logging initialized
+2026-05-06 01:00:53,267 INFO Pilot start model=openai/gpt-oss-120b embedding_model=models/gemini-embedding-001 max_pages=10 chunk_size=6000 chunk_overlap=400 top_k=3 graph_only=True all_questions=True question_id=None
+2026-05-06 01:00:53,269 INFO Sample asset cache hit for 10 pages
+2026-05-06 01:00:53,349 DEBUG Loaded JSON file: D:\github\graphrag\tests\mahabharata_10_page_pilot\output\chunk_embeddings_cache.json
+2026-05-06 01:00:53,349 INFO Embedding cache hit chunks=12
+2026-05-06 01:00:53,360 DEBUG Cache/file missing: D:\github\graphrag\tests\mahabharata_10_page_pilot\output\graph_extraction_cache.json
+2026-05-06 01:00:53,360 INFO Graph extraction cache miss chunks=12
+2026-05-06 01:00:53,360 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:00:56,082 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=11 raw_rels=0
+2026-05-06 01:00:56,149 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=11 rels=0
+2026-05-06 01:00:56,149 DEBUG Chunk chunk_000 canonicalization raw_nodes=11 raw_rels=0 final_nodes=11 final_rels=0 merges=0 dropped_rels=0
+2026-05-06 01:00:56,149 INFO Chunk extraction result chunk=chunk_000 mode=json_schema_strict raw_nodes=11 raw_rels=0 final_nodes=11 final_rels=0
+2026-05-06 01:00:56,149 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:00:57,975 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=5 raw_rels=0
+2026-05-06 01:00:57,975 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=5 rels=0
+2026-05-06 01:00:57,975 DEBUG Chunk chunk_001 canonicalization raw_nodes=5 raw_rels=0 final_nodes=5 final_rels=0 merges=0 dropped_rels=0
+2026-05-06 01:00:57,975 INFO Chunk extraction result chunk=chunk_001 mode=json_schema_strict raw_nodes=5 raw_rels=0 final_nodes=5 final_rels=0
+2026-05-06 01:00:57,975 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:01:01,019 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=9 raw_rels=0
+2026-05-06 01:01:01,019 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=9 rels=0
+2026-05-06 01:01:01,019 DEBUG Chunk chunk_002 canonicalization raw_nodes=9 raw_rels=0 final_nodes=9 final_rels=0 merges=0 dropped_rels=0
+2026-05-06 01:01:01,019 INFO Chunk extraction result chunk=chunk_002 mode=json_schema_strict raw_nodes=9 raw_rels=0 final_nodes=9 final_rels=0
+2026-05-06 01:01:01,019 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:01:48,578 ERROR JSON parse failed for extraction attempt=json_schema_strict content_preview=max completion tokens reached before generating a valid document
+Traceback (most recent call last):
+  File "D:\github\graphrag\tests\mahabharata_10_page_pilot\run_pilot.py", line 951, in extract_chunk_graph
+    raw = parse_json_output(content)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\github\graphrag\tests\mahabharata_10_page_pilot\run_pilot.py", line 627, in parse_json_output
+    raise ValueError(f"Could not parse extractor JSON: {content[:200]}")
+ValueError: Could not parse extractor JSON: max completion tokens reached before generating a valid document
+2026-05-06 01:01:48,578 DEBUG Extraction attempt=json_schema_best_effort text_chars=4237
+2026-05-06 01:01:51,429 DEBUG Extraction parsed attempt=json_schema_best_effort raw_nodes=12 raw_rels=0
+2026-05-06 01:01:51,431 WARNING Node-only extraction accepted attempt=json_schema_best_effort nodes=12 rels=0
+2026-05-06 01:01:51,433 DEBUG Chunk chunk_003 canonicalization raw_nodes=12 raw_rels=0 final_nodes=12 final_rels=0 merges=1 dropped_rels=0
+2026-05-06 01:01:51,433 INFO Chunk extraction result chunk=chunk_003 mode=json_schema_best_effort raw_nodes=12 raw_rels=0 final_nodes=12 final_rels=0
+2026-05-06 01:01:51,433 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:01:53,199 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=5 raw_rels=0
+2026-05-06 01:01:53,199 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=5 rels=0
+2026-05-06 01:01:53,274 DEBUG Chunk chunk_004 canonicalization raw_nodes=5 raw_rels=0 final_nodes=5 final_rels=0 merges=0 dropped_rels=0
+2026-05-06 01:01:53,276 INFO Chunk extraction result chunk=chunk_004 mode=json_schema_strict raw_nodes=5 raw_rels=0 final_nodes=5 final_rels=0
+2026-05-06 01:01:53,276 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:02:44,253 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=5 raw_rels=0
+2026-05-06 01:02:44,253 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=5 rels=0
+2026-05-06 01:02:44,253 DEBUG Chunk chunk_005 canonicalization raw_nodes=5 raw_rels=0 final_nodes=5 final_rels=0 merges=0 dropped_rels=0
+2026-05-06 01:02:44,253 INFO Chunk extraction result chunk=chunk_005 mode=json_schema_strict raw_nodes=5 raw_rels=0 final_nodes=5 final_rels=0
+2026-05-06 01:02:44,253 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:02:51,545 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=14 raw_rels=2
+2026-05-06 01:02:51,545 DEBUG Chunk chunk_006 canonicalization raw_nodes=14 raw_rels=2 final_nodes=3 final_rels=2 merges=0 dropped_rels=0
+2026-05-06 01:02:51,545 INFO Chunk extraction result chunk=chunk_006 mode=json_schema_strict raw_nodes=14 raw_rels=2 final_nodes=3 final_rels=2
+2026-05-06 01:02:51,545 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:02:57,154 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=5 raw_rels=0
+2026-05-06 01:02:57,154 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=5 rels=0
+2026-05-06 01:02:57,154 DEBUG Chunk chunk_007 canonicalization raw_nodes=5 raw_rels=0 final_nodes=5 final_rels=0 merges=0 dropped_rels=0
+2026-05-06 01:02:57,154 INFO Chunk extraction result chunk=chunk_007 mode=json_schema_strict raw_nodes=5 raw_rels=0 final_nodes=5 final_rels=0
+2026-05-06 01:02:57,154 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:02:58,849 WARNING Extraction attempt failed attempt=json_schema_strict error=Groq call failed: 400 {'error': {'message': "Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.", 'type': 'invalid_request_error', 'code': 'json_validate_failed', 'failed_generation': ''}}
+2026-05-06 01:02:58,849 DEBUG Extraction attempt=json_schema_best_effort text_chars=4237
+2026-05-06 01:03:50,902 DEBUG Extraction parsed attempt=json_schema_best_effort raw_nodes=7 raw_rels=0
+2026-05-06 01:03:50,908 WARNING Node-only extraction accepted attempt=json_schema_best_effort nodes=7 rels=0
+2026-05-06 01:03:50,908 DEBUG Chunk chunk_008 canonicalization raw_nodes=7 raw_rels=0 final_nodes=7 final_rels=0 merges=0 dropped_rels=0
+2026-05-06 01:03:50,908 INFO Chunk extraction result chunk=chunk_008 mode=json_schema_best_effort raw_nodes=7 raw_rels=0 final_nodes=7 final_rels=0
+2026-05-06 01:03:50,908 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:03:52,963 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=10 raw_rels=0
+2026-05-06 01:03:52,963 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=10 rels=0
+2026-05-06 01:03:52,963 DEBUG Chunk chunk_009 canonicalization raw_nodes=10 raw_rels=0 final_nodes=10 final_rels=0 merges=2 dropped_rels=0
+2026-05-06 01:03:52,963 INFO Chunk extraction result chunk=chunk_009 mode=json_schema_strict raw_nodes=10 raw_rels=0 final_nodes=10 final_rels=0
+2026-05-06 01:03:52,965 DEBUG Extraction attempt=json_schema_strict text_chars=4237
+2026-05-06 01:03:54,942 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=3 raw_rels=0
+2026-05-06 01:03:54,944 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=3 rels=0
+2026-05-06 01:03:54,944 DEBUG Chunk chunk_010 canonicalization raw_nodes=3 raw_rels=0 final_nodes=3 final_rels=0 merges=0 dropped_rels=0
+2026-05-06 01:03:54,944 INFO Chunk extraction result chunk=chunk_010 mode=json_schema_strict raw_nodes=3 raw_rels=0 final_nodes=3 final_rels=0
+2026-05-06 01:03:54,944 DEBUG Extraction attempt=json_schema_strict text_chars=1380
+2026-05-06 01:04:49,225 DEBUG Extraction parsed attempt=json_schema_strict raw_nodes=8 raw_rels=0
+2026-05-06 01:04:49,225 WARNING Node-only extraction accepted attempt=json_schema_strict nodes=8 rels=0
+2026-05-06 01:04:49,225 DEBUG Chunk chunk_011 canonicalization raw_nodes=8 raw_rels=0 final_nodes=8 final_rels=0 merges=1 dropped_rels=0
+2026-05-06 01:04:49,225 INFO Chunk extraction result chunk=chunk_011 mode=json_schema_strict raw_nodes=8 raw_rels=0 final_nodes=8 final_rels=0
+2026-05-06 01:04:49,228 INFO Graph extraction cache written chunks=12 total_nodes=83 total_rels=2 path=D:\github\graphrag\tests\mahabharata_10_page_pilot\output\graph_extraction_cache.json
+2026-05-06 01:04:49,228 DEBUG Build graph chunk=chunk_000 nodes=11 rels=0 cumulative_graph_nodes=11 cumulative_graph_edges=0
+2026-05-06 01:04:49,228 DEBUG Build graph chunk=chunk_001 nodes=5 rels=0 cumulative_graph_nodes=14 cumulative_graph_edges=0
+2026-05-06 01:04:49,228 DEBUG Build graph chunk=chunk_002 nodes=9 rels=0 cumulative_graph_nodes=21 cumulative_graph_edges=0
+2026-05-06 01:04:49,228 DEBUG Build graph chunk=chunk_003 nodes=12 rels=0 cumulative_graph_nodes=31 cumulative_graph_edges=0
+2026-05-06 01:04:49,228 DEBUG Build graph chunk=chunk_004 nodes=5 rels=0 cumulative_graph_nodes=34 cumulative_graph_edges=0
+2026-05-06 01:04:49,228 DEBUG Build graph chunk=chunk_005 nodes=5 rels=0 cumulative_graph_nodes=36 cumulative_graph_edges=0
+2026-05-06 01:04:49,228 DEBUG Build graph chunk=chunk_006 nodes=3 rels=2 cumulative_graph_nodes=37 cumulative_graph_edges=2
+2026-05-06 01:04:49,232 DEBUG Build graph chunk=chunk_007 nodes=5 rels=0 cumulative_graph_nodes=39 cumulative_graph_edges=2
+2026-05-06 01:04:49,232 DEBUG Build graph chunk=chunk_008 nodes=7 rels=0 cumulative_graph_nodes=44 cumulative_graph_edges=2
+2026-05-06 01:04:49,232 DEBUG Build graph chunk=chunk_009 nodes=10 rels=0 cumulative_graph_nodes=50 cumulative_graph_edges=2
+2026-05-06 01:04:49,232 DEBUG Build graph chunk=chunk_010 nodes=3 rels=0 cumulative_graph_nodes=51 cumulative_graph_edges=2
+2026-05-06 01:04:49,232 DEBUG Build graph chunk=chunk_011 nodes=8 rels=0 cumulative_graph_nodes=57 cumulative_graph_edges=2
+2026-05-06 01:04:49,232 INFO Graph build complete graph_nodes=57 graph_edges=2 inserted_edges=2
+2026-05-06 01:06:10,953 INFO Pilot complete result_path=D:\github\graphrag\tests\mahabharata_10_page_pilot\output\graph_only_results.json graph_nodes=57 graph_edges=2 groq_calls=17

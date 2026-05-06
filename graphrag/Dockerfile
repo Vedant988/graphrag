@@ -7,6 +7,7 @@ RUN apt-get update && apt-get upgrade -y
 RUN pip install -r requirements.txt
  
 COPY graphrag/app /code
+RUN rm -f /code/common /code/configs
 COPY common /code/common
 
 ENV SERVER_CONFIG="/server_config.json"

@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 class GoogleGenAI(LLM_Model):
     def __init__(self, config):
         super().__init__(config)
-        for auth_detail in config["authentication_configuration"].keys():
-            os.environ[auth_detail] = config["authentication_configuration"][
-                auth_detail
-            ]
+        for auth_detail, auth_value in config.get(
+            "authentication_configuration", {}
+        ).items():
+            os.environ[auth_detail] = auth_value
 
         model_name = config["llm_model"]
         self.llm = ChatGoogleGenerativeAI(

@@ -12,18 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import json
 import re
-from typing import List
-import logging
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from common.extractors.BaseExtractor import BaseExtractor
-from common.llm_services import LLM_Model
 from common.py_schemas import KnowledgeGraph
 from langchain_community.graphs.graph_document import Node, Relationship, GraphDocument
 from langchain_core.documents import Document
 
+if TYPE_CHECKING:
+    from common.llm_services.base_llm import LLM_Model
+else:
+    LLM_Model = Any
+
 logger = logging.getLogger(__name__)
+
 
 class LLMEntityRelationshipExtractor(BaseExtractor):
     def __init__(
@@ -37,6 +42,30 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         self.allowed_vertex_types = allowed_entity_types
         self.allowed_edge_types = allowed_relationship_types
         self.strict_mode = strict_mode
+
+    def _coerce_text(self, document: Any) -> str:
+        """Accept either plain text or repo document objects."""
+        if isinstance(document, str):
+            return document
+
+        text = getattr(document, "text", None)
+        if text is not None:
+            return text
+
+        page_content = getattr(document, "page_content", None)
+        if page_content is not None:
+            return page_content
+
+        return str(document)
+
+    def _empty_graph_document(self, doc_text: str) -> List[GraphDocument]:
+        return [
+            GraphDocument(
+                nodes=[],
+                relationships=[],
+                source=Document(page_content=doc_text),
+            )
+        ]
 
     def _parse_json_output(self, content: str) -> dict:
         """Parse JSON from LLM output with multiple fallback strategies.
@@ -68,205 +97,197 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
 
         raise ValueError(f"Could not extract JSON from LLM output: {content[:200]}")
 
+    def _graph_documents_to_dict(
+        self, graph_documents: List[GraphDocument]
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """Normalize GraphDocument output into the dict shape used by ingestion/retrieval.
+
+        The rest of the repo expects:
+          {
+            "nodes": [{"id", "type", "definition"}],
+            "rels":  [{"source", "target", "type", "definition"}]
+          }
+        """
+        nodes: List[Dict[str, str]] = []
+        rels: List[Dict[str, str]] = []
+        seen_nodes = set()
+        seen_rels = set()
+
+        for graph_document in graph_documents:
+            for node in graph_document.nodes:
+                node_id = str(node.id)
+                node_type = str(node.type)
+                definition = str(node.properties.get("description", ""))
+                if node_id in seen_nodes:
+                    continue
+                seen_nodes.add(node_id)
+                nodes.append(
+                    {
+                        "id": node_id,
+                        "type": node_type,
+                        "definition": definition,
+                    }
+                )
+
+            for rel in graph_document.relationships:
+                source = str(rel.source.id)
+                target = str(rel.target.id)
+                rel_type = str(rel.type)
+                definition = str(rel.properties.get("description", ""))
+                rel_key = (source, target, rel_type)
+                if rel_key in seen_rels:
+                    continue
+                seen_rels.add(rel_key)
+                rels.append(
+                    {
+                        "source": source,
+                        "target": target,
+                        "type": rel_type,
+                        "definition": definition,
+                    }
+                )
+
+        return {"nodes": nodes, "rels": rels}
+
+    def _json_to_graph_document(
+        self, json_out: Dict[str, Any], doc: str
+    ) -> List[GraphDocument]:
+        formatted_rels = []
+        for rels in json_out.get("rels", []):
+            if isinstance(rels["source"], str) and isinstance(rels["target"], str):
+                formatted_rels.append(
+                    {
+                        "source": rels["source"],
+                        "target": rels["target"],
+                        "type": rels["relation_type"].replace(" ", "_").upper(),
+                        "definition": rels["definition"],
+                    }
+                )
+            elif isinstance(rels["source"], dict) and isinstance(rels["target"], str):
+                formatted_rels.append(
+                    {
+                        "source": rels["source"]["id"],
+                        "target": rels["target"],
+                        "type": rels["relation_type"].replace(" ", "_").upper(),
+                        "definition": rels["definition"],
+                    }
+                )
+            elif isinstance(rels["source"], str) and isinstance(rels["target"], dict):
+                formatted_rels.append(
+                    {
+                        "source": rels["source"],
+                        "target": rels["target"]["id"],
+                        "type": rels["relation_type"].replace(" ", "_").upper(),
+                        "definition": rels["definition"],
+                    }
+                )
+            elif isinstance(rels["source"], dict) and isinstance(rels["target"], dict):
+                formatted_rels.append(
+                    {
+                        "source": rels["source"]["id"],
+                        "target": rels["target"]["id"],
+                        "type": rels["relation_type"].replace(" ", "_").upper(),
+                        "definition": rels["definition"],
+                    }
+                )
+            else:
+                raise Exception("Relationship parsing error")
+
+        formatted_nodes = []
+        for node in json_out.get("nodes", []):
+            formatted_nodes.append(
+                {
+                    "id": node["id"],
+                    "type": node["node_type"].replace(" ", "_").capitalize(),
+                    "definition": node["definition"],
+                }
+            )
+
+        if self.strict_mode:
+            if self.allowed_vertex_types:
+                formatted_nodes = [
+                    node
+                    for node in formatted_nodes
+                    if node["type"] in self.allowed_vertex_types
+                ]
+            if self.allowed_edge_types:
+                formatted_rels = [
+                    rel
+                    for rel in formatted_rels
+                    if rel["type"] in self.allowed_edge_types
+                ]
+
+        nodes = []
+        for node in formatted_nodes:
+            nodes.append(
+                Node(
+                    id=node["id"],
+                    type=node["type"],
+                    properties={"description": node["definition"]},
+                )
+            )
+        relationships = []
+        for rel in formatted_rels:
+            relationships.append(
+                Relationship(
+                    source=Node(
+                        id=rel["source"],
+                        type=rel["source"],
+                        properties={"description": rel["definition"]},
+                    ),
+                    target=Node(
+                        id=rel["target"],
+                        type=rel["target"],
+                        properties={"description": rel["definition"]},
+                    ),
+                    type=rel["type"],
+                    properties={"description": rel["definition"]},
+                )
+            )
+
+        return self._empty_graph_document(doc) if not nodes and not relationships else [
+            GraphDocument(
+                nodes=nodes,
+                relationships=relationships,
+                source=Document(page_content=doc),
+            )
+        ]
+
     async def _aextract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
+        doc_text = self._coerce_text(doc)
         try:
-            logger.debug(str(doc))
+            logger.debug(doc_text)
             out = await chain.ainvoke(
-                {"input": doc, "format_instructions": parser.get_format_instructions()}
+                {"input": doc_text, "format_instructions": parser.get_format_instructions()}
             )
             logger.debug(str(out))
-        except Exception as e:
-            return [GraphDocument(nodes=[], relationships=[], source=Document(page_content=doc))]
+        except Exception:
+            logger.exception("Entity/relationship async extraction invocation failed")
+            return self._empty_graph_document(doc_text)
         try:
             json_out = self._parse_json_output(out.content)
-
-            formatted_rels = []
-            for rels in json_out["rels"]:
-                if isinstance(rels["source"], str) and isinstance(rels["target"], str):
-                    formatted_rels.append(
-                        {
-                            "source": rels["source"],
-                            "target": rels["target"],
-                            "type": rels["relation_type"].replace(" ", "_").upper(),
-                            "definition": rels["definition"],
-                        }
-                    )
-                elif isinstance(rels["source"], dict) and isinstance(
-                    rels["target"], str
-                ):
-                    formatted_rels.append(
-                        {
-                            "source": rels["source"]["id"],
-                            "target": rels["target"],
-                            "type": rels["relation_type"].replace(" ", "_").upper(),
-                            "definition": rels["definition"],
-                        }
-                    )
-                elif isinstance(rels["source"], str) and isinstance(
-                    rels["target"], dict
-                ):
-                    formatted_rels.append(
-                        {
-                            "source": rels["source"],
-                            "target": rels["target"]["id"],
-                            "type": rels["relation_type"].replace(" ", "_").upper(),
-                            "definition": rels["definition"],
-                        }
-                    )
-                elif isinstance(rels["source"], dict) and isinstance(
-                    rels["target"], dict
-                ):
-                    formatted_rels.append(
-                        {
-                            "source": rels["source"]["id"],
-                            "target": rels["target"]["id"],
-                            "type": rels["relation_type"].replace(" ", "_").upper(),
-                            "definition": rels["definition"],
-                        }
-                    )
-                else:
-                    raise Exception("Relationship parsing error")
-            formatted_nodes = []
-            for node in json_out["nodes"]:
-                formatted_nodes.append(
-                    {
-                        "id": node["id"],
-                        "type": node["node_type"].replace(" ", "_").capitalize(),
-                        "definition": node["definition"],
-                    }
-                )
-
-            # filter relationships and nodes based on allowed types
-            if self.strict_mode:
-                if self.allowed_vertex_types:
-                    formatted_nodes = [
-                        node
-                        for node in formatted_nodes
-                        if node["type"] in self.allowed_vertex_types
-                    ]
-                if self.allowed_edge_types:
-                    formatted_rels = [
-                        rel
-                        for rel in formatted_rels
-                        if rel["type"] in self.allowed_edge_types
-                    ]
-
-            nodes = []
-            for node in formatted_nodes:
-                nodes.append(Node(id=node["id"],
-                                  type=node["type"],
-                                  properties={"description": node["definition"]}))
-            relationships = []
-            for rel in formatted_rels:
-                relationships.append(Relationship(source=Node(id=rel["source"], type=rel["source"],
-                                                  properties={"description": rel["definition"]}),
-                                                  target=Node(id=rel["target"], type=rel["target"],
-                                                  properties={"description": rel["definition"]}), type=rel["type"]))
-
-            return [GraphDocument(nodes=nodes, relationships=relationships, source=Document(page_content=doc))]
-
-        except:
-            return [GraphDocument(nodes=[], relationships=[], source=Document(page_content=doc))]
+            return self._json_to_graph_document(json_out, doc_text)
+        except Exception:
+            logger.exception("Entity/relationship async extraction parsing failed")
+            return self._empty_graph_document(doc_text)
 
     def _extract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
+        doc_text = self._coerce_text(doc)
         try:
             out = chain.invoke(
-                {"input": doc, "format_instructions": parser.get_format_instructions()}
+                {"input": doc_text, "format_instructions": parser.get_format_instructions()}
             )
-        except Exception as e:
-            return [GraphDocument(nodes=[], relationships=[], source=Document(page_content=doc))]
+        except Exception:
+            logger.exception("Entity/relationship extraction invocation failed")
+            return self._empty_graph_document(doc_text)
         try:
             json_out = self._parse_json_output(out.content)
+            return self._json_to_graph_document(json_out, doc_text)
+        except Exception:
+            logger.exception("Entity/relationship extraction parsing failed")
+            return self._empty_graph_document(doc_text)
 
-            formatted_rels = []
-            for rels in json_out["rels"]:
-                if isinstance(rels["source"], str) and isinstance(rels["target"], str):
-                    formatted_rels.append(
-                        {
-                            "source": rels["source"],
-                            "target": rels["target"],
-                            "type": rels["relation_type"].replace(" ", "_").upper(),
-                            "definition": rels["definition"],
-                        }
-                    )
-                elif isinstance(rels["source"], dict) and isinstance(
-                    rels["target"], str
-                ):
-                    formatted_rels.append(
-                        {
-                            "source": rels["source"]["id"],
-                            "target": rels["target"],
-                            "type": rels["relation_type"].replace(" ", "_").upper(),
-                            "definition": rels["definition"],
-                        }
-                    )
-                elif isinstance(rels["source"], str) and isinstance(
-                    rels["target"], dict
-                ):
-                    formatted_rels.append(
-                        {
-                            "source": rels["source"],
-                            "target": rels["target"]["id"],
-                            "type": rels["relation_type"].replace(" ", "_").upper(),
-                            "definition": rels["definition"],
-                        }
-                    )
-                elif isinstance(rels["source"], dict) and isinstance(
-                    rels["target"], dict
-                ):
-                    formatted_rels.append(
-                        {
-                            "source": rels["source"]["id"],
-                            "target": rels["target"]["id"],
-                            "type": rels["relation_type"].replace(" ", "_").upper(),
-                            "definition": rels["definition"],
-                        }
-                    )
-                else:
-                    raise Exception("Relationship parsing error")
-            formatted_nodes = []
-            for node in json_out["nodes"]:
-                formatted_nodes.append(
-                    {
-                        "id": node["id"],
-                        "type": node["node_type"].replace(" ", "_").capitalize(),
-                        "definition": node["definition"],
-                    }
-                )
-
-            # filter relationships and nodes based on allowed types
-            if self.strict_mode:
-                if self.allowed_vertex_types:
-                    formatted_nodes = [
-                        node
-                        for node in formatted_nodes
-                        if node["type"] in self.allowed_vertex_types
-                    ]
-                if self.allowed_edge_types:
-                    formatted_rels = [
-                        rel
-                        for rel in formatted_rels
-                        if rel["type"] in self.allowed_edge_types
-                    ]
-        
-            nodes = []
-            for node in formatted_nodes:
-                nodes.append(Node(id=node["id"],
-                                  type=node["type"],
-                                  properties={"description": node["definition"]}))
-            relationships = []
-            for rel in formatted_rels:
-                relationships.append(Relationship(source=Node(id=rel["source"], type=rel["source"],
-                                                  properties={"description": rel["definition"]}),
-                                                  target=Node(id=rel["target"], type=rel["target"],
-                                                  properties={"description": rel["definition"]}), type=rel["type"]))
-
-            return [GraphDocument(nodes=nodes, relationships=relationships, source=Document(page_content=doc))]
-
-        except:
-            return [GraphDocument(nodes=[], relationships=[], source=Document(page_content=doc))]
-        
-    async def adocument_er_extraction(self, document):
+    async def adocument_er_graph_documents(self, document):
         from langchain.prompts import ChatPromptTemplate
         from langchain.output_parsers import PydanticOutputParser
 
@@ -303,8 +324,7 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         er = await self._aextract_kg_from_doc(document, chain, parser)
         return er
 
-
-    def document_er_extraction(self, document):
+    def document_er_graph_documents(self, document):
         from langchain.prompts import ChatPromptTemplate
         from langchain.output_parsers import PydanticOutputParser
 
@@ -341,10 +361,18 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         er = self._extract_kg_from_doc(document, chain, parser)
         return er
 
+    async def adocument_er_extraction(self, document):
+        er = await self.adocument_er_graph_documents(document)
+        return self._graph_documents_to_dict(er)
+
+    def document_er_extraction(self, document):
+        er = self.document_er_graph_documents(document)
+        return self._graph_documents_to_dict(er)
+
     def extract(self, text):
         return self.document_er_extraction(text)
     
-    async def aextract(self, text) -> list[GraphDocument]:
+    async def aextract(self, text):
         return await self.adocument_er_extraction(text)
     
 

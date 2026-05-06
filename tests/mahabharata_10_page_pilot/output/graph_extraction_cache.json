@@ -1,6 +1,6 @@
 {
   "cache_key": {
-    "version": 1,
+    "version": 2,
     "sample_text_sha256": "33013f3fae0d3e2526c4f4ba35bcf66bc11f19e1555a993e729b534ded490e3b",
     "chunk_size": 6000,
     "chunk_overlap": 400,
@@ -14,22 +14,27 @@
         {
           "id": "Mahabharata",
           "type": "work",
-          "definition": "Epic Sanskrit text authored by Vyasa"
+          "definition": "The epic Sanskrit text authored by Vyasa"
         },
         {
-          "id": "Krishna-Dwaipayana_Vyasa",
+          "id": "Vyasa",
           "type": "sage",
-          "definition": "Traditional author of the Mahabharata"
+          "definition": "Krishna-Dwaipayana Vyasa, author of the Mahabharata"
+        },
+        {
+          "id": "Adi_Parva",
+          "type": "work",
+          "definition": "The first book of the Mahabharata"
         },
         {
           "id": "Kisari_Mohan_Ganguli",
           "type": "person",
-          "definition": "Translator of the Complete Mahabharata into English (1883\u20111896)"
+          "definition": "Translator of the Complete Mahabharata into English"
         },
         {
           "id": "Juliet_Sutherland",
           "type": "person",
-          "definition": "Project Manager who proofed the translation"
+          "definition": "Project manager for the translation proofing"
         },
         {
           "id": "J_B_Hare",
@@ -44,279 +49,406 @@
         {
           "id": "Babu_Durga_Charan_Banerjee",
           "type": "person",
-          "definition": "Collaborator with Pratapa on the translation scheme"
+          "definition": "Collaborator with Pratapa on the translation project"
         },
         {
           "id": "Dr_Rost",
           "type": "person",
-          "definition": "Author of a letter that suggested the translation undertaking"
+          "definition": "Correspondent whose letter suggested the translation undertaking"
         },
         {
           "id": "Dr_Sambhu_C_Mookherjee",
           "type": "person",
-          "definition": "Literary friend consulted about the translation project"
+          "definition": "Literary friend consulted about the translation"
         },
         {
-          "id": "Complete_Mahabharata_in_English",
-          "type": "work",
-          "definition": "English prose translation of the Mahabharata"
+          "id": "sacred_texts_com",
+          "type": "place",
+          "definition": "Website where the translation was scanned and proofed"
         }
       ],
-      "rels": [
-        {
-          "source": "Krishna-Dwaipayana_Vyasa",
-          "target": "Mahabharata",
-          "type": "AUTHORED",
-          "definition": "Vyasa is the traditional author of the Mahabharata"
-        },
-        {
-          "source": "Kisari_Mohan_Ganguli",
-          "target": "Complete_Mahabharata_in_English",
-          "type": "TRANSLATED",
-          "definition": "Ganguli translated the Mahabharata into English"
+      "rels": [],
+      "raw_text": "{\n \"nodes\": [\n {\n \"id\": \"Mahabharata\",\n \"type\": \"work\",\n \"definition\": \"The epic Sanskrit text authored by Vyasa\"\n },\n {\n \"id\": \"Vyasa\",\n \"type\": \"sage\",\n \"definition\": \"Krishna-Dwaipayana Vyasa, author of the Mahabharata\"\n },\n {\n \"id\": \"Adi_Parva\",\n \"type\": \"work\",\n \"definition\": \"The first book of the Mahabharata\"\n },\n {\n \"id\": \"Kisari_Mohan_Ganguli\",\n \"type\": \"person\",\n \"definition\": \"Translator of the Complete Mahabharata into English\"\n },\n {\n \"id\": \"Juliet_Sutherland\",\n \"type\": \"person\",\n \"definition\": \"Project manager for the translation proofing\"\n },\n {\n \"id\": \"J_B_Hare\",\n \"type\": \"person\",\n \"definition\": \"Proofreader and formatter for the translation\"\n },\n {\n \"id\": \"Babu_Pratapa_Chandra_Roy\",\n \"type\": \"person\",\n \"definition\": \"Initiator of an English translation project for the Mahabharata\"\n },\n {\n \"id\": \"Babu_Durga_Charan_Banerjee\",\n \"type\": \"person\",\n \"definition\": \"Collaborator with Pratapa on the translation project\"\n },\n {\n \"id\": \"Dr_Rost\",\n \"type\": \"person\",\n \"definition\": \"Correspondent whose letter suggested the translation undertaking\"\n },\n {\n \"id\": \"Dr_Sambhu_C_Mookherjee\",\n \"type\": \"person\",\n \"definition\": \"Literary friend consulted about the translation\"\n },\n {\n \"id\": \"sacred_texts_com\",\n \"type\": \"place\",\n \"definition\": \"Website where the translation was scanned and proofed\"\n }]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 11,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 11,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 11,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 11,
+        "final_rel_count": 0,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Mahabharata": "Mahabharata",
+          "Vyasa": "Vyasa",
+          "Adi_Parva": "Adi_Parva",
+          "Kisari_Mohan_Ganguli": "Kisari_Mohan_Ganguli",
+          "Juliet_Sutherland": "Juliet_Sutherland",
+          "J_B_Hare": "J_B_Hare",
+          "Babu_Pratapa_Chandra_Roy": "Babu_Pratapa_Chandra_Roy",
+          "Babu_Durga_Charan_Banerjee": "Babu_Durga_Charan_Banerjee",
+          "Dr_Rost": "Dr_Rost",
+          "Dr_Sambhu_C_Mookherjee": "Dr_Sambhu_C_Mookherjee",
+          "sacred_texts_com": "sacred_texts_com"
         }
-      ],
-      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Mahabharata\",\n      \"type\": \"work\",\n      \"definition\": \"Epic Sanskrit text authored by Vyasa\"\n    },\n    {\n      \"id\": \"Krishna-Dwaipayana_Vyasa\",\n      \"type\": \"sage\",\n      \"definition\": \"Traditional author of the Mahabharata\"\n    },\n    {\n      \"id\": \"Kisari_Mohan_Ganguli\",\n      \"type\": \"person\",\n      \"definition\": \"Translator of the Complete Mahabharata into English (1883\u20111896)\"\n    },\n    {\n      \"id\": \"Juliet_Sutherland\",\n      \"type\": \"person\",\n      \"definition\": \"Project Manager who proofed the translation\"\n    },\n    {\n      \"id\": \"J_B_Hare\",\n      \"type\": \"person\",\n      \"definition\": \"Proofreader and formatter for the translation\"\n    },\n    {\n      \"id\": \"Babu_Pratapa_Chandra_Roy\",\n      \"type\": \"person\",\n      \"definition\": \"Initiator of an English translation project for the Mahabharata\"\n    },\n    {\n      \"id\": \"Babu_Durga_Charan_Banerjee\",\n      \"type\": \"person\",\n      \"definition\": \"Collaborator with Pratapa on the translation scheme\"\n    },\n    {\n      \"id\": \"Dr_Rost\",\n      \"type\": \"person\",\n      \"definition\": \"Author of a letter that suggested the translation undertaking\"\n    },\n    {\n      \"id\": \"Dr_Sambhu_C_Mookherjee\",\n      \"type\": \"person\",\n      \"definition\": \"Literary friend consulted about the translation project\"\n    },\n    {\n      \"id\": \"Complete_Mahabharata_in_English\",\n      \"type\": \"work\",\n      \"definition\": \"English prose translation of the Mahabharata\"\n    }\n  ],\n  \"rels\": [\n    {\n      \"source\": \"Krishna-Dwaipayana_Vyasa\",\n      \"target\": \"Mahabharata\",\n      \"type\": \"AUTHORED\",\n      \"definition\": \"Vyasa is the traditional author of the Mahabharata\"\n    },\n    {\n      \"source\": \"Kisari_Mohan_Ganguli\",\n      \"target\": \"Complete_Mahabharata_in_English\",\n      \"type\": \"TRANSLATED\",\n      \"definition\": \"Ganguli translated the Mahabharata into English\"\n    }]}",
-      "mode": "json_schema_strict"
+      }
     },
     {
       "chunk_id": "chunk_001",
       "text": "re chiefly \nfounded upon the impossibility of one person translating the whole of the gigantic work. Notwithstanding my resolve to \ndischarge to the fullest extent the duty that I took up, I might not live to carry it out. It would take many years before the end \ncould be reached. Other circumstances than death might arise in consequence of which my connection with the work might \ncease. It could not be desirable to issue successive fasciculus with the names of a succession of translators appearing on the \ntitle pages. These and other considerations convinced my friend that, after all, my view was correct. It was, accordingly, \nresolved to withhold the name of the translator. As a compromise, however, between the two views, it was resolved to issue the \nfirst fasciculus with two prefaces, one over the signature of the publisher and the other headed--'Translator's Preface.' This, it \nwas supposed, would effectually guard against misconceptions of every kind. No careful reader would then confound the \npublisher with the author. \n \nAlthough this plan was adopted, yet before a fourth of the task had been accomplished, an influential Indian journal came down \nupon poor Pratapa Chandra Roy and accused him openly of being a party to a great literary imposture, viz., of posing before \nthe world as the translator of Vyasa's work when, in fact, he was only the publisher. The charge came upon my friend as a \nsurprise, especially as he had never made a secret of the authorship in his correspondence with Oriental scholars in every part \nof the world. He promptly wrote to the journal in question, explaining the reasons there were for anonymity, and pointing to the \ntwo prefaces with which the first fasciculus had been given to the world. The editor readily admitted his mistake and made a \nsatisfactory apology. \n \nNow that the translation has been completed, there can no longer be any reason for withholding the name of the translator. The \nentire translation is practically the work of one hand. In portions of the Adi and the Sabha Parvas, I was assisted by Babu \nCharu Charan Mookerjee. About four forms of the Sabha Parva were done by Professor Krishna Kamal Bhattacharya, and \nabout half a fasciculus during my illness, was done by another hand. I should however state that before passing to the printer \nthe copy received from these gentlemen I carefully compared every sentence with the original, making such alterations as were \nneeded for securing a uniformity of style with the rest of the work. \n \nI should here observe that in rendering the Mahabharata into English I have derived very little aid from the three Bengali \nversions that are supposed to have been executed with care. Every one of these is full of inaccuracies and blunders of every \ndescription. The Santi in particular which is by far the most difficult of the eighteen Parvas, has been made a mess of by the \nPundits that attacked it. Hundreds of ridiculous blunders can be pointed out in both the Rajadharma and the Mokshadharma \nsections. Some of these I have pointed out in footnotes. \n \nI cannot lay claim to infallibility. There are verses in the Mahabharata that are exceedingly difficult to construe. I have derived \nmuch aid from the great commentator Nilakantha. I know that Nilakantha's authority is not incapable of being challenged. But \nwhen it is remembered that the interpretations given by Nilakantha came down to him from preceptors of olden days, one \nshould think twice before rejecting Nilakantha as a guide. \n \nAbout the readings I have adopted, I should say that as regards the first half of the work, I have generally adhered to the Bengal \ntexts; as regards the latter half, to the printed Bombay edition. Sometimes individual sections, as occurring in the Bengal \neditions, differ widely, in respect of the order of the verses, from the corresponding ones in the Bombay edition. In such cases I \nhave adhered to the Bengal texts, convinced that the sequence of ideas has been better preserved in the Bengal editions than the \nBombay one. \n \nI should express my particular obligations to Pundit Ram Nath Tarkaratna, the author of 'Vasudeva Vijayam' and other poems, \nPundit Shyama Charan Kaviratna, the learned editor of Kavyaprakasha with the commentary of Professor Mahesh Chandra \nNayaratna, and Babu Aghore Nath Banerjee, the manager of the Bharata Karyalaya. All these scholars were my referees on all \npoints of difficulty. Pundit Ram Nath's solid scholarship is known to them that have come in contact with him. I never referred \nto him a difficulty that he could not clear up. Unfortunately, he was not always at hand to consult. Pundit Shyama Charan \nKaviratna, during my residence at Seebpore, assisted me in going over the Mokshadharma sections of the Santi Parva. \nUnostentatious in the extreme, Kaviratna is truly the type of a learned Brahman of ancient India. Babu Aghore Nath Banerjee \nalso has from time to time, rendered me valuable assistance in clearing my difficulties. \n \nGigantic as the work is, it would have been exceedingly difficult for me to go on with it if I had not been encouraged by Sir \nStuart Bayley, Sir Auckland Colvin, Sir Alfred Croft, and among Oriental scholars, by the late lamented Dr. Reinhold Rost, \nand Mons. A. Barth of Paris. All these eminent men know from the beginning that the translation was proceeding from my pen. \nNotwithstanding the enthusiasm, with which my poor friend, Pratapa Chandra Roy, always endeavoured to fill me. I am sure \nmy energies would have flagged and patience exhausted but for the encouraging words which I always received from these \npatrons and friends of the enterprise. \n \nLastly, I should name my literary chief and friend, Dr. Sambhu C. Mookherjee. The kind interest he took in my labours, the \nrepeated exhortations he addressed to me inculcating patience, the care with which he read every fasciculus as it came out, \nmarking all those passages which threw light upon topics of antiquarian inter",
       "nodes": [
         {
-          "id": "Pratapa Chandra Roy",
-          "type": "person",
-          "definition": "Indian scholar accused of posing as translator of Vyasa's work"
-        },
-        {
           "id": "Vyasa",
-          "type": "deity",
-          "definition": "Traditional author of the Mahabharata"
+          "type": "sage",
+          "definition": "Author of the Mahabharata"
         },
         {
           "id": "Mahabharata",
           "type": "work",
-          "definition": "Epic text being translated into English"
+          "definition": "Epic Sanskrit text translated into English"
         },
         {
-          "id": "Indian journal",
+          "id": "Pratapa_Chandra_Roy",
+          "type": "person",
+          "definition": "Publisher accused of posing as translator of Vyasa's work"
+        },
+        {
+          "id": "Indian_Journal",
           "type": "group",
-          "definition": "Publication that accused Pratapa Chandra Roy"
+          "definition": "Influential Indian journal that accused Pratapa Chandra Roy"
         },
         {
-          "id": "Nilakantha",
-          "type": "sage",
-          "definition": "Great commentator whose interpretations were used"
-        },
-        {
-          "id": "Babu Charu Charan Mookerjee",
+          "id": "Babu_Charu_Charan_Mookerjee",
           "type": "person",
-          "definition": "Assistant in translating portions of the Adi and Sabha Parvas"
-        },
-        {
-          "id": "Professor Krishna Kamal Bhattacharya",
-          "type": "person",
-          "definition": "Translator of about four forms of the Sabha Parva"
-        },
-        {
-          "id": "Pundit Ram Nath Tarkaratna",
-          "type": "person",
-          "definition": "Author of 'Vasudeva Vijayam' acknowledged by the narrator"
-        },
-        {
-          "id": "Pundit Shyama",
-          "type": "person",
-          "definition": "Pundit mentioned in the acknowledgments"
-        },
-        {
-          "id": "publisher",
-          "type": "concept",
-          "definition": "Entity that issued the first fasciculus with two prefaces"
-        },
-        {
-          "id": "editor",
-          "type": "person",
-          "definition": "Editor of the Indian journal who admitted the mistake"
+          "definition": "Assisted in translating portions of the Adi and Sabha Parvas"
         }
       ],
       "rels": [],
-      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Pratapa Chandra Roy\",\n      \"type\": \"person\",\n      \"definition\": \"Indian scholar accused of posing as translator of Vyasa's work\"\n    },\n    {\n      \"id\": \"Vyasa\",\n      \"type\": \"deity\",\n      \"definition\": \"Traditional author of the Mahabharata\"\n    },\n    {\n      \"id\": \"Mahabharata\",\n      \"type\": \"work\",\n      \"definition\": \"Epic text being translated into English\"\n    },\n    {\n      \"id\": \"Indian journal\",\n      \"type\": \"group\",\n      \"definition\": \"Publication that accused Pratapa Chandra Roy\"\n    },\n    {\n      \"id\": \"Nilakantha\",\n      \"type\": \"sage\",\n      \"definition\": \"Great commentator whose interpretations were used\"\n    },\n    {\n      \"id\": \"Babu Charu Charan Mookerjee\",\n      \"type\": \"person\",\n      \"definition\": \"Assistant in translating portions of the Adi and Sabha Parvas\"\n    },\n    {\n      \"id\": \"Professor Krishna Kamal Bhattacharya\",\n      \"type\": \"person\",\n      \"definition\": \"Translator of about four forms of the Sabha Parva\"\n    },\n    {\n      \"id\": \"Pundit Ram Nath Tarkaratna\",\n      \"type\": \"person\",\n      \"definition\": \"Author of 'Vasudeva Vijayam' acknowledged by the narrator\"\n    },\n    {\n      \"id\": \"Pundit Shyama\",\n      \"type\": \"person\",\n      \"definition\": \"Pundit mentioned in the acknowledgments\"\n    },\n    {\n      \"id\": \"publisher\",\n      \"type\": \"concept\",\n      \"definition\": \"Entity that issued the first fasciculus with two prefaces\"\n    },\n    {\n      \"id\": \"editor\",\n      \"type\": \"person\",\n      \"definition\": \"Editor of the Indian journal who admitted the mistake\"\n    }]}",
-      "mode": "json_schema_strict"
+      "raw_text": "{\n \"nodes\": [\n {\n \"id\": \"Vyasa\",\n \"type\": \"sage\",\n \"definition\": \"Author of the Mahabharata\"\n },\n {\n \"id\": \"Mahabharata\",\n \"type\": \"work\",\n \"definition\": \"Epic Sanskrit text translated into English\"\n },\n {\n \"id\": \"Pratapa_Chandra_Roy\",\n \"type\": \"person\",\n \"definition\": \"Publisher accused of posing as translator of Vyasa's work\"\n },\n {\n \"id\": \"Indian_Journal\",\n \"type\": \"group\",\n \"definition\": \"Influential Indian journal that accused Pratapa Chandra Roy\"\n },\n {\n \"id\": \"Babu_Charu_Charan_Mookerjee\",\n \"type\": \"person\",\n \"definition\": \"Assisted in translating portions of the Adi and Sabha Parvas\"\n }]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 5,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 5,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 5,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 5,
+        "final_rel_count": 0,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Vyasa": "Vyasa",
+          "Mahabharata": "Mahabharata",
+          "Pratapa_Chandra_Roy": "Pratapa_Chandra_Roy",
+          "Indian_Journal": "Indian_Journal",
+          "Babu_Charu_Charan_Mookerjee": "Babu_Charu_Charan_Mookerjee"
+        }
+      }
     },
     {
       "chunk_id": "chunk_002",
       "text": "h I always received from these \npatrons and friends of the enterprise. \n \nLastly, I should name my literary chief and friend, Dr. Sambhu C. Mookherjee. The kind interest he took in my labours, the \nrepeated exhortations he addressed to me inculcating patience, the care with which he read every fasciculus as it came out, \nmarking all those passages which threw light upon topics of antiquarian interest, and the words of praise he uttered when any \nexpression particularly happy met his eyes, served to stimulate me more than anything else in going on with a task that \nsometimes seemed to me endless.  \n \nKisari Mohan Ganguli \nCalcutta \n \nTHE MAHABHARATA \nADI PARVA \n \nSECTION I \n \nOm! Having bowed down to Narayana and Nara, the most exalted male being, and also to the goddess Saraswati, must the \nword Jaya be uttered. \n \nUgrasrava, the son of Lomaharshana, surnamed Sauti, well-versed in the Puranas, bending with humility, one day approached \nthe great sages of rigid vows, sitting at their ease, who had attended the twelve years' sacrifice of Saunaka, surnamed Kulapati, \nin the forest of Naimisha. Those ascetics, wishing to hear his wonderful narrations, presently began to address him who had \nthus arrived at that recluse abode of the inhabitants of the forest of Naimisha. Having been entertained with due respect by \nthose holy men, he saluted those Munis (sages) with joined palms, even all of them, and inquired about the progress of their \nasceticism. Then all the ascetics being again seated, the son of Lomaharshana humbly occupied the seat that was assigned to \nhim. Seeing that he was comfortably seated, and recovered from fatigue, one of the Rishis beginning the conversation, asked \nhim, 'Whence comest thou, O lotus-eyed Sauti, and where hast thou spent the time? Tell me, who ask thee, in detail.' \n \nAccomplished in speech, Sauti, thus questioned, gave in the midst of that big assemblage of contemplative Munis a full and \nproper answer in words consonant with their mode of life. \n \n\"Sauti said, 'Having heard the diverse sacred and wonderful stories which were composed in his Mahabharata by Krishna-\nDwaipayana, and which were recited in full by Vaisampayana at the Snake-sacrifice of the high-souled royal sage Janamejaya \nand in the presence also of that chief of Princes, the son of Parikshit, and having wandered about, visiting many sacred waters \nand holy shrines, I journeyed to the country venerated by the Dwijas (twice-born) and called Samantapanchaka where formerly \nwas fought the battle between the children of Kuru and Pandu, and all the chiefs of the land ranged on either side. Thence, \nanxious to see you, I am come into your presence. Ye reverend sages, all of whom are to me as Brahma; ye greatly blessed who \nshine in this place of sacrifice with the splendour of the solar fire: ye who have concluded the silent meditations and have fed \nthe holy fire; and yet who are sitting--without care, what, O ye Dwijas (twice-born), shall I repeat, shall I recount the sacred \nstories collected in the Puranas containing precepts of religious duty and of worldly profit, or the acts of illustrious saints and \nsovereigns of mankind?\" \n \n\"The Rishi replied, 'The Purana, first promulgated by the great Rishi Dwaipayana, and which after having been heard both by \nthe gods and the Brahmarshis was highly esteemed, being the most eminent narrative that exists, diversified both in diction and \ndivision, possessing subtile meanings logically combined, and gleaned from the Vedas, is a sacred work. Composed in elegant \nlanguage, it includeth the subjects of other books. It is elucidated by other Shastras, and comprehendeth the sense of the four \nVedas. We are desirous of hearing that history also called Bharata, the holy composition of the wonderful Vyasa, which \ndispelleth the fear of evil, just as it was cheerfully recited by the Rishi Vaisampayana, under the direction of Dwaipayana \nhimself, at the snake-sacrifice of Raja Janamejaya?' \n \n\"Sauti then said, 'Having bowed down to the primordial being Isana, to whom multitudes make offerings, and who is adored by \nthe multitude; who is the true incorruptible one, Brahma, perceptible, imperceptible, eternal; who is both a non-existing and an \nexisting-non-existing being; who is the universe and also distinct from the existing and non-existing universe; who is the \ncreator of high and low; the ancient, exalted, inexhaustible one; who is Vishnu, beneficent and the beneficence itself, worthy of \nall preference, pure and immaculate; who is Hari, the ruler of the faculties, the guide of all things moveable and immoveable; I \nwill declare the sacred thoughts of the illustrious sage Vyasa, of marvelous deeds and worshipped here by all. Some bards have \nalready published this history, some are now teaching it, and others, in like manner, will hereafter promulgate it upon the earth. \nIt is a great source of knowledge, established throughout the three regions of the world. It is possessed by the twice-born both \nin detailed and compendious forms. It is the delight of the learned for being embellished with elegant expressions, \nconversations human and divine, and a variety of poetical measures. \n \nIn this world, when it was destitute of brightness and light, and enveloped all around in total darkness, there came into being, as \nthe primal cause of creation, a mighty egg, the one inexhaustible seed of all created beings. It is called Mahadivya, and was \nformed at the beginning of the Yuga, in which we are told, was the true light Brahma, the eternal one, the wonderful and \ninconceivable being present alike in all places; the invisible and subtile cause, whose nature partaketh of entity and non-entity. \nFrom this egg came out the lord Pitamaha Brahma, the one only Prajapati; with Suraguru and Sthanu. Then appeared the \ntwenty-one Prajapatis, viz., Manu, Vasishtha and Parameshthi; ten Prachetas, Daksha, and the seven sons of Daksha. Then \nappeared the man of inconceivable natur",
       "nodes": [
         {
-          "id": "Kisari_Mohan_Ganguli",
-          "type": "person",
-          "definition": "Translator and narrator of the Mahabharata"
+          "id": "Vyasa",
+          "type": "sage",
+          "definition": "Krishna-Dwaipayana Vyasa, author of the Mahabharata"
         },
         {
           "id": "Mahabharata",
           "type": "work",
-          "definition": "Ancient Indian epic"
+          "definition": "Epic Sanskrit text"
         },
         {
-          "id": "Narayana",
-          "type": "deity",
-          "definition": "Supreme male deity invoked at the start of the passage"
+          "id": "AdiParva",
+          "type": "work",
+          "definition": "First book of the Mahabharata"
+        },
+        {
+          "id": "Sauti",
+          "type": "sage",
+          "definition": "Ugrasrava, son of Lomaharshana, narrator of the Mahabharata"
+        },
+        {
+          "id": "Lomaharshana",
+          "type": "person",
+          "definition": "Father of Ugrasrava (Sauti)"
+        },
+        {
+          "id": "Saunaka",
+          "type": "sage",
+          "definition": "Kulapati who performed a twelve-year sacrifice"
+        },
+        {
+          "id": "NaimishaForest",
+          "type": "place",
+          "definition": "Forest where the sacrifice took place"
+        },
+        {
+          "id": "Janamejaya",
+          "type": "king",
+          "definition": "Royal sage who performed the snake-sacrifice"
+        },
+        {
+          "id": "Vaisampayana",
+          "type": "sage",
+          "definition": "Reciter of the Mahabharata at Janamejaya's sacrifice"
         }
       ],
       "rels": [],
-      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Kisari_Mohan_Ganguli\",\n      \"type\": \"person\",\n      \"definition\": \"Translator and narrator of the Mahabharata\"\n    },\n    {\n      \"id\": \"Mahabharata\",\n      \"type\": \"work\",\n      \"definition\": \"Ancient Indian epic\"\n    },\n    {\n      \"id\": \"Narayana\",\n      \"type\": \"deity\",\n      \"definition\": \"Supreme male deity invoked at the start of the passage\"\n    }]}",
-      "mode": "json_schema_strict"
+      "raw_text": "{\n \"nodes\": [\n {\"id\": \"Vyasa\", \"type\": \"sage\", \"definition\": \"Krishna-Dwaipayana Vyasa, author of the Mahabharata\"},\n {\"id\": \"Mahabharata\", \"type\": \"work\", \"definition\": \"Epic Sanskrit text\"},\n {\"id\": \"AdiParva\", \"type\": \"work\", \"definition\": \"First book of the Mahabharata\"},\n {\"id\": \"Sauti\", \"type\": \"sage\", \"definition\": \"Ugrasrava, son of Lomaharshana, narrator of the Mahabharata\"},\n {\"id\": \"Lomaharshana\", \"type\": \"person\", \"definition\": \"Father of Ugrasrava (Sauti)\"},\n {\"id\": \"Saunaka\", \"type\": \"sage\", \"definition\": \"Kulapati who performed a twelve-year sacrifice\"},\n {\"id\": \"NaimishaForest\", \"type\": \"place\", \"definition\": \"Forest where the sacrifice took place\"},\n {\"id\": \"Janamejaya\", \"type\": \"king\", \"definition\": \"Royal sage who performed the snake-sacrifice\"},\n {\"id\": \"Vaisampayana\", \"type\": \"sage\", \"definition\": \"Reciter of the Mahabharata at Janamejaya's sacrifice\"}]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 9,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 9,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 9,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 9,
+        "final_rel_count": 0,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Vyasa": "Vyasa",
+          "Mahabharata": "Mahabharata",
+          "AdiParva": "AdiParva",
+          "Sauti": "Sauti",
+          "Lomaharshana": "Lomaharshana",
+          "Saunaka": "Saunaka",
+          "NaimishaForest": "NaimishaForest",
+          "Janamejaya": "Janamejaya",
+          "Vaisampayana": "Vaisampayana"
+        }
+      }
     },
     {
       "chunk_id": "chunk_003",
       "text": "ble being present alike in all places; the invisible and subtile cause, whose nature partaketh of entity and non-entity. \nFrom this egg came out the lord Pitamaha Brahma, the one only Prajapati; with Suraguru and Sthanu. Then appeared the \ntwenty-one Prajapatis, viz., Manu, Vasishtha and Parameshthi; ten Prachetas, Daksha, and the seven sons of Daksha. Then \nappeared the man of inconceivable nature whom all the Rishis know and so the Viswe-devas, the Adityas, the Vasus, and the \ntwin Aswins; the Yakshas, the Sadhyas, the Pisachas, the Guhyakas, and the Pitris. After these were produced the wise and \nmost holy Brahmarshis, and the numerous Rajarshis distinguished by every noble quality. So the water, the heavens, the earth, \nthe air, the sky, the points of the heavens, the years, the seasons, the months, the fortnights, called Pakshas, with day and night \nin due succession. And thus were produced all things which are known to mankind. \n \nAnd what is seen in the universe, whether animate or inanimate, of created things, will at the end of the world, and after the \nexpiration of the Yuga, be again confounded. And, at the commencement of other Yugas, all things will be renovated, and, like \nthe various fruits of the earth, succeed each other in the due order of their seasons. Thus continueth perpetually to revolve in \nthe world, without beginning and without end, this wheel which causeth the destruction of all things. \n \nThe generation of Devas, in brief, was thirty-three thousand, thirty-three hundred and thirty-three. The sons of Div were \nBrihadbhanu, Chakshus, Atma Vibhavasu, Savita, Richika, Arka, Bhanu, Asavaha, and Ravi. Of these Vivaswans of old, \nMahya was the youngest whose son was Deva-vrata. The latter had for his son, Su-vrata who, we learn, had three sons,--Dasa-\njyoti, Sata-jyoti, and Sahasra-jyoti, each of them producing numerous offspring. The illustrious Dasa-jyoti had ten thousand, \nSata-jyoti ten times that number, and Sahasra-jyoti ten times the number of Sata-jyoti's offspring. From these are descended the \nfamily of the Kurus, of the Yadus, and of Bharata; the family of Yayati and of Ikshwaku; also of all the Rajarshis. Numerous \nalso were the generations produced, and very abundant were the creatures and their places of abode. The mystery which is \nthreefold--the Vedas, Yoga, and Vijnana Dharma, Artha, and Kama--also various books upon the subject of Dharma, Artha, \nand Kama; also rules for the conduct of mankind; also histories and discourses with various srutis; all of which having been \nseen by the Rishi Vyasa are here in due order mentioned as a specimen of the book. \n \nThe Rishi Vyasa published this mass of knowledge in both a detailed and an abridged form. It is the wish of the learned in the \nworld to possess the details and the abridgement. Some read the Bharata beginning with the initial mantra (invocation), others \nwith the story of Astika, others with Uparichara, while some Brahmanas study the whole. Men of learning display their various \nknowledge of the institutes in commenting on the composition. Some are skilful in explaining it, while others, in remembering \nits contents. \n \nThe son of Satyavati having, by penance and meditation, analysed the eternal Veda, afterwards composed this holy history, \nwhen that learned Brahmarshi of strict vows, the noble Dwaipayana Vyasa, offspring of Parasara, had finished this greatest of \nnarrations, he began to consider how he might teach it to his disciples. And the possessor of the six attributes, Brahma, the \nworld's preceptor, knowing of the anxiety of the Rishi Dwaipayana, came in person to the place where the latter was, for \ngratifying the saint, and benefiting the people. And when Vyasa, surrounded by all the tribes of Munis, saw him, he was \nsurprised; and, standing with joined palms, he bowed and ordered a seat to be brought. And Vyasa having gone round him who \nis called Hiranyagarbha seated on that distinguished seat stood near it; and being commanded by Brahma Parameshthi, he sat \ndown near the seat, full of affection and smiling in joy. Then the greatly glorious Vyasa, addressing Brahma Parameshthi, said, \n\"O divine Brahma, by me a poem hath been composed which is greatly respected. The mystery of the Veda, and what other \nsubjects have been explained by me; the various rituals of the Upanishads with the Angas; the compilation of the Puranas and \nhistory formed by me and named after the three divisions of time, past, present, and future; the determination of the nature of \ndecay, fear, disease, existence, and non-existence, a description of creeds and of the various modes of life; rule for the four \ncastes, and the import of all the Puranas; an account of asceticism and of the duties of a religious student; the dimensions of the \nsun and moon, the planets, constellations, and stars, together with the duration of the four ages; the Rik, Sama and Yajur \nVedas; also the Adhyatma; the sciences called Nyaya, Orthoephy and Treatment of diseases; charity and Pasupatadharma; birth \ncelestial and human, for particular purposes; also a description of places of pilgrimage and other holy places of rivers, \nmountains, forests, the ocean, of heavenly cities and the kalpas; the art of war; the different kinds of nations and languages: the \nnature of the manners of the people; and the all-pervading spirit;--all these have been represented. But, after all, no writer of \nthis work is to be found on earth.' \n \n\"Brahma said. 'I esteem thee for thy knowledge of divine mysteries, before the whole body of celebrated Munis distinguished \nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in merit to the domestic Asrama. Let \nGanesa be thoug",
       "nodes": [
         {
-          "id": "Pitamaha_Brahma",
+          "id": "Brahma",
           "type": "deity",
-          "definition": "Lord and the only Prajapati who emerged from the cosmic egg"
+          "definition": "the lord Pitamaha Brahma, creator deity"
+        },
+        {
+          "id": "Parameshthi",
+          "type": "deity",
+          "definition": "a supreme deity addressed by Vyasa"
+        },
+        {
+          "id": "Vyasa",
+          "type": "sage",
+          "definition": "Rishi Vyasa, also called Dwaipayana Vyasa, author of the epic"
+        },
+        {
+          "id": "Parasara",
+          "type": "sage",
+          "definition": "father of Vyasa"
         },
         {
           "id": "Manu",
           "type": "person",
-          "definition": "One of the twenty\u2011one Prajapatis"
+          "definition": "one of the twenty-one Prajapatis"
         },
         {
           "id": "Vasishtha",
-          "type": "person",
-          "definition": "One of the twenty\u2011one Prajapatis"
-        },
-        {
-          "id": "Parameshthi",
-          "type": "person",
-          "definition": "One of the twenty\u2011one Prajapatis"
+          "type": "sage",
+          "definition": "one of the twenty-one Prajapatis"
         },
         {
           "id": "Daksha",
           "type": "person",
-          "definition": "Praja\u2011pati and father of seven sons"
+          "definition": "one of the Prajapatis, father of seven sons"
         },
         {
           "id": "Aswins",
           "type": "group",
-          "definition": "Twin divine physicians among the Visvedevas"
+          "definition": "twin divine physicians among the Devas"
+        },
+        {
+          "id": "Devas",
+          "type": "group",
+          "definition": "the divine beings generated by Brahma"
+        },
+        {
+          "id": "Yuga",
+          "type": "concept",
+          "definition": "cosmic age whose end brings renewal"
+        },
+        {
+          "id": "Vedas",
+          "type": "work",
+          "definition": "the sacred scriptures referenced by Vyasa"
+        },
+        {
+          "id": "Mahabharata",
+          "type": "work",
+          "definition": "the epic narrated by Vyasa"
         }
       ],
       "rels": [],
-      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Pitamaha_Brahma\", \"type\": \"deity\", \"definition\": \"Lord and the only Prajapati who emerged from the cosmic egg\"},\n    {\"id\": \"Manu\", \"type\": \"person\", \"definition\": \"One of the twenty\u2011one Prajapatis\"},\n    {\"id\": \"Vasishtha\", \"type\": \"person\", \"definition\": \"One of the twenty\u2011one Prajapatis\"},\n    {\"id\": \"Parameshthi\", \"type\": \"person\", \"definition\": \"One of the twenty\u2011one Prajapatis\"},\n    {\"id\": \"Daksha\", \"type\": \"person\", \"definition\": \"Praja\u2011pati and father of seven sons\"},\n    {\"id\": \"Aswins\", \"type\": \"group\", \"definition\": \"Twin divine physicians among the Visvedevas\"}]}",
-      "mode": "json_schema_strict"
+      "raw_text": "{\n \"nodes\": [\n {\"id\": \"Brahma\", \"type\": \"deity\", \"definition\": \"the lord Pitamaha Brahma, creator deity\"},\n {\"id\": \"Parameshthi\", \"type\": \"deity\", \"definition\": \"a supreme deity addressed by Vyasa\"},\n {\"id\": \"Vyasa\", \"type\": \"sage\", \"definition\": \"Rishi Vyasa, also called Dwaipayana Vyasa, author of the epic\"},\n {\"id\": \"Parasara\", \"type\": \"sage\", \"definition\": \"father of Vyasa\"},\n {\"id\": \"Manu\", \"type\": \"person\", \"definition\": \"one of the twenty-one Prajapatis\"},\n {\"id\": \"Vasishtha\", \"type\": \"sage\", \"definition\": \"one of the twenty-one Prajapatis\"},\n {\"id\": \"Daksha\", \"type\": \"person\", \"definition\": \"one of the Prajapatis, father of seven sons\"},\n {\"id\": \"Aswins\", \"type\": \"group\", \"definition\": \"twin divine physicians among the Devas\"},\n {\"id\": \"Devas\", \"type\": \"group\", \"definition\": \"the divine beings generated by Brahma\"},\n {\"id\": \"Yuga\", \"type\": \"concept\", \"definition\": \"cosmic age whose end brings renewal\"},\n {\"id\": \"Vedas\", \"type\": \"work\", \"definition\": \"the sacred scriptures referenced by Vyasa\"},\n {\"id\": \"Bharata\", \"type\": \"work\", \"definition\": \"the epic narrated by Vyasa\"}]}",
+      "mode": "json_schema_best_effort",
+      "raw_counts": {
+        "nodes": 12,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 12,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 12,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 12,
+        "final_rel_count": 0,
+        "node_merges": [
+          {
+            "from": "Bharata",
+            "to": "Mahabharata"
+          }
+        ],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Brahma": "Brahma",
+          "Parameshthi": "Parameshthi",
+          "Vyasa": "Vyasa",
+          "Parasara": "Parasara",
+          "Manu": "Manu",
+          "Vasishtha": "Vasishtha",
+          "Daksha": "Daksha",
+          "Aswins": "Aswins",
+          "Devas": "Devas",
+          "Yuga": "Yuga",
+          "Vedas": "Vedas",
+          "Bharata": "Mahabharata"
+        }
+      }
     },
     {
       "chunk_id": "chunk_004",
       "text": "\nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in merit to the domestic Asrama. Let \nGanesa be thought of, O Muni, for the purpose of writing the poem.' \n \n\"Sauti said, 'Brahma having thus spoken to Vyasa, retired to his own abode. Then Vyasa began to call to mind Ganesa. And \nGanesa, obviator of obstacles, ready to fulfil the desires of his votaries, was no sooner thought of, than he repaired to the place \nwhere Vyasa was seated. And when he had been saluted, and was seated, Vyasa addressed him thus, 'O guide of the Ganas! be \nthou the writer of the Bharata which I have formed in my imagination, and which I am about to repeat.\" \n \n\"Ganesa, upon hearing this address, thus answered, 'I will become the writer of thy work, provided my pen do not for a \nmoment cease writing.\" And Vyasa said unto that divinity, 'Wherever there be anything thou dost not comprehend, cease to \ncontinue writing.' Ganesa having signified his assent, by repeating the word Om! proceeded to write; and Vyasa began; and by \nway of diversion, he knit the knots of composition exceeding close; by doing which, he dictated this work according to his \nengagement. \n \nI am (continued Sauti) acquainted with eight thousand and eight hundred verses, and so is Suka, and perhaps Sanjaya. From the \nmysteriousness of their meaning, O Muni, no one is able, to this day, to penetrate those closely knit difficult slokas. Even the \nomniscient Ganesa took a moment to consider; while Vyasa, however, continued to compose other verses in great abundance. \n \nThe wisdom of this work, like unto an instrument of applying collyrium, hath opened the eyes of the inquisitive world blinded \nby the darkness of ignorance. As the sun dispelleth the darkness, so doth the Bharata by its discourses on religion, profit, \npleasure and final release, dispel the ignorance of men. As the full-moon by its mild light expandeth the buds of the water-lily, \nso this Purana, by exposing the light of the Sruti hath expanded the human intellect. By the lamp of history, which destroyeth \nthe darkness of ignorance, the whole mansion of nature is properly and completely illuminated. \n \nThis work is a tree, of which the chapter of contents is the seed; the divisions called Pauloma and Astika are the root; the part \ncalled Sambhava is the trunk; the books called Sabha and Aranya are the roosting perches; the books called Arani is the \nknitting knots; the books called Virata and Udyoga the pith; the book named Bhishma, the main branch; the book called Drona, \nthe leaves; the book called Karna, the fair flowers; the book named Salya, their sweet smell; the books entitled Stri and \nAishika, the refreshing shade; the book called Santi, the mighty fruit; the book called Aswamedha, the immortal sap; the \ndenominated Asramavasika, the spot where it groweth; and the book called Mausala, is an epitome of the Vedas and held in \ngreat respect by the virtuous Brahmanas. The tree of the Bharata, inexhaustible to mankind as the clouds, shall be as a source \nof livelihood to all distinguished poets.\" \n \n\"Sauti continued, 'I will now speak of the undying flowery and fruitful productions of this tree, possessed of pure and pleasant \ntaste, and not to be destroyed even by the immortals. Formerly, the spirited and virtuous Krishna-Dwaipayana, by the \ninjunctions of Bhishma, the wise son of Ganga and of his own mother, became the father of three boys who were like the three \nfires by the two wives of Vichitra-virya; and having thus raised up Dhritarashtra, Pandu and Vidura, he returned to his recluse \nabode to prosecute his religious exercise. \n \nIt was not till after these were born, grown up, and departed on the supreme journey, that the great Rishi Vyasa published the \nBharata in this region of mankind; when being solicited by Janamejaya and thousands of Brahmanas, he instructed his disciple \nVaisampayana, who was seated near him; and he, sitting together with the Sadasyas, recited the Bharata, during the intervals of \nthe ceremonies of the sacrifice, being repeatedly urged to proceed. \n \nVyasa hath fully represented the greatness of the house of Kuru, the virtuous principles of Gandhari, the wisdom of Vidura, \nand the constancy of Kunti. The noble Rishi hath also described the divinity of Vasudeva, the rectitude of the sons of Pandu, \nand the evil practices of the sons and partisans of Dhritarashtra. \n \nVyasa executed the compilation of the Bharata, exclusive of the episodes originally in twenty-four thousand verses; and so \nmuch only is called by the learned as the Bharata. Afterwards, he composed an epitome in one hundred and fifty verses, \nconsisting of the introduction with the chapter of contents. This he first taught to his son Suka; and afterwards he gave it to \nothers of his disciples who were possessed of the same qualifications. After that he executed another compilation, consisting of \nsix hundred thousand verses. Of those, thirty hundred thousand are known in the world of the Devas; fifteen hundred thousand \nin the world of the Pitris: fourteen hundred thousand among the Gandharvas, and one hundred thousand in the regions of \nmankind. Narada recited them to the Devas, Devala to the Pitris, and Suka published them to the Gandharvas, Yakshas, and \nRakshasas: and in this world they were recited by Vaisampayana, one of the disciples of Vyasa, a man of just principles and the \nfirst among all those acquainted with the Vedas. Know that I, Sauti, have also repeated one hundred thousand verses. \n \nYudhishthira is a vast tree, formed of religion and virtue; Arjuna is its trunk; Bhimasena, its branches; the two sons of Madri \nare its full-grown fruit and flowers; and its roots are Krishna, Brah",
       "nodes": [
         {
-          "id": "Ganesa",
-          "type": "deity",
-          "definition": "Obviator of obstacles, writer of the Bharata"
-        },
-        {
           "id": "Vyasa",
           "type": "sage",
-          "definition": "Composer who requested Ganesa to write the Bharata"
+          "definition": "Krishna-Dwaipayana Vyasa, the composer of the Bharata"
+        },
+        {
+          "id": "Ganesa",
+          "type": "deity",
+          "definition": "God of obstacles, writer of the Bharata at Vyasa's request"
         },
         {
           "id": "Sauti",
           "type": "narrator",
-          "definition": "Speaker of the passage"
+          "definition": "Narrator who relates the story of Vyasa and Ganesa"
         },
         {
           "id": "Suka",
-          "type": "sage",
-          "definition": "One of the learned who knows the verses"
+          "type": "person",
+          "definition": "One of the listeners acquainted with the verses"
         },
         {
           "id": "Sanjaya",
-          "type": "sage",
-          "definition": "One of the learned who knows the verses"
-        },
-        {
-          "id": "Bharata",
-          "type": "work",
-          "definition": "Epic poem described in the passage"
-        },
-        {
-          "id": "Purana",
-          "type": "concept",
-          "definition": "Scriptural genre that expands human intellect"
-        },
-        {
-          "id": "Krishna-Dwaipayana",
-          "type": "sage",
-          "definition": "Father of Dhritarashtra, Pandu and Vidura"
-        },
-        {
-          "id": "Bhishma",
           "type": "person",
-          "definition": "Wise son of Ganga, instructor of Krishna-Dwaipayana"
-        },
-        {
-          "id": "Dhritarashtra",
-          "type": "king",
-          "definition": "One of the three sons of Krishna-Dwaipayana"
-        },
-        {
-          "id": "Pandu",
-          "type": "king",
-          "definition": "One of the three sons of Krishna-Dwaipayana"
-        },
-        {
-          "id": "Vidura",
-          "type": "sage",
-          "definition": "One of the three sons of Krishna-Dwaipayana"
-        },
-        {
-          "id": "Janamejaya",
-          "type": "king",
-          "definition": "Patron who solicited the Bharata"
-        },
-        {
-          "id": "Vaisampayana",
-          "type": "sage",
-          "definition": "Disciple of Vyasa"
+          "definition": "One of the listeners acquainted with the verses"
         }
       ],
-      "rels": [
-        {
-          "source": "Vyasa",
-          "target": "Ganesa",
-          "type": "ASKS",
-          "definition": "Vyasa asked Ganesa to write the Bharata"
-        },
-        {
-          "source": "Ganesa",
-          "target": "Bharata",
-          "type": "COMPOSED",
-          "definition": "Ganesa agreed to write the Bharata"
-        },
-        {
-          "source": "Sauti",
-          "target": "Bharata",
-          "type": "NARRATES",
-          "definition": "Sauti narrates the content of the Bharata"
+      "rels": [],
+      "raw_text": "{\n \"nodes\": [\n {\n \"id\": \"Vyasa\",\n \"type\": \"sage\",\n \"definition\": \"Krishna-Dwaipayana Vyasa, the composer of the Bharata\"\n },\n {\n \"id\": \"Ganesa\",\n \"type\": \"deity\",\n \"definition\": \"God of obstacles, writer of the Bharata at Vyasa's request\"\n },\n {\n \"id\": \"Sauti\",\n \"type\": \"narrator\",\n \"definition\": \"Narrator who relates the story of Vyasa and Ganesa\"\n },\n {\n \"id\": \"Suka\",\n \"type\": \"person\",\n \"definition\": \"One of the listeners acquainted with the verses\"\n },\n {\n \"id\": \"Sanjaya\",\n \"type\": \"person\",\n \"definition\": \"One of the listeners acquainted with the verses\"\n }]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 5,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 5,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 5,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 5,
+        "final_rel_count": 0,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Vyasa": "Vyasa",
+          "Ganesa": "Ganesa",
+          "Sauti": "Sauti",
+          "Suka": "Suka",
+          "Sanjaya": "Sanjaya"
         }
-      ],
-      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Ganesa\", \"type\": \"deity\", \"definition\": \"Obviator of obstacles, writer of the Bharata\"},\n    {\"id\": \"Vyasa\", \"type\": \"sage\", \"definition\": \"Composer who requested Ganesa to write the Bharata\"},\n    {\"id\": \"Sauti\", \"type\": \"narrator\", \"definition\": \"Speaker of the passage\"},\n    {\"id\": \"Suka\", \"type\": \"sage\", \"definition\": \"One of the learned who knows the verses\"},\n    {\"id\": \"Sanjaya\", \"type\": \"sage\", \"definition\": \"One of the learned who knows the verses\"},\n    {\"id\": \"Bharata\", \"type\": \"work\", \"definition\": \"Epic poem described in the passage\"},\n    {\"id\": \"Purana\", \"type\": \"concept\", \"definition\": \"Scriptural genre that expands human intellect\"},\n    {\"id\": \"Krishna-Dwaipayana\", \"type\": \"sage\", \"definition\": \"Father of Dhritarashtra, Pandu and Vidura\"},\n    {\"id\": \"Bhishma\", \"type\": \"person\", \"definition\": \"Wise son of Ganga, instructor of Krishna-Dwaipayana\"},\n    {\"id\": \"Dhritarashtra\", \"type\": \"king\", \"definition\": \"One of the three sons of Krishna-Dwaipayana\"},\n    {\"id\": \"Pandu\", \"type\": \"king\", \"definition\": \"One of the three sons of Krishna-Dwaipayana\"},\n    {\"id\": \"Vidura\", \"type\": \"sage\", \"definition\": \"One of the three sons of Krishna-Dwaipayana\"},\n    {\"id\": \"Janamejaya\", \"type\": \"king\", \"definition\": \"Patron who solicited the Bharata\"},\n    {\"id\": \"Vaisampayana\", \"type\": \"sage\", \"definition\": \"Disciple of Vyasa\"}\n  ],\n  \"rels\": [\n    {\"source\": \"Vyasa\", \"target\": \"Ganesa\", \"type\": \"ASKS\", \"definition\": \"Vyasa asked Ganesa to write the Bharata\"},\n    {\"source\": \"Ganesa\", \"target\": \"Bharata\", \"type\": \"COMPOSED\", \"definition\": \"Ganesa agreed to write the Bharata\"},\n    {\"source\": \"Sauti\", \"target\": \"Bharata\", \"type\": \"NARRATES\", \"definition\": \"Sauti narrates the content of the Bharata\"}]}",
-      "mode": "json_schema_strict"
+      }
     },
     {
       "chunk_id": "chunk_005",
       "text": "by Vaisampayana, one of the disciples of Vyasa, a man of just principles and the \nfirst among all those acquainted with the Vedas. Know that I, Sauti, have also repeated one hundred thousand verses. \n \nYudhishthira is a vast tree, formed of religion and virtue; Arjuna is its trunk; Bhimasena, its branches; the two sons of Madri \nare its full-grown fruit and flowers; and its roots are Krishna, Brahma, and the Brahmanas. \n \nPandu, after having subdued many countries by his wisdom and prowess, took up his abode with the Munis in a certain forest \nas a sportsman, where he brought upon himself a very severe misfortune for having killed a stag coupling with its mate, which \nserved as a warning for the conduct of the princes of his house as long as they lived. Their mothers, in order that the ordinances \nof the law might be fulfilled, admitted as substitutes to their embraces the gods Dharma, Vayu, Sakra, and the divinities the \ntwin Aswins. And when their offspring grew up, under the care of their two mothers, in the society of ascetics, in the midst of \nsacred groves and holy recluse-abodes of religious men, they were conducted by Rishis into the presence of Dhritarashtra and \nhis sons, following as students in the habit of Brahmacharis, having their hair tied in knots on their heads. 'These our pupils', \nsaid they, 'are as your sons, your brothers, and your friends; they are Pandavas.' Saying this, the Munis disappeared. \n \nWhen the Kauravas saw them introduced as the sons of Pandu, the distinguished class of citizens shouted exceedingly for joy. \nSome, however, said, they were not the sons of Pandu; others said, they were; while a few asked how they could be his \noffspring, seeing he had been so long dead. Still on all sides voices were heard crying, 'They are on all accounts welcome! \nThrough divine Providence we behold the family of Pandu! Let their welcome be proclaimed!' As these acclamations ceased, \nthe plaudits of invisible spirits, causing every point of the heavens to resound, were tremendous. There were showers of sweet-\nscented flowers, and the sound of shells and kettle-drums. Such were the wonders that happened on the arrival of the young \nprinces. The joyful noise of all the citizens, in expression of their satisfaction on the occasion, was so great that it reached the \nvery heavens in magnifying plaudits. \n \nHaving studied the whole of the Vedas and sundry other shastras, the Pandavas resided there, respected by all and without \napprehension from any one. \n \nThe principal men were pleased with the purity of Yudhishthira, the courage of Arjuna, the submissive attention of Kunti to her \nsuperiors, and the humility of the twins, Nakula and Sahadeva; and all the people rejoiced in their heroic virtues. \n \nAfter a while, Arjuna obtained the virgin Krishna at the swayamvara, in the midst of a concourse of Rajas, by performing a \nvery difficult feat of archery. And from this time he became very much respected in this world among all bowmen; and in \nfields of battle also, like the sun, he was hard to behold by foe-men. And having vanquished all the neighbouring princes and \nevery considerable tribe, he accomplished all that was necessary for the Raja (his eldest brother) to perform the great sacrifice \ncalled Rajasuya. \n \nYudhishthira, after having, through the wise counsels of Vasudeva and by the valour of Bhimasena and Arjuna, slain \nJarasandha (the king of Magadha) and the proud Chaidya, acquired the right to perform the grand sacrifice of Rajasuya \nabounding in provisions and offering and fraught with transcendent merits. And Duryodhana came to this sacrifice; and when \nhe beheld the vast wealth of the Pandavas scattered all around, the offerings, the precious stones, gold and jewels; the wealth in \ncows, elephants, and horses; the curious textures, garments, and mantles; the precious shawls and furs and carpets made of the \nskin of the Ranku; he was filled with envy and became exceedingly displeased. And when he beheld the hall of assembly \nelegantly constructed by Maya (the Asura architect) after the fashion of a celestial court, he was inflamed with rage. And \nhaving started in confusion at certain architectural deceptions within this building, he was derided by Bhimasena in the \npresence of Vasudeva, like one of mean descent. \n \nAnd it was represented to Dhritarashtra that his son, while partaking of various objects of enjoyment and diverse precious \nthings, was becoming meagre, wan, and pale. And Dhritarashtra, some time after, out of affection for his son, gave his consent \nto their playing (with the Pandavas) at dice. And Vasudeva coming to know of this, became exceedingly wroth. And being \ndissatisfied, he did nothing to prevent the disputes, but overlooked the gaming and sundry other horried unjustifiable \ntransactions arising therefrom: and in spite of Vidura, Bhishma, Drona, and Kripa, the son of Saradwan, he made the \nKshatriyas kill each other in the terrific war that ensued.' \n \n\"And Dhritarashtra hearing the ill news of the success of the Pandavas and recollecting the resolutions of Duryodhana, Kama, \nand Sakuni, pondered for a while and addressed to Sanjaya the following speech:-- \n \n'Attend, O Sanjaya, to all I am about to say, and it will not become thee to treat me with contempt. Thou art well-versed in the \nshastras, intelligent and endowed with wisdom. My inclination was never to war, not did I delight in the destruction of my race. \nI made no distinction between my own children and the children of Pandu. My own sons were prone to wilfulness and despised \nme because I am old. Blind as I am, because of my miserable plight and through paternal affection, I bore it all. I was foolish \nalter the thoughtless Duryodhana ever growing in folly. Having been a spectator of the riches of the mighty sons of Pandu, my \nson was derided for his awkwardness while ascending the hall. Unable to bear it all and unable himself to overcome the sons of \nPandu in the field, and tho",
       "nodes": [
         {
+          "id": "Vyasa",
+          "type": "sage",
+          "definition": "the author of the Vedas and teacher of disciples"
+        },
+        {
           "id": "Vaisampayana",
           "type": "person",
-          "definition": "disciple of Vyasa who narrated the passage"
+          "definition": "disciple of Vyasa"
+        },
+        {
+          "id": "Sauti",
+          "type": "narrator",
+          "definition": "repeater of one hundred thousand verses"
+        },
+        {
+          "id": "Yudhishthira",
+          "type": "person",
+          "definition": "eldest Pandava, noted for purity"
+        },
+        {
+          "id": "Arjuna",
+          "type": "person",
+          "definition": "Pandava, famed archer"
         }
       ],
       "rels": [],
-      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Vaisampayana\", \"type\": \"person\", \"definition\": \"disciple of Vyasa who narrated the passage\"}]}",
-      "mode": "json_schema_strict"
+      "raw_text": "{\n \"nodes\": [\n {\"id\": \"Vyasa\", \"type\": \"sage\", \"definition\": \"the author of the Vedas and teacher of disciples\"},\n {\"id\": \"Vaisampayana\", \"type\": \"person\", \"definition\": \"disciple of Vyasa\"},\n {\"id\": \"Sauti\", \"type\": \"narrator\", \"definition\": \"repeater of one hundred thousand verses\"},\n {\"id\": \"Yudhishthira\", \"type\": \"person\", \"definition\": \"eldest Pandava, noted for purity\"},\n {\"id\": \"Arjuna\", \"type\": \"person\", \"definition\": \"Pandava, famed archer\"}]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 5,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 5,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 5,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 5,
+        "final_rel_count": 0,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Vyasa": "Vyasa",
+          "Vaisampayana": "Vaisampayana",
+          "Sauti": "Sauti",
+          "Yudhishthira": "Yudhishthira",
+          "Arjuna": "Arjuna"
+        }
+      }
     },
     {
       "chunk_id": "chunk_006",
@@ -325,52 +457,78 @@
         {
           "id": "Sanjaya",
           "type": "person",
-          "definition": "Narrator addressed in the passage"
+          "definition": "Narrator who recounts the events"
         },
         {
           "id": "Arjuna",
           "type": "person",
-          "definition": "Hero of the Mahabharata, central figure in many events"
-        },
-        {
-          "id": "Krishna",
-          "type": "deity",
-          "definition": "Divine figure, brother of Balarama and Subhadra"
-        },
-        {
-          "id": "Balarama",
-          "type": "person",
-          "definition": "Brother of Krishna and Subhadra"
-        },
-        {
-          "id": "Subhadra",
-          "type": "person",
-          "definition": "Sister of Krishna and Balarama, married to Arjuna"
-        },
-        {
-          "id": "Pandavas",
-          "type": "group",
-          "definition": "The five sons of Pandu, including Arjuna, Bhima, Yudhishthira, etc."
-        },
-        {
-          "id": "Yudhishthira",
-          "type": "person",
-          "definition": "Eldest Pandava, king who lost at dice"
-        },
-        {
-          "id": "Draupadi",
-          "type": "person",
-          "definition": "Wife of the Pandavas, subject of humiliation"
+          "definition": "Pandava prince, great archer"
         },
         {
           "id": "Bhima",
           "type": "person",
-          "definition": "Pandava who slew Jarasandha"
+          "definition": "Pandava prince, strong warrior"
         }
       ],
-      "rels": [],
-      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Sanjaya\", \"type\": \"person\", \"definition\": \"Narrator addressed in the passage\"},\n    {\"id\": \"Arjuna\", \"type\": \"person\", \"definition\": \"Hero of the Mahabharata, central figure in many events\"},\n    {\"id\": \"Krishna\", \"type\": \"deity\", \"definition\": \"Divine figure, brother of Balarama and Subhadra\"},\n    {\"id\": \"Balarama\", \"type\": \"person\", \"definition\": \"Brother of Krishna and Subhadra\"},\n    {\"id\": \"Subhadra\", \"type\": \"person\", \"definition\": \"Sister of Krishna and Balarama, married to Arjuna\"},\n    {\"id\": \"Pandavas\", \"type\": \"group\", \"definition\": \"The five sons of Pandu, including Arjuna, Bhima, Yudhishthira, etc.\"},\n    {\"id\": \"Yudhishthira\", \"type\": \"person\", \"definition\": \"Eldest Pandava, king who lost at dice\"},\n    {\"id\": \"Draupadi\", \"type\": \"person\", \"definition\": \"Wife of the Pandavas, subject of humiliation\"},\n    {\"id\": \"Bhima\", \"type\": \"person\", \"definition\": \"Pandava who slew Jarasandha\"}]}",
-      "mode": "json_schema_strict"
+      "rels": [
+        {
+          "source": "Sanjaya",
+          "target": "Arjuna",
+          "type": "NARRATES",
+          "definition": "Sanjaya recounts Arjuna's deeds"
+        },
+        {
+          "source": "Sanjaya",
+          "target": "Bhima",
+          "type": "NARRATES",
+          "definition": "Sanjaya recounts Bhima's slaying of Jarasandha"
+        }
+      ],
+      "raw_text": "{\n \"nodes\": [\n {\"id\": \"Sanjaya\", \"type\": \"person\", \"definition\": \"Narrator who recounts the events\"},\n {\"id\": \"Duryodhana\", \"type\": \"person\", \"definition\": \"Prince of the Kauravas, antagonist\"},\n {\"id\": \"Arjuna\", \"type\": \"person\", \"definition\": \"Pandava prince, great archer\"},\n {\"id\": \"Bhima\", \"type\": \"person\", \"definition\": \"Pandava prince, strong warrior\"},\n {\"id\": \"Yudhishthira\", \"type\": \"person\", \"definition\": \"Pandava prince, eldest brother\"},\n {\"id\": \"Krishna\", \"type\": \"deity\", \"definition\": \"Divine prince of the Vrishni clan\"},\n {\"id\": \"Balarama\", \"type\": \"deity\", \"definition\": \"Brother of Krishna\"},\n {\"id\": \"Subhadra\", \"type\": \"person\", \"definition\": \"Sister of Krishna and Balarama, wife of Arjuna\"},\n {\"id\": \"Draupadi\", \"type\": \"person\", \"definition\": \"Wife of the Pandavas\"},\n {\"id\": \"Kunti\", \"type\": \"person\", \"definition\": \"Mother of the Pandavas\"},\n {\"id\": \"Indraprastha\", \"type\": \"place\", \"definition\": \"Capital city of the Pandavas\"},\n {\"id\": \"Dwaraka\", \"type\": \"place\", \"definition\": \"City of Krishna\"},\n {\"id\": \"Indra\", \"type\": \"deity\", \"definition\": \"King of the gods\"},\n {\"id\": \"Rajasuya\", \"type\": \"event\", \"definition\": \"Grand royal sacrifice performed by the Pandavas\"}\n ],\n \"rels\": [\n {\"source\": \"Sanjaya\", \"target\": \"Arjuna\", \"type\": \"NARRATES\", \"definition\": \"Sanjaya recounts Arjuna's deeds\"},\n {\"source\": \"Sanjaya\", \"target\": \"Bhima\", \"type\": \"NARRATES\", \"definition\": \"Sanjaya recounts Bhima's slaying of Jarasandha\"}]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 14,
+        "rels": 2
+      },
+      "diagnostics": {
+        "raw_node_count": 14,
+        "raw_rel_count": 2,
+        "canonical_node_count_before_filter": 14,
+        "canonical_rel_count_before_filter": 2,
+        "final_node_count": 3,
+        "final_rel_count": 2,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [
+          "Duryodhana",
+          "Yudhishthira",
+          "Krishna",
+          "Balarama",
+          "Subhadra",
+          "Draupadi",
+          "Kunti",
+          "Indraprastha",
+          "Dwaraka",
+          "Indra",
+          "Rajasuya"
+        ],
+        "node_alias_map": {
+          "Sanjaya": "Sanjaya",
+          "Duryodhana": "Duryodhana",
+          "Arjuna": "Arjuna",
+          "Bhima": "Bhima",
+          "Yudhishthira": "Yudhishthira",
+          "Krishna": "Krishna",
+          "Balarama": "Balarama",
+          "Subhadra": "Subhadra",
+          "Draupadi": "Draupadi",
+          "Kunti": "Kunti",
+          "Indraprastha": "Indraprastha",
+          "Dwaraka": "Dwaraka",
+          "Indra": "Indra",
+          "Rajasuya": "Rajasuya"
+        }
+      }
     },
     {
       "chunk_id": "chunk_007",
@@ -378,18 +536,18 @@
       "nodes": [
         {
           "id": "Sanjaya",
-          "type": "narrator",
-          "definition": "the listener addressed in the passage"
+          "type": "person",
+          "definition": "Narrator addressed in the passage"
         },
         {
           "id": "Yudhishthira",
           "type": "person",
-          "definition": "the Pandava king who was beaten at dice and exiled"
+          "definition": "King of the Pandavas, beaten at dice"
         },
         {
           "id": "Krishna",
-          "type": "deity",
-          "definition": "divine figure who tried to bring peace and showed Arjuna the worlds"
+          "type": "person",
+          "definition": "Divine hero, son of Vasudeva"
         },
         {
           "id": "Arjuna",
@@ -397,14 +555,36 @@
           "definition": "Pandava warrior, wielder of the bow Gandiva"
         },
         {
-          "id": "Duryodhana",
-          "type": "person",
-          "definition": "Kaurava leader who plotted to imprison Krishna"
+          "id": "Narada",
+          "type": "sage",
+          "definition": "Celestial sage who declared Krishna and Arjuna as Nara and Narayana"
         }
       ],
       "rels": [],
-      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Sanjaya\",\n      \"type\": \"narrator\",\n      \"definition\": \"the listener addressed in the passage\"\n    },\n    {\n      \"id\": \"Yudhishthira\",\n      \"type\": \"person\",\n      \"definition\": \"the Pandava king who was beaten at dice and exiled\"\n    },\n    {\n      \"id\": \"Krishna\",\n      \"type\": \"deity\",\n      \"definition\": \"divine figure who tried to bring peace and showed Arjuna the worlds\"\n    },\n    {\n      \"id\": \"Arjuna\",\n      \"type\": \"person\",\n      \"definition\": \"Pandava warrior, wielder of the bow Gandiva\"\n    },\n    {\n      \"id\": \"Duryodhana\",\n      \"type\": \"person\",\n      \"definition\": \"Kaurava leader who plotted to imprison Krishna\"\n    }]}",
-      "mode": "json_schema_strict"
+      "raw_text": "{\n \"nodes\": [\n {\"id\": \"Sanjaya\", \"type\": \"person\", \"definition\": \"Narrator addressed in the passage\"},\n {\"id\": \"Yudhishthira\", \"type\": \"person\", \"definition\": \"King of the Pandavas, beaten at dice\"},\n {\"id\": \"Krishna\", \"type\": \"person\", \"definition\": \"Divine hero, son of Vasudeva\"},\n {\"id\": \"Arjuna\", \"type\": \"person\", \"definition\": \"Pandava warrior, wielder of the bow Gandiva\"},\n {\"id\": \"Narada\", \"type\": \"sage\", \"definition\": \"Celestial sage who declared Krishna and Arjuna as Nara and Narayana\"}]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 5,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 5,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 5,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 5,
+        "final_rel_count": 0,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Sanjaya": "Sanjaya",
+          "Yudhishthira": "Yudhishthira",
+          "Krishna": "Krishna",
+          "Arjuna": "Arjuna",
+          "Narada": "Narada"
+        }
+      }
     },
     {
       "chunk_id": "chunk_008",
@@ -418,66 +598,75 @@
         {
           "id": "Drona",
           "type": "person",
-          "definition": "Teacher of the Pandavas, killed by Dhristadyumna"
+          "definition": "Teacher of the Kauravas, father of Ashwatthaman"
         },
         {
           "id": "Nakula",
           "type": "person",
-          "definition": "Son of Madri who fought the son of Drona"
+          "definition": "Son of Madri, Pandava"
         },
         {
           "id": "Madri",
           "type": "person",
-          "definition": "Mother of Nakula"
+          "definition": "Mother of Nakula and Sahadeva"
         },
         {
-          "id": "Bhimasena",
+          "id": "Bhima",
           "type": "person",
-          "definition": "Brother of the Pandavas who drank Duhsasana's blood"
+          "definition": "Pandava who killed Duhsasana"
         },
         {
           "id": "Karna",
           "type": "person",
-          "definition": "Great warrior slain by Arjuna"
+          "definition": "Warrior slain by Arjuna"
         },
         {
           "id": "Arjuna",
           "type": "person",
-          "definition": "Pandava hero who slew Karna and repelled Brahmashira"
-        },
-        {
-          "id": "Yudhishthira",
-          "type": "person",
-          "definition": "The Just, king of the Pandavas"
-        },
-        {
-          "id": "Krishna",
-          "type": "deity",
-          "definition": "Divine guide of the Pandavas"
-        },
-        {
-          "id": "Sahadeva",
-          "type": "person",
-          "definition": "Pandava who slew Suvala"
+          "definition": "Pandava who killed Karna and repelled Brahmashira"
         }
       ],
       "rels": [],
-      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Dhristadyumna\", \"type\": \"person\", \"definition\": \"Warrior who slew Drona\"},\n    {\"id\": \"Drona\", \"type\": \"person\", \"definition\": \"Teacher of the Pandavas, killed by Dhristadyumna\"},\n    {\"id\": \"Nakula\", \"type\": \"person\", \"definition\": \"Son of Madri who fought the son of Drona\"},\n    {\"id\": \"Madri\", \"type\": \"person\", \"definition\": \"Mother of Nakula\"},\n    {\"id\": \"Bhimasena\", \"type\": \"person\", \"definition\": \"Brother of the Pandavas who drank Duhsasana's blood\"},\n    {\"id\": \"Karna\", \"type\": \"person\", \"definition\": \"Great warrior slain by Arjuna\"},\n    {\"id\": \"Arjuna\", \"type\": \"person\", \"definition\": \"Pandava hero who slew Karna and repelled Brahmashira\"},\n    {\"id\": \"Yudhishthira\", \"type\": \"person\", \"definition\": \"The Just, king of the Pandavas\"},\n    {\"id\": \"Krishna\", \"type\": \"deity\", \"definition\": \"Divine guide of the Pandavas\"},\n    {\"id\": \"Sahadeva\", \"type\": \"person\", \"definition\": \"Pandava who slew Suvala\"}]}",
-      "mode": "json_schema_strict"
+      "raw_text": "{\n \"nodes\": [\n {\"id\": \"Dhristadyumna\", \"type\": \"person\", \"definition\": \"Warrior who slew Drona\"},\n {\"id\": \"Drona\", \"type\": \"person\", \"definition\": \"Teacher of the Kauravas, father of Ashwatthaman\"},\n {\"id\": \"Nakula\", \"type\": \"person\", \"definition\": \"Son of Madri, Pandava\"},\n {\"id\": \"Madri\", \"type\": \"person\", \"definition\": \"Mother of Nakula and Sahadeva\"},\n {\"id\": \"Bhima\", \"type\": \"person\", \"definition\": \"Pandava who killed Duhsasana\"},\n {\"id\": \"Karna\", \"type\": \"person\", \"definition\": \"Warrior slain by Arjuna\"},\n {\"id\": \"Arjuna\", \"type\": \"person\", \"definition\": \"Pandava who killed Karna and repelled Brahmashira\"}]}",
+      "mode": "json_schema_best_effort",
+      "raw_counts": {
+        "nodes": 7,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 7,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 7,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 7,
+        "final_rel_count": 0,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Dhristadyumna": "Dhristadyumna",
+          "Drona": "Drona",
+          "Nakula": "Nakula",
+          "Madri": "Madri",
+          "Bhima": "Bhima",
+          "Karna": "Karna",
+          "Arjuna": "Arjuna"
+        }
+      }
     },
     {
       "chunk_id": "chunk_009",
       "text": ", and Raghu; Vijava, Virihorta, \nAnga, Bhava, Sweta, and Vripadguru; Usinara, Sata-ratha, Kanka, Duliduha, and Druma; Dambhodbhava, Para, Vena, Sagara, \nSankriti, and Nimi; Ajeya, Parasu, Pundra, Sambhu, and holy Deva-Vridha; Devahuya, Supratika, and Vrihad-ratha; \nMahatsaha, Vinitatma, Sukratu, and Nala, the king of the Nishadas; Satyavrata, Santabhaya, Sumitra, and the chief Subala; \nJanujangha, Anaranya, Arka, Priyabhritya, Chuchi-vrata, Balabandhu, Nirmardda, Ketusringa, and Brhidbala; Dhrishtaketu, \nBrihatketu, Driptaketu, and Niramaya; Abikshit, Chapala, Dhurta, Kritbandhu, and Dridhe-shudhi; Mahapurana-sambhavya, \nPratyanga, Paraha and Sruti. These, O chief, and other Rajas, we hear enumerated by hundreds and by thousands, and still \nothers by millions, princes of great power and wisdom, quitting very abundant enjoyments met death as thy sons have done! \nTheir heavenly deeds, valour, and generosity, their magnanimity, faith, truth, purity, simplicity and mercy, are published to the \nworld in the records of former times by sacred bards of great learning. Though endued with every noble virtue, these have \nyielded up their lives. Thy sons were malevolent, inflamed with passion, avaricious, and of very evil-disposition. Thou art \nversed in the Sastras, O Bharata, and art intelligent and wise; they never sink under misfortunes whose understandings are \nguided by the Sastras. Thou art acquainted, O prince, with the lenity and severity of fate; this anxiety therefore for the safety of \nthy children is unbecoming. Moreover, it behoveth thee not to grieve for that which must happen: for who can avert, by his \nwisdom, the decrees of fate? No one can leave the way marked out for him by Providence. Existence and non-existence, \npleasure and pain all have Time for their root. Time createth all things and Time destroyeth all creatures. It is Time that burneth \ncreatures and it is Time that extinguisheth the fire. All states, the good and the evil, in the three worlds, are caused by Time. \nTime cutteth short all things and createth them anew. Time alone is awake when all things are asleep: indeed, Time is \nincapable of being overcome. Time passeth over all things without being retarded. Knowing, as thou dost, that all things past \nand future and all that exist at the present moment, are the offspring of Time, it behoveth thee not to throw away thy reason.' \n \n\"Sauti said, 'The son of Gavalgana having in this manner administered comfort to the royal Dhritarashtra overwhelmed with \ngrief for his sons, then restored his mind to peace. Taking these facts for his subject, Dwaipayana composed a holy Upanishad \nthat has been published to the world by learned and sacred bards in the Puranas composed by them. \n \n\"The study of the Bharata is an act of piety. He that readeth even one foot, with belief, hath his sins entirely purged away. \nHerein Devas, Devarshis, and immaculate Brahmarshis of good deeds, have been spoken of; and likewise Yakshas and great \nUragas (Nagas). Herein also hath been described the eternal Vasudeva possessing the six attributes. He is the true and just, the \npure and holy, the eternal Brahma, the supreme soul, the true constant light, whose divine deeds wise and learned recount; from \nwhom hath proceeded the non-existent and existent-non-existent universe with principles of generation and progression, and \nbirth, death and re-birth. That also hath been treated of which is called Adhyatma (the superintending spirit of nature) that \npartaketh of the attributes of the five elements. That also hath been described who is purusha being above such epithets as \n'undisplayed' and the like; also that which the foremost yatis exempt from the common destiny and endued with the power of \nmeditation and Tapas behold dwelling in their hearts as a reflected image in the mirror. \n \n\"The man of faith, devoted to piety, and constant in the exercise of virtue, on reading this section is freed from sin. The \nbeliever that constantly heareth recited this section of the Bharata, called the Introduction, from the beginning, falleth not into \ndifficulties. The man repeating any part of the introduction in the two twilights is during such act freed from the sins contracted \nduring the day or the night. This section, the body of the Bharata, is truth and nectar. As butter is in curd, Brahmana among \nbipeds, the Aranyaka among the Vedas, and nectar among medicines; as the sea is eminent among receptacles of water, and the \ncow among quadrupeds; as are these (among the things mentioned) so is the Bharata said to be among histories. \n \n\"He that causeth it, even a single foot thereof, to be recited to Brahmanas during a Sradha, his offerings of food and drink to the \nmanes of his ancestors become inexhaustible. \n \n\"By the aid of history and the Puranas, the Veda may be expounded; but the Veda is afraid of one of little information lest he \nshould it. The learned man who recites to other this Veda of Vyasa reapeth advantage. It may without doubt destroy even the \nsin of killing the embryo and the like. He that readeth this holy chapter of the moon, readeth the whole of the Bharata, I ween. \nThe man who with reverence daily listeneth to this sacred work acquireth long life and renown and ascendeth to heaven. \n \n\"In former days, having placed the four Vedas on one side and the Bharata on the other, these were weighed in the balance by \nthe celestials assembled for that purpose. And as the latter weighed heavier than the four Vedas with their mysteries, from that \nperiod it hath been called in the world Mahabharata (the great Bharata). Being esteemed superior both in substance and gravity \nof import it is denominated Mahabharata on account of such substance and gravity of import. He that knoweth its meaning is \nsaved from all his sins. \n \n'Tapa is innocent, study is harmless, the ordinance of the Vedas prescribed for all the tribes are harmless, the acquisition of \nwealth by exertion is harmless; but when they are ",
       "nodes": [
         {
-          "id": "Raghu",
+          "id": "Sauti",
           "type": "person",
-          "definition": "One of the enumerated princes"
+          "definition": "Narrator who speaks the passage"
         },
         {
-          "id": "Bharata",
-          "type": "work",
-          "definition": "The text being studied, described as an act of piety"
+          "id": "Gavalgana",
+          "type": "person",
+          "definition": "Father of the son who comforts Dhritarashtra"
         },
         {
           "id": "Dhritarashtra",
@@ -485,12 +674,7 @@
           "definition": "Royal figure overwhelmed with grief for his sons"
         },
         {
-          "id": "Sauti",
-          "type": "narrator",
-          "definition": "Speaker who relates the story"
-        },
-        {
-          "id": "Dwaipayana",
+          "id": "Vyasa",
           "type": "sage",
           "definition": "Composer of a holy Upanishad"
         },
@@ -502,41 +686,68 @@
         {
           "id": "Puranas",
           "type": "work",
-          "definition": "Collection of sacred bards' records where the Upanishad is published"
+          "definition": "Collection of sacred texts that publish the Upanishad"
+        },
+        {
+          "id": "Mahabharata",
+          "type": "work",
+          "definition": "Scripture whose study is described as an act of piety"
         },
         {
           "id": "Vasudeva",
           "type": "deity",
-          "definition": "Eternal being possessing six attributes"
+          "definition": "Eternal deity possessing six attributes"
         },
         {
-          "id": "Time",
+          "id": "Brahma",
+          "type": "deity",
+          "definition": "Supreme soul, described as pure and holy"
+        },
+        {
+          "id": "Adhyatma",
           "type": "concept",
-          "definition": "Primordial force that creates and destroys all things"
+          "definition": "Superintending spirit of nature"
         }
       ],
-      "rels": [
-        {
-          "source": "Sauti",
-          "target": "Dhritarashtra",
-          "type": "COMFORTS",
-          "definition": "Sauti comforts Dhritarashtra"
-        },
-        {
-          "source": "Dwaipayana",
-          "target": "Upanishad",
-          "type": "COMPOSED",
-          "definition": "Dwaipayana composed the Upanishad"
-        },
-        {
-          "source": "Upanishad",
-          "target": "Puranas",
-          "type": "PUBLISHED_IN",
-          "definition": "The Upanishad is published in the Puranas"
+      "rels": [],
+      "raw_text": "{\n \"nodes\": [\n {\"id\": \"Sauti\", \"type\": \"person\", \"definition\": \"Narrator who speaks the passage\"},\n {\"id\": \"Gavalgana\", \"type\": \"person\", \"definition\": \"Father of the son who comforts Dhritarashtra\"},\n {\"id\": \"Dhritarashtra\", \"type\": \"king\", \"definition\": \"Royal figure overwhelmed with grief for his sons\"},\n {\"id\": \"Dwaipayana\", \"type\": \"sage\", \"definition\": \"Composer of a holy Upanishad\"},\n {\"id\": \"Upanishad\", \"type\": \"work\", \"definition\": \"Holy text composed by Dwaipayana\"},\n {\"id\": \"Puranas\", \"type\": \"work\", \"definition\": \"Collection of sacred texts that publish the Upanishad\"},\n {\"id\": \"Bharata\", \"type\": \"work\", \"definition\": \"Scripture whose study is described as an act of piety\"},\n {\"id\": \"Vasudeva\", \"type\": \"deity\", \"definition\": \"Eternal deity possessing six attributes\"},\n {\"id\": \"Brahma\", \"type\": \"deity\", \"definition\": \"Supreme soul, described as pure and holy\"},\n {\"id\": \"Adhyatma\", \"type\": \"concept\", \"definition\": \"Superintending spirit of nature\"}]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 10,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 10,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 10,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 10,
+        "final_rel_count": 0,
+        "node_merges": [
+          {
+            "from": "Dwaipayana",
+            "to": "Vyasa"
+          },
+          {
+            "from": "Bharata",
+            "to": "Mahabharata"
+          }
+        ],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Sauti": "Sauti",
+          "Gavalgana": "Gavalgana",
+          "Dhritarashtra": "Dhritarashtra",
+          "Dwaipayana": "Vyasa",
+          "Upanishad": "Upanishad",
+          "Puranas": "Puranas",
+          "Bharata": "Mahabharata",
+          "Vasudeva": "Vasudeva",
+          "Brahma": "Brahma",
+          "Adhyatma": "Adhyatma"
         }
-      ],
-      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Raghu\",\n      \"type\": \"person\",\n      \"definition\": \"One of the enumerated princes\"\n    },\n    {\n      \"id\": \"Bharata\",\n      \"type\": \"work\",\n      \"definition\": \"The text being studied, described as an act of piety\"\n    },\n    {\n      \"id\": \"Dhritarashtra\",\n      \"type\": \"king\",\n      \"definition\": \"Royal figure overwhelmed with grief for his sons\"\n    },\n    {\n      \"id\": \"Sauti\",\n      \"type\": \"narrator\",\n      \"definition\": \"Speaker who relates the story\"\n    },\n    {\n      \"id\": \"Dwaipayana\",\n      \"type\": \"sage\",\n      \"definition\": \"Composer of a holy Upanishad\"\n    },\n    {\n      \"id\": \"Upanishad\",\n      \"type\": \"work\",\n      \"definition\": \"Holy text composed by Dwaipayana\"\n    },\n    {\n      \"id\": \"Puranas\",\n      \"type\": \"work\",\n      \"definition\": \"Collection of sacred bards' records where the Upanishad is published\"\n    },\n    {\n      \"id\": \"Vasudeva\",\n      \"type\": \"deity\",\n      \"definition\": \"Eternal being possessing six attributes\"\n    },\n    {\n      \"id\": \"Time\",\n      \"type\": \"concept\",\n      \"definition\": \"Primordial force that creates and destroys all things\"\n    }\n  ],\n  \"rels\": [\n    {\n      \"source\": \"Sauti\",\n      \"target\": \"Dhritarashtra\",\n      \"type\": \"COMFORTS\",\n      \"definition\": \"Sauti comforts Dhritarashtra\"\n    },\n    {\n      \"source\": \"Dwaipayana\",\n      \"target\": \"Upanishad\",\n      \"type\": \"COMPOSED\",\n      \"definition\": \"Dwaipayana composed the Upanishad\"\n    },\n    {\n      \"source\": \"Upanishad\",\n      \"target\": \"Puranas\",\n      \"type\": \"PUBLISHED_IN\",\n      \"definition\": \"The Upanishad is published in the Puranas\"\n    }]}",
-      "mode": "json_schema_strict"
+      }
     },
     {
       "chunk_id": "chunk_010",
@@ -545,294 +756,552 @@
         {
           "id": "Mahabharata",
           "type": "work",
-          "definition": "Epic text referenced as superior in substance and gravity"
-        },
-        {
-          "id": "Suta",
-          "type": "person",
-          "definition": "Father of the narrator Sauti"
+          "definition": "The epic text referred to in the passage."
         },
         {
           "id": "Sauti",
           "type": "person",
-          "definition": "Narrator who answers the Rishis"
+          "definition": "Narrator, son of Suta, who recounts the story."
         },
         {
           "id": "Rama",
           "type": "person",
-          "definition": "Son of Jamadagni, hero who slays Kshatriyas"
-        },
-        {
-          "id": "Jamadagni",
-          "type": "person",
-          "definition": "Father of Rama"
-        },
-        {
-          "id": "Bhrigu",
-          "type": "sage",
-          "definition": "Ancestor of Rama"
-        },
-        {
-          "id": "Richika",
-          "type": "sage",
-          "definition": "First forefather who appears at Samanta-panchaka"
-        },
-        {
-          "id": "Pitris",
-          "type": "group",
-          "definition": "Spirits of ancestors who speak to Rama"
-        },
-        {
-          "id": "Samanta-panchaka",
-          "type": "place",
-          "definition": "Holy region where Rama creates lakes of blood"
-        },
-        {
-          "id": "Kshatriyas",
-          "type": "group",
-          "definition": "Warrior caste slain by Rama"
-        },
-        {
-          "id": "Kauravas",
-          "type": "group",
-          "definition": "One of the two rival armies in the Mahabharata"
-        },
-        {
-          "id": "Pandavas",
-          "type": "group",
-          "definition": "The other rival army in the Mahabharata"
-        },
-        {
-          "id": "Akshauhini",
-          "type": "concept",
-          "definition": "Military formation with specific numbers of chariots, elephants, foot\u2011soldiers and horses"
-        },
-        {
-          "id": "Treta",
-          "type": "concept",
-          "definition": "Yuga preceding Dwapara"
-        },
-        {
-          "id": "Dwapara",
-          "type": "concept",
-          "definition": "Yuga between Treta and Kali"
-        },
-        {
-          "id": "Kali",
-          "type": "concept",
-          "definition": "Current Yuga"
+          "definition": "Son of Jamadagni, hero who slays Kshatriyas and creates the lakes at Samanta-panchaka."
         }
       ],
       "rels": [],
-      "raw_text": "{\n  \"nodes\": [\n    {\"id\": \"Mahabharata\", \"type\": \"work\", \"definition\": \"Epic text referenced as superior in substance and gravity\"},\n    {\"id\": \"Suta\", \"type\": \"person\", \"definition\": \"Father of the narrator Sauti\"},\n    {\"id\": \"Sauti\", \"type\": \"person\", \"definition\": \"Narrator who answers the Rishis\"},\n    {\"id\": \"Rama\", \"type\": \"person\", \"definition\": \"Son of Jamadagni, hero who slays Kshatriyas\"},\n    {\"id\": \"Jamadagni\", \"type\": \"person\", \"definition\": \"Father of Rama\"},\n    {\"id\": \"Bhrigu\", \"type\": \"sage\", \"definition\": \"Ancestor of Rama\"},\n    {\"id\": \"Richika\", \"type\": \"sage\", \"definition\": \"First forefather who appears at Samanta-panchaka\"},\n    {\"id\": \"Pitris\", \"type\": \"group\", \"definition\": \"Spirits of ancestors who speak to Rama\"},\n    {\"id\": \"Samanta-panchaka\", \"type\": \"place\", \"definition\": \"Holy region where Rama creates lakes of blood\"},\n    {\"id\": \"Kshatriyas\", \"type\": \"group\", \"definition\": \"Warrior caste slain by Rama\"},\n    {\"id\": \"Kauravas\", \"type\": \"group\", \"definition\": \"One of the two rival armies in the Mahabharata\"},\n    {\"id\": \"Pandavas\", \"type\": \"group\", \"definition\": \"The other rival army in the Mahabharata\"},\n    {\"id\": \"Akshauhini\", \"type\": \"concept\", \"definition\": \"Military formation with specific numbers of chariots, elephants, foot\u2011soldiers and horses\"},\n    {\"id\": \"Treta\", \"type\": \"concept\", \"definition\": \"Yuga preceding Dwapara\"},\n    {\"id\": \"Dwapara\", \"type\": \"concept\", \"definition\": \"Yuga between Treta and Kali\"},\n    {\"id\": \"Kali\", \"type\": \"concept\", \"definition\": \"Current Yuga\"}]}",
-      "mode": "json_schema_strict"
+      "raw_text": "{\n \"nodes\": [\n {\n \"id\": \"Mahabharata\",\n \"type\": \"work\",\n \"definition\": \"The epic text referred to in the passage.\"\n },\n {\n \"id\": \"Sauti\",\n \"type\": \"person\",\n \"definition\": \"Narrator, son of Suta, who recounts the story.\"\n },\n {\n \"id\": \"Rama\",\n \"type\": \"person\",\n \"definition\": \"Son of Jamadagni, hero who slays Kshatriyas and creates the lakes at Samanta-panchaka.\"\n }]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 3,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 3,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 3,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 3,
+        "final_rel_count": 0,
+        "node_merges": [],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Mahabharata": "Mahabharata",
+          "Sauti": "Sauti",
+          "Rama": "Rama"
+        }
+      }
     },
     {
       "chunk_id": "chunk_011",
       "text": "n as the body upon the foot that it taketh. As masters of good lineage \nare ever attended upon by servants desirous of preferment so is the Bharata cherished by all poets. As the words constituting \nthe several branches of knowledge appertaining to the world and the Veda display only vowels and consonants, so this \nexcellent history displayeth only the highest wisdom. \n \n'Listen, O ye ascetics, to the outlines of the several divisions (parvas) of this history called Bharata, endued with great wisdom, \nof sections and feet that are wonderful and various, of subtile meanings and logical connections, and embellished with the \nsubstance of the Vedas. \n \n'The first parva is called Anukramanika; the second, Sangraha; then Paushya; then Pauloma; the Astika; then \nAdivansavatarana. Then comes the Sambhava of wonderful and thrilling incidents. Then comes Jatugrihadaha (setting fire to \nthe house of lac) and then Hidimbabadha (the killing of Hidimba) parvas; then comes Baka-badha (slaughter of Baka) and then \nChitraratha. The next is called Swayamvara (selection of husband by Panchali), in which Arjuna by the exercise of Kshatriya \nvirtues, won Draupadi for wife. Then comes Vaivahika (marriage). Then comes Viduragamana (advent of Vidura), Rajyalabha \n(acquirement of kingdom), Arjuna-banavasa (exile of Arjuna) and Subhadra-harana (the carrying away of Subhadra). After ",
       "nodes": [
         {
-          "id": "Bharata",
+          "id": "Mahabharata",
           "type": "work",
-          "definition": "The history called Bharata described in the passage"
+          "definition": "The epic history called Bharata"
         },
         {
           "id": "Anukramanika",
           "type": "parva",
-          "definition": "The first parva of the Bharata"
+          "definition": "First parva of the Bharata"
+        },
+        {
+          "id": "Sangraha",
+          "type": "parva",
+          "definition": "Second parva of the Bharata"
         },
         {
           "id": "Swayamvara",
-          "type": "parva",
-          "definition": "Parva describing the selection of husband by Panchali"
+          "type": "event",
+          "definition": "Parva describing the selection of a husband by Panchali"
+        },
+        {
+          "id": "Viduragamana",
+          "type": "event",
+          "definition": "Parva describing the advent of Vidura"
         },
         {
           "id": "Arjuna",
           "type": "person",
-          "definition": "Kshatriya hero who wins Draupadi in the Swayamvara"
+          "definition": "Kshatriya hero who wins Draupadi and carries Subhadra away"
         },
         {
           "id": "Draupadi",
           "type": "person",
-          "definition": "Wife won by Arjuna; also known as Panchali"
-        },
-        {
-          "id": "Panchali",
-          "type": "person",
-          "definition": "Another name for Draupadi"
+          "definition": "Also called Panchali, wife won by Arjuna in the Swayamvara"
         },
         {
           "id": "Vidura",
           "type": "person",
-          "definition": "Character whose advent is mentioned in the Bharata"
-        },
-        {
-          "id": "Subhadra",
-          "type": "person",
-          "definition": "Character whose carrying away is mentioned in the Bharata"
-        },
-        {
-          "id": "Kshatriya",
-          "type": "concept",
-          "definition": "Warrior virtue exemplified by Arjuna"
+          "definition": "Character whose advent is described in Viduragamana"
         }
       ],
-      "rels": [
-        {
-          "source": "Bharata",
-          "target": "Anukramanika",
-          "type": "HAS_PARVA",
-          "definition": "Bharata contains the parva Anukramanika"
+      "rels": [],
+      "raw_text": "{\n \"nodes\": [\n {\n \"id\": \"Bharata\",\n \"type\": \"work\",\n \"definition\": \"The epic history called Bharata\"\n },\n {\n \"id\": \"Anukramanika\",\n \"type\": \"parva\",\n \"definition\": \"First parva of the Bharata\"\n },\n {\n \"id\": \"Sangraha\",\n \"type\": \"parva\",\n \"definition\": \"Second parva of the Bharata\"\n },\n {\n \"id\": \"Swayamvara\",\n \"type\": \"event\",\n \"definition\": \"Parva describing the selection of a husband by Panchali\"\n },\n {\n \"id\": \"Viduragamana\",\n \"type\": \"event\",\n \"definition\": \"Parva describing the advent of Vidura\"\n },\n {\n \"id\": \"Arjuna\",\n \"type\": \"person\",\n \"definition\": \"Kshatriya hero who wins Draupadi and carries Subhadra away\"\n },\n {\n \"id\": \"Draupadi\",\n \"type\": \"person\",\n \"definition\": \"Also called Panchali, wife won by Arjuna in the Swayamvara\"\n },\n {\n \"id\": \"Vidura\",\n \"type\": \"person\",\n \"definition\": \"Character whose advent is described in Viduragamana\"\n }]}",
+      "mode": "json_schema_strict",
+      "raw_counts": {
+        "nodes": 8,
+        "rels": 0
+      },
+      "diagnostics": {
+        "raw_node_count": 8,
+        "raw_rel_count": 0,
+        "canonical_node_count_before_filter": 8,
+        "canonical_rel_count_before_filter": 0,
+        "final_node_count": 8,
+        "final_rel_count": 0,
+        "node_merges": [
+          {
+            "from": "Bharata",
+            "to": "Mahabharata"
+          }
+        ],
+        "dropped_relationships": [],
+        "dropped_nodes": [],
+        "node_alias_map": {
+          "Bharata": "Mahabharata",
+          "Anukramanika": "Anukramanika",
+          "Sangraha": "Sangraha",
+          "Swayamvara": "Swayamvara",
+          "Viduragamana": "Viduragamana",
+          "Arjuna": "Arjuna",
+          "Draupadi": "Draupadi",
+          "Vidura": "Vidura"
         }
-      ],
-      "raw_text": "{\n  \"nodes\": [\n    {\n      \"id\": \"Bharata\",\n      \"type\": \"work\",\n      \"definition\": \"The history called Bharata described in the passage\"\n    },\n    {\n      \"id\": \"Anukramanika\",\n      \"type\": \"parva\",\n      \"definition\": \"The first parva of the Bharata\"\n    },\n    {\n      \"id\": \"Swayamvara\",\n      \"type\": \"parva\",\n      \"definition\": \"Parva describing the selection of husband by Panchali\"\n    },\n    {\n      \"id\": \"Arjuna\",\n      \"type\": \"person\",\n      \"definition\": \"Kshatriya hero who wins Draupadi in the Swayamvara\"\n    },\n    {\n      \"id\": \"Draupadi\",\n      \"type\": \"person\",\n      \"definition\": \"Wife won by Arjuna; also known as Panchali\"\n    },\n    {\n      \"id\": \"Panchali\",\n      \"type\": \"person\",\n      \"definition\": \"Another name for Draupadi\"\n    },\n    {\n      \"id\": \"Vidura\",\n      \"type\": \"person\",\n      \"definition\": \"Character whose advent is mentioned in the Bharata\"\n    },\n    {\n      \"id\": \"Subhadra\",\n      \"type\": \"person\",\n      \"definition\": \"Character whose carrying away is mentioned in the Bharata\"\n    },\n    {\n      \"id\": \"Kshatriya\",\n      \"type\": \"concept\",\n      \"definition\": \"Warrior virtue exemplified by Arjuna\"\n    }\n  ],\n  \"rels\": [\n    {\n      \"source\": \"Bharata\",\n      \"target\": \"Anukramanika\",\n      \"type\": \"HAS_PARVA\",\n      \"definition\": \"Bharata contains the parva Anukramanika\"\n    }]}",
-      "mode": "json_schema_strict"
+      }
     }
   ],
   "extraction_summary": {
     "chunk_extraction_calls": 12,
-    "total_extracted_nodes": 103,
-    "total_extracted_relationships": 9,
+    "total_extracted_nodes": 83,
+    "total_extracted_relationships": 2,
     "per_chunk_usage": [
       {
         "chunk_id": "chunk_000",
-        "usage": {
-          "queue_time": 0.05653515,
-          "prompt_tokens": 1323,
-          "prompt_time": 0.087566611,
-          "completion_tokens": 700,
-          "completion_time": 1.5004560219999998,
-          "total_tokens": 2023,
-          "total_time": 1.588022633,
-          "prompt_tokens_details": {
-            "cached_tokens": 256
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 134
+        "usage": null,
+        "node_count": 11,
+        "relationship_count": 0,
+        "mode": "json_schema_strict",
+        "raw_node_count": 11,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 11,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 11,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 11,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Mahabharata": "Mahabharata",
+            "Vyasa": "Vyasa",
+            "Adi_Parva": "Adi_Parva",
+            "Kisari_Mohan_Ganguli": "Kisari_Mohan_Ganguli",
+            "Juliet_Sutherland": "Juliet_Sutherland",
+            "J_B_Hare": "J_B_Hare",
+            "Babu_Pratapa_Chandra_Roy": "Babu_Pratapa_Chandra_Roy",
+            "Babu_Durga_Charan_Banerjee": "Babu_Durga_Charan_Banerjee",
+            "Dr_Rost": "Dr_Rost",
+            "Dr_Sambhu_C_Mookherjee": "Dr_Sambhu_C_Mookherjee",
+            "sacred_texts_com": "sacred_texts_com"
           }
-        },
-        "node_count": 10,
-        "relationship_count": 2,
-        "mode": "json_schema_strict"
+        }
       },
       {
         "chunk_id": "chunk_001",
         "usage": null,
-        "node_count": 11,
+        "node_count": 5,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 5,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 5,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 5,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 5,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Vyasa": "Vyasa",
+            "Mahabharata": "Mahabharata",
+            "Pratapa_Chandra_Roy": "Pratapa_Chandra_Roy",
+            "Indian_Journal": "Indian_Journal",
+            "Babu_Charu_Charan_Mookerjee": "Babu_Charu_Charan_Mookerjee"
+          }
+        }
       },
       {
         "chunk_id": "chunk_002",
         "usage": null,
-        "node_count": 3,
+        "node_count": 9,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 9,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 9,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 9,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 9,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Vyasa": "Vyasa",
+            "Mahabharata": "Mahabharata",
+            "AdiParva": "AdiParva",
+            "Sauti": "Sauti",
+            "Lomaharshana": "Lomaharshana",
+            "Saunaka": "Saunaka",
+            "NaimishaForest": "NaimishaForest",
+            "Janamejaya": "Janamejaya",
+            "Vaisampayana": "Vaisampayana"
+          }
+        }
       },
       {
         "chunk_id": "chunk_003",
-        "usage": null,
-        "node_count": 6,
+        "usage": {
+          "queue_time": 1.186159436,
+          "prompt_tokens": 1517,
+          "prompt_time": 0.073148603,
+          "completion_tokens": 700,
+          "completion_time": 1.490386794,
+          "total_tokens": 2217,
+          "total_time": 1.5635353969999999,
+          "completion_tokens_details": {
+            "reasoning_tokens": 316
+          }
+        },
+        "node_count": 12,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_best_effort",
+        "raw_node_count": 12,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 12,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 12,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 12,
+          "final_rel_count": 0,
+          "node_merges": [
+            {
+              "from": "Bharata",
+              "to": "Mahabharata"
+            }
+          ],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Brahma": "Brahma",
+            "Parameshthi": "Parameshthi",
+            "Vyasa": "Vyasa",
+            "Parasara": "Parasara",
+            "Manu": "Manu",
+            "Vasishtha": "Vasishtha",
+            "Daksha": "Daksha",
+            "Aswins": "Aswins",
+            "Devas": "Devas",
+            "Yuga": "Yuga",
+            "Vedas": "Vedas",
+            "Bharata": "Mahabharata"
+          }
+        }
       },
       {
         "chunk_id": "chunk_004",
-        "usage": {
-          "queue_time": 0.052522874,
-          "prompt_tokens": 1391,
-          "prompt_time": 0.426563723,
-          "completion_tokens": 700,
-          "completion_time": 1.568909193,
-          "total_tokens": 2091,
-          "total_time": 1.995472916,
-          "prompt_tokens_details": {
-            "cached_tokens": 256
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 145
+        "usage": null,
+        "node_count": 5,
+        "relationship_count": 0,
+        "mode": "json_schema_strict",
+        "raw_node_count": 5,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 5,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 5,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 5,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Vyasa": "Vyasa",
+            "Ganesa": "Ganesa",
+            "Sauti": "Sauti",
+            "Suka": "Suka",
+            "Sanjaya": "Sanjaya"
           }
-        },
-        "node_count": 14,
-        "relationship_count": 3,
-        "mode": "json_schema_strict"
+        }
       },
       {
         "chunk_id": "chunk_005",
         "usage": null,
-        "node_count": 1,
+        "node_count": 5,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 5,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 5,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 5,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 5,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Vyasa": "Vyasa",
+            "Vaisampayana": "Vaisampayana",
+            "Sauti": "Sauti",
+            "Yudhishthira": "Yudhishthira",
+            "Arjuna": "Arjuna"
+          }
+        }
       },
       {
         "chunk_id": "chunk_006",
-        "usage": null,
-        "node_count": 9,
-        "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "usage": {
+          "queue_time": 0.057145506,
+          "prompt_tokens": 1508,
+          "prompt_time": 5.521353744,
+          "completion_tokens": 700,
+          "completion_time": 1.488326382,
+          "total_tokens": 2208,
+          "total_time": 7.009680126,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 212
+          }
+        },
+        "node_count": 3,
+        "relationship_count": 2,
+        "mode": "json_schema_strict",
+        "raw_node_count": 14,
+        "raw_relationship_count": 2,
+        "diagnostics": {
+          "raw_node_count": 14,
+          "raw_rel_count": 2,
+          "canonical_node_count_before_filter": 14,
+          "canonical_rel_count_before_filter": 2,
+          "final_node_count": 3,
+          "final_rel_count": 2,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [
+            "Duryodhana",
+            "Yudhishthira",
+            "Krishna",
+            "Balarama",
+            "Subhadra",
+            "Draupadi",
+            "Kunti",
+            "Indraprastha",
+            "Dwaraka",
+            "Indra",
+            "Rajasuya"
+          ],
+          "node_alias_map": {
+            "Sanjaya": "Sanjaya",
+            "Duryodhana": "Duryodhana",
+            "Arjuna": "Arjuna",
+            "Bhima": "Bhima",
+            "Yudhishthira": "Yudhishthira",
+            "Krishna": "Krishna",
+            "Balarama": "Balarama",
+            "Subhadra": "Subhadra",
+            "Draupadi": "Draupadi",
+            "Kunti": "Kunti",
+            "Indraprastha": "Indraprastha",
+            "Dwaraka": "Dwaraka",
+            "Indra": "Indra",
+            "Rajasuya": "Rajasuya"
+          }
+        }
       },
       {
         "chunk_id": "chunk_007",
         "usage": null,
         "node_count": 5,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 5,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 5,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 5,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 5,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Sanjaya": "Sanjaya",
+            "Yudhishthira": "Yudhishthira",
+            "Krishna": "Krishna",
+            "Arjuna": "Arjuna",
+            "Narada": "Narada"
+          }
+        }
       },
       {
         "chunk_id": "chunk_008",
-        "usage": null,
-        "node_count": 10,
+        "usage": {
+          "queue_time": 0.777474167,
+          "prompt_tokens": 1546,
+          "prompt_time": 0.072348276,
+          "completion_tokens": 700,
+          "completion_time": 1.476346905,
+          "total_tokens": 2246,
+          "total_time": 1.548695181,
+          "completion_tokens_details": {
+            "reasoning_tokens": 470
+          }
+        },
+        "node_count": 7,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_best_effort",
+        "raw_node_count": 7,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 7,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 7,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 7,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Dhristadyumna": "Dhristadyumna",
+            "Drona": "Drona",
+            "Nakula": "Nakula",
+            "Madri": "Madri",
+            "Bhima": "Bhima",
+            "Karna": "Karna",
+            "Arjuna": "Arjuna"
+          }
+        }
       },
       {
         "chunk_id": "chunk_009",
-        "usage": {
-          "queue_time": 0.054739965,
-          "prompt_tokens": 1450,
-          "prompt_time": 0.202640214,
-          "completion_tokens": 700,
-          "completion_time": 2.005498799,
-          "total_tokens": 2150,
-          "total_time": 2.208139013,
-          "prompt_tokens_details": {
-            "cached_tokens": 256
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 180
+        "usage": null,
+        "node_count": 10,
+        "relationship_count": 0,
+        "mode": "json_schema_strict",
+        "raw_node_count": 10,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 10,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 10,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 10,
+          "final_rel_count": 0,
+          "node_merges": [
+            {
+              "from": "Dwaipayana",
+              "to": "Vyasa"
+            },
+            {
+              "from": "Bharata",
+              "to": "Mahabharata"
+            }
+          ],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Sauti": "Sauti",
+            "Gavalgana": "Gavalgana",
+            "Dhritarashtra": "Dhritarashtra",
+            "Dwaipayana": "Vyasa",
+            "Upanishad": "Upanishad",
+            "Puranas": "Puranas",
+            "Bharata": "Mahabharata",
+            "Vasudeva": "Vasudeva",
+            "Brahma": "Brahma",
+            "Adhyatma": "Adhyatma"
           }
-        },
-        "node_count": 9,
-        "relationship_count": 3,
-        "mode": "json_schema_strict"
+        }
       },
       {
         "chunk_id": "chunk_010",
         "usage": null,
-        "node_count": 16,
+        "node_count": 3,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 3,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 3,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 3,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 3,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Mahabharata": "Mahabharata",
+            "Sauti": "Sauti",
+            "Rama": "Rama"
+          }
+        }
       },
       {
         "chunk_id": "chunk_011",
-        "usage": {
-          "queue_time": 0.056227713,
-          "prompt_tokens": 721,
-          "prompt_time": 0.025468482,
-          "completion_tokens": 700,
-          "completion_time": 1.5173459980000001,
-          "total_tokens": 1421,
-          "total_time": 1.54281448,
-          "prompt_tokens_details": {
-            "cached_tokens": 256
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 292
+        "usage": null,
+        "node_count": 8,
+        "relationship_count": 0,
+        "mode": "json_schema_strict",
+        "raw_node_count": 8,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 8,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 8,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 8,
+          "final_rel_count": 0,
+          "node_merges": [
+            {
+              "from": "Bharata",
+              "to": "Mahabharata"
+            }
+          ],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Bharata": "Mahabharata",
+            "Anukramanika": "Anukramanika",
+            "Sangraha": "Sangraha",
+            "Swayamvara": "Swayamvara",
+            "Viduragamana": "Viduragamana",
+            "Arjuna": "Arjuna",
+            "Draupadi": "Draupadi",
+            "Vidura": "Vidura"
           }
-        },
-        "node_count": 9,
-        "relationship_count": 1,
-        "mode": "json_schema_strict"
+        }
       }
     ]
   }

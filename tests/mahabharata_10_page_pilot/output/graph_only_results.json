@@ -10,7 +10,7 @@
     "top_k": 3,
     "graph_only": true,
     "all_questions": true,
-    "embedding_cache_hit": false,
+    "embedding_cache_hit": true,
     "graph_cache_hit": false
   },
   "sample_metadata": {
@@ -26,153 +26,438 @@
   },
   "chunk_count": 12,
   "graph_stats": {
-    "graph_node_count": 79,
-    "graph_edge_count": 9
+    "graph_node_count": 57,
+    "graph_edge_count": 2
   },
   "extraction_summary": {
     "chunk_extraction_calls": 12,
-    "total_extracted_nodes": 103,
-    "total_extracted_relationships": 9,
+    "total_extracted_nodes": 83,
+    "total_extracted_relationships": 2,
     "per_chunk_usage": [
       {
         "chunk_id": "chunk_000",
-        "usage": {
-          "queue_time": 0.05653515,
-          "prompt_tokens": 1323,
-          "prompt_time": 0.087566611,
-          "completion_tokens": 700,
-          "completion_time": 1.5004560219999998,
-          "total_tokens": 2023,
-          "total_time": 1.588022633,
-          "prompt_tokens_details": {
-            "cached_tokens": 256
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 134
+        "usage": null,
+        "node_count": 11,
+        "relationship_count": 0,
+        "mode": "json_schema_strict",
+        "raw_node_count": 11,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 11,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 11,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 11,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Mahabharata": "Mahabharata",
+            "Vyasa": "Vyasa",
+            "Adi_Parva": "Adi_Parva",
+            "Kisari_Mohan_Ganguli": "Kisari_Mohan_Ganguli",
+            "Juliet_Sutherland": "Juliet_Sutherland",
+            "J_B_Hare": "J_B_Hare",
+            "Babu_Pratapa_Chandra_Roy": "Babu_Pratapa_Chandra_Roy",
+            "Babu_Durga_Charan_Banerjee": "Babu_Durga_Charan_Banerjee",
+            "Dr_Rost": "Dr_Rost",
+            "Dr_Sambhu_C_Mookherjee": "Dr_Sambhu_C_Mookherjee",
+            "sacred_texts_com": "sacred_texts_com"
           }
-        },
-        "node_count": 10,
-        "relationship_count": 2,
-        "mode": "json_schema_strict"
+        }
       },
       {
         "chunk_id": "chunk_001",
         "usage": null,
-        "node_count": 11,
+        "node_count": 5,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 5,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 5,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 5,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 5,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Vyasa": "Vyasa",
+            "Mahabharata": "Mahabharata",
+            "Pratapa_Chandra_Roy": "Pratapa_Chandra_Roy",
+            "Indian_Journal": "Indian_Journal",
+            "Babu_Charu_Charan_Mookerjee": "Babu_Charu_Charan_Mookerjee"
+          }
+        }
       },
       {
         "chunk_id": "chunk_002",
         "usage": null,
-        "node_count": 3,
+        "node_count": 9,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 9,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 9,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 9,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 9,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Vyasa": "Vyasa",
+            "Mahabharata": "Mahabharata",
+            "AdiParva": "AdiParva",
+            "Sauti": "Sauti",
+            "Lomaharshana": "Lomaharshana",
+            "Saunaka": "Saunaka",
+            "NaimishaForest": "NaimishaForest",
+            "Janamejaya": "Janamejaya",
+            "Vaisampayana": "Vaisampayana"
+          }
+        }
       },
       {
         "chunk_id": "chunk_003",
-        "usage": null,
-        "node_count": 6,
+        "usage": {
+          "queue_time": 1.186159436,
+          "prompt_tokens": 1517,
+          "prompt_time": 0.073148603,
+          "completion_tokens": 700,
+          "completion_time": 1.490386794,
+          "total_tokens": 2217,
+          "total_time": 1.5635353969999999,
+          "completion_tokens_details": {
+            "reasoning_tokens": 316
+          }
+        },
+        "node_count": 12,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_best_effort",
+        "raw_node_count": 12,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 12,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 12,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 12,
+          "final_rel_count": 0,
+          "node_merges": [
+            {
+              "from": "Bharata",
+              "to": "Mahabharata"
+            }
+          ],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Brahma": "Brahma",
+            "Parameshthi": "Parameshthi",
+            "Vyasa": "Vyasa",
+            "Parasara": "Parasara",
+            "Manu": "Manu",
+            "Vasishtha": "Vasishtha",
+            "Daksha": "Daksha",
+            "Aswins": "Aswins",
+            "Devas": "Devas",
+            "Yuga": "Yuga",
+            "Vedas": "Vedas",
+            "Bharata": "Mahabharata"
+          }
+        }
       },
       {
         "chunk_id": "chunk_004",
-        "usage": {
-          "queue_time": 0.052522874,
-          "prompt_tokens": 1391,
-          "prompt_time": 0.426563723,
-          "completion_tokens": 700,
-          "completion_time": 1.568909193,
-          "total_tokens": 2091,
-          "total_time": 1.995472916,
-          "prompt_tokens_details": {
-            "cached_tokens": 256
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 145
+        "usage": null,
+        "node_count": 5,
+        "relationship_count": 0,
+        "mode": "json_schema_strict",
+        "raw_node_count": 5,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 5,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 5,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 5,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Vyasa": "Vyasa",
+            "Ganesa": "Ganesa",
+            "Sauti": "Sauti",
+            "Suka": "Suka",
+            "Sanjaya": "Sanjaya"
           }
-        },
-        "node_count": 14,
-        "relationship_count": 3,
-        "mode": "json_schema_strict"
+        }
       },
       {
         "chunk_id": "chunk_005",
         "usage": null,
-        "node_count": 1,
+        "node_count": 5,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 5,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 5,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 5,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 5,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Vyasa": "Vyasa",
+            "Vaisampayana": "Vaisampayana",
+            "Sauti": "Sauti",
+            "Yudhishthira": "Yudhishthira",
+            "Arjuna": "Arjuna"
+          }
+        }
       },
       {
         "chunk_id": "chunk_006",
-        "usage": null,
-        "node_count": 9,
-        "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "usage": {
+          "queue_time": 0.057145506,
+          "prompt_tokens": 1508,
+          "prompt_time": 5.521353744,
+          "completion_tokens": 700,
+          "completion_time": 1.488326382,
+          "total_tokens": 2208,
+          "total_time": 7.009680126,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 212
+          }
+        },
+        "node_count": 3,
+        "relationship_count": 2,
+        "mode": "json_schema_strict",
+        "raw_node_count": 14,
+        "raw_relationship_count": 2,
+        "diagnostics": {
+          "raw_node_count": 14,
+          "raw_rel_count": 2,
+          "canonical_node_count_before_filter": 14,
+          "canonical_rel_count_before_filter": 2,
+          "final_node_count": 3,
+          "final_rel_count": 2,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [
+            "Duryodhana",
+            "Yudhishthira",
+            "Krishna",
+            "Balarama",
+            "Subhadra",
+            "Draupadi",
+            "Kunti",
+            "Indraprastha",
+            "Dwaraka",
+            "Indra",
+            "Rajasuya"
+          ],
+          "node_alias_map": {
+            "Sanjaya": "Sanjaya",
+            "Duryodhana": "Duryodhana",
+            "Arjuna": "Arjuna",
+            "Bhima": "Bhima",
+            "Yudhishthira": "Yudhishthira",
+            "Krishna": "Krishna",
+            "Balarama": "Balarama",
+            "Subhadra": "Subhadra",
+            "Draupadi": "Draupadi",
+            "Kunti": "Kunti",
+            "Indraprastha": "Indraprastha",
+            "Dwaraka": "Dwaraka",
+            "Indra": "Indra",
+            "Rajasuya": "Rajasuya"
+          }
+        }
       },
       {
         "chunk_id": "chunk_007",
         "usage": null,
         "node_count": 5,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 5,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 5,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 5,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 5,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Sanjaya": "Sanjaya",
+            "Yudhishthira": "Yudhishthira",
+            "Krishna": "Krishna",
+            "Arjuna": "Arjuna",
+            "Narada": "Narada"
+          }
+        }
       },
       {
         "chunk_id": "chunk_008",
-        "usage": null,
-        "node_count": 10,
+        "usage": {
+          "queue_time": 0.777474167,
+          "prompt_tokens": 1546,
+          "prompt_time": 0.072348276,
+          "completion_tokens": 700,
+          "completion_time": 1.476346905,
+          "total_tokens": 2246,
+          "total_time": 1.548695181,
+          "completion_tokens_details": {
+            "reasoning_tokens": 470
+          }
+        },
+        "node_count": 7,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_best_effort",
+        "raw_node_count": 7,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 7,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 7,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 7,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Dhristadyumna": "Dhristadyumna",
+            "Drona": "Drona",
+            "Nakula": "Nakula",
+            "Madri": "Madri",
+            "Bhima": "Bhima",
+            "Karna": "Karna",
+            "Arjuna": "Arjuna"
+          }
+        }
       },
       {
         "chunk_id": "chunk_009",
-        "usage": {
-          "queue_time": 0.054739965,
-          "prompt_tokens": 1450,
-          "prompt_time": 0.202640214,
-          "completion_tokens": 700,
-          "completion_time": 2.005498799,
-          "total_tokens": 2150,
-          "total_time": 2.208139013,
-          "prompt_tokens_details": {
-            "cached_tokens": 256
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 180
+        "usage": null,
+        "node_count": 10,
+        "relationship_count": 0,
+        "mode": "json_schema_strict",
+        "raw_node_count": 10,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 10,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 10,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 10,
+          "final_rel_count": 0,
+          "node_merges": [
+            {
+              "from": "Dwaipayana",
+              "to": "Vyasa"
+            },
+            {
+              "from": "Bharata",
+              "to": "Mahabharata"
+            }
+          ],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Sauti": "Sauti",
+            "Gavalgana": "Gavalgana",
+            "Dhritarashtra": "Dhritarashtra",
+            "Dwaipayana": "Vyasa",
+            "Upanishad": "Upanishad",
+            "Puranas": "Puranas",
+            "Bharata": "Mahabharata",
+            "Vasudeva": "Vasudeva",
+            "Brahma": "Brahma",
+            "Adhyatma": "Adhyatma"
           }
-        },
-        "node_count": 9,
-        "relationship_count": 3,
-        "mode": "json_schema_strict"
+        }
       },
       {
         "chunk_id": "chunk_010",
         "usage": null,
-        "node_count": 16,
+        "node_count": 3,
         "relationship_count": 0,
-        "mode": "json_schema_strict"
+        "mode": "json_schema_strict",
+        "raw_node_count": 3,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 3,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 3,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 3,
+          "final_rel_count": 0,
+          "node_merges": [],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Mahabharata": "Mahabharata",
+            "Sauti": "Sauti",
+            "Rama": "Rama"
+          }
+        }
       },
       {
         "chunk_id": "chunk_011",
-        "usage": {
-          "queue_time": 0.056227713,
-          "prompt_tokens": 721,
-          "prompt_time": 0.025468482,
-          "completion_tokens": 700,
-          "completion_time": 1.5173459980000001,
-          "total_tokens": 1421,
-          "total_time": 1.54281448,
-          "prompt_tokens_details": {
-            "cached_tokens": 256
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 292
+        "usage": null,
+        "node_count": 8,
+        "relationship_count": 0,
+        "mode": "json_schema_strict",
+        "raw_node_count": 8,
+        "raw_relationship_count": 0,
+        "diagnostics": {
+          "raw_node_count": 8,
+          "raw_rel_count": 0,
+          "canonical_node_count_before_filter": 8,
+          "canonical_rel_count_before_filter": 0,
+          "final_node_count": 8,
+          "final_rel_count": 0,
+          "node_merges": [
+            {
+              "from": "Bharata",
+              "to": "Mahabharata"
+            }
+          ],
+          "dropped_relationships": [],
+          "dropped_nodes": [],
+          "node_alias_map": {
+            "Bharata": "Mahabharata",
+            "Anukramanika": "Anukramanika",
+            "Sangraha": "Sangraha",
+            "Swayamvara": "Swayamvara",
+            "Viduragamana": "Viduragamana",
+            "Arjuna": "Arjuna",
+            "Draupadi": "Draupadi",
+            "Vidura": "Vidura"
           }
-        },
-        "node_count": 9,
-        "relationship_count": 1,
-        "mode": "json_schema_strict"
+        }
       }
     ]
   },
@@ -200,34 +485,29 @@
         }
       ],
       "graph_rag": {
-        "answer": "Sauti is the sage\u2011story\u2011teller who opens the Mahabharata.  He is introduced as **Ugrasrava, the son of Lomaharshana, surnamed\u202fSauti**, a learned man \u201cwell\u2011versed in the Puranas.\u201d  After the twelve\u2011year sacrifice of the sage Saunaka in the forest of Naimi\u1e63a, the assembled Munis invite him to speak.  The rishis ask him where he has come from and what he wishes to relate, and Sauti replies that he will recount the sacred history of the Bharata (the Mah\u0101bh\u0101rata) as it was heard from Vy\u0101sa and Vaisampayana\u3010chunk_002\u3011.  Thus, Sauti\u2019s role in the opening of the epic is that of the **narrator who approaches the sages, is asked what they desire to hear, and then begins the recitation of the Mah\u0101bh\u0101rata**\u3010chunk_004\u3011.",
+        "answer": "Sauti is the name by which the sage Ugrasrava, son of Lomaharshana, is known in the Mahabharata. He is described as \"well-versed in the Puranas\" and as the narrator who comes to the assembly of the Saunaka-sages in the forest of Naimisa after their twelve-year sacrifice. The sages, wishing to hear the great story, ask him what he will relate, and Sauti replies that he will recount the sacred history called Bharata (the Mahabharata) that was composed by Vyasa and recited by Vaisampayana. Thus, at the very opening of the work Sauti occupies the role of the principal storyteller who introduces and begins the narration of the Mahabharata for the assembled Munis. [chunk_002]",
         "usage": {
-          "queue_time": 0.052654648,
-          "prompt_tokens": 3810,
-          "prompt_time": 0.194040761,
-          "completion_tokens": 418,
-          "completion_time": 0.876069445,
-          "total_tokens": 4228,
-          "total_time": 1.070110206,
+          "queue_time": 0.158687916,
+          "prompt_tokens": 3853,
+          "prompt_time": 0.149722904,
+          "completion_tokens": 348,
+          "completion_time": 1.284612759,
+          "total_tokens": 4201,
+          "total_time": 1.434335663,
           "completion_tokens_details": {
-            "reasoning_tokens": 208
+            "reasoning_tokens": 156
           }
         },
-        "graph_node_count": 79,
-        "graph_edge_count": 9,
+        "graph_node_count": 57,
+        "graph_edge_count": 2,
         "seed_chunk_ids": [
           "chunk_002",
           "chunk_004",
           "chunk_010"
         ],
-        "related_entity_count": 34,
-        "related_relationship_count": 7,
+        "related_entity_count": 15,
+        "related_relationship_count": 2,
         "related_chunks": [
-          {
-            "chunk_id": "chunk_000",
-            "score": 0.0,
-            "text_preview": "The Complete Mahabharata in English \n \n \nThe Mahabharata \nof \nKrishna-Dwaipayana Vyasa \n \nBOOK 1 \nADI PARVA \n \n \n \nTranslated into English Prose from the Original Sanskrit Text by Kisari Mohan Ganguli [1883-1896] \n \nScanned at sacred-texts.com, 2003. Proofed at Distributed Proofing, Juliet Sutherland, Project Manager. Additional proofing \nand forma"
-          },
           {
             "chunk_id": "chunk_002",
             "score": 0.0,
@@ -239,19 +519,14 @@
             "text_preview": "\nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in "
           },
           {
-            "chunk_id": "chunk_009",
+            "chunk_id": "chunk_006",
             "score": 0.0,
-            "text_preview": ", and Raghu; Vijava, Virihorta, \nAnga, Bhava, Sweta, and Vripadguru; Usinara, Sata-ratha, Kanka, Duliduha, and Druma; Dambhodbhava, Para, Vena, Sagara, \nSankriti, and Nimi; Ajeya, Parasu, Pundra, Sambhu, and holy Deva-Vridha; Devahuya, Supratika, and Vrihad-ratha; \nMahatsaha, Vinitatma, Sukratu, and Nala, the king of the Nishadas; Satyavrata, Santa"
+            "text_preview": "I am old. Blind as I am, because of my miserable plight and through paternal affection, I bore it all. I was foolish \nalter the thoughtless Duryodhana ever growing in folly. Having been a spectator of the riches of the mighty sons of Pandu, my \nson was derided for his awkwardness while ascending the hall. Unable to bear it all and unable himself to"
           },
           {
             "chunk_id": "chunk_010",
             "score": 0.0,
             "text_preview": "eat Bharata). Being esteemed superior both in substance and gravity \nof import it is denominated Mahabharata on account of such substance and gravity of import. He that knoweth its meaning is \nsaved from all his sins. \n \n'Tapa is innocent, study is harmless, the ordinance of the Vedas prescribed for all the tribes are harmless, the acquisition of \n"
-          },
-          {
-            "chunk_id": "chunk_011",
-            "score": 0.0,
-            "text_preview": "n as the body upon the foot that it taketh. As masters of good lineage \nare ever attended upon by servants desirous of preferment so is the Bharata cherished by all poets. As the words constituting \nthe several branches of knowledge appertaining to the world and the Veda display only vowels and consonants, so this \nexcellent history displayeth only"
           }
         ]
       }
@@ -279,28 +554,28 @@
         }
       ],
       "graph_rag": {
-        "answer": "In the opening of the Mah\u0101bh\u0101rata the sage Vy\u0101sa summons Ganesha, the remover of obstacles, and appoints him **the writer of the poem**.  Vy\u0101sa asks Ganesha to \u201cbe thou the writer of the Bharata which I have formed in my imagination,\u201d and Ganesha replies that he will write it so long as his pen never ceases.  Thus Ganesha\u2019s function is that of the divine scribe who actually puts Vy\u0101sa\u2019s dictated verses onto the page, while Vy\u0101sa continues to compose the verses.  This is reflected in the text\u2019s statement that \u201cGanesa\u2026 was no sooner thought of, than he repaired to the place where Vy\u0101sa was seated\u2026 \u2018O guide of the Ganas! be thou the writer of the Bharata\u2026\u2019\u201d and in the relationship \u201cGanesa\u202f\u2011[COMPOSED]\u2011>\u202fBharata\u201d\u3010chunk_004\u3011.",
+        "answer": "In the opening of the Mahabharata, Vyasa summons Ganesha, the remover of obstacles, and asks him to be the scribe of the epic. Ganesha agrees to write the \"Bharata\" that Vyasa has imagined, on the condition that his pen never cease to move. Thus Ganesha functions as the divine author-writer who records Vyasa's verses while Vyasa continues to compose them[chunk_004].",
         "usage": {
-          "queue_time": 0.053020947,
-          "prompt_tokens": 3843,
-          "prompt_time": 0.181681302,
-          "completion_tokens": 344,
-          "completion_time": 0.724487072,
-          "total_tokens": 4187,
-          "total_time": 0.906168374,
+          "queue_time": 0.346658559,
+          "prompt_tokens": 3747,
+          "prompt_time": 0.172089006,
+          "completion_tokens": 241,
+          "completion_time": 0.511405816,
+          "total_tokens": 3988,
+          "total_time": 0.683494822,
           "completion_tokens_details": {
-            "reasoning_tokens": 137
+            "reasoning_tokens": 134
           }
         },
-        "graph_node_count": 79,
-        "graph_edge_count": 9,
+        "graph_node_count": 57,
+        "graph_edge_count": 2,
         "seed_chunk_ids": [
           "chunk_004",
           "chunk_002",
           "chunk_000"
         ],
-        "related_entity_count": 26,
-        "related_relationship_count": 7,
+        "related_entity_count": 23,
+        "related_relationship_count": 2,
         "related_chunks": [
           {
             "chunk_id": "chunk_000",
@@ -318,14 +593,9 @@
             "text_preview": "\nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in "
           },
           {
-            "chunk_id": "chunk_009",
+            "chunk_id": "chunk_006",
             "score": 0.0,
-            "text_preview": ", and Raghu; Vijava, Virihorta, \nAnga, Bhava, Sweta, and Vripadguru; Usinara, Sata-ratha, Kanka, Duliduha, and Druma; Dambhodbhava, Para, Vena, Sagara, \nSankriti, and Nimi; Ajeya, Parasu, Pundra, Sambhu, and holy Deva-Vridha; Devahuya, Supratika, and Vrihad-ratha; \nMahatsaha, Vinitatma, Sukratu, and Nala, the king of the Nishadas; Satyavrata, Santa"
-          },
-          {
-            "chunk_id": "chunk_011",
-            "score": 0.0,
-            "text_preview": "n as the body upon the foot that it taketh. As masters of good lineage \nare ever attended upon by servants desirous of preferment so is the Bharata cherished by all poets. As the words constituting \nthe several branches of knowledge appertaining to the world and the Veda display only vowels and consonants, so this \nexcellent history displayeth only"
+            "text_preview": "I am old. Blind as I am, because of my miserable plight and through paternal affection, I bore it all. I was foolish \nalter the thoughtless Duryodhana ever growing in folly. Having been a spectator of the riches of the mighty sons of Pandu, my \nson was derided for his awkwardness while ascending the hall. Unable to bear it all and unable himself to"
           }
         ]
       }
@@ -353,34 +623,29 @@
         }
       ],
       "graph_rag": {
-        "answer": "The Mah\u0101bh\u0101rata opens not as a straight\u2011forward chronicle but as a **story\u2011telling frame**.  \nIn the first section a wandering sage named **Ugrasrava, the son of Lomaharshana \u2013 called\u202fSauti** \u2013 arrives at the forest of Naimi\u1e63a where the great ascetics (the\u202fMunis) have just finished Saunaka\u2019s twelve\u2011year sacrifice. The assembled rishis invite him to speak, ask him where he has come from, and request that he relate the great history called *Bharata*. Sauti then bows to the deities and declares that he will now recount the sacred tale.\n\nThus the opening pages are framed as a **dialogue between Sauti (the narrator) and the assembled sages**:\n\n* the **Munis** ask Sauti to tell the story,  \n* Sauti replies that he will relate the Mah\u0101bh\u0101rata (the *Bharata*), invoking the gods and describing its divine origin\u3010chunk_002\u3011.  \n\nSo the Mah\u0101bh\u0101rata is",
+        "answer": "The Mahabharata is introduced as a tale that is to be **told by the wandering bard Ugrasrava (Sauti)** to a gathering of ascetic sages.\nThe opening scene places Sauti at the forest of Naimisa, where the sages who have just finished Saunaka's twelve-year sacrifice are seated. They address him, ask where he has come from, and invite him to relate the \"history called Bharata\" that Vyasa composed and that was earlier recited by the Rishi Vaisampayana at King Janamejaya's snake-sacrifice.\n\nThus the framing is a **dialogue between Sauti and the assembled Munis (rishis)**:\n\n* the sages (the Munis) ask Sauti, \"Whence comest thou, O lotus-eyed Sauti...?\" and later request that he \"recount the sacred stories... the history also called Bharata\" [chunk_002];\n* Sauti replies, describing his hearing of the Mahabharata and offering to relate it to them [chunk_002].\n\nSo the Mahabharata is presented as a narration that",
         "usage": {
-          "queue_time": 0.153857418,
-          "prompt_tokens": 3887,
-          "prompt_time": 0.180666871,
+          "queue_time": 0.66127172,
+          "prompt_tokens": 3829,
+          "prompt_time": 0.175928334,
           "completion_tokens": 550,
-          "completion_time": 1.164272271,
-          "total_tokens": 4437,
-          "total_time": 1.3449391419999999,
+          "completion_time": 1.171573676,
+          "total_tokens": 4379,
+          "total_time": 1.34750201,
           "completion_tokens_details": {
-            "reasoning_tokens": 320
+            "reasoning_tokens": 291
           }
         },
-        "graph_node_count": 79,
-        "graph_edge_count": 9,
+        "graph_node_count": 57,
+        "graph_edge_count": 2,
         "seed_chunk_ids": [
           "chunk_002",
           "chunk_009",
           "chunk_004"
         ],
-        "related_entity_count": 26,
-        "related_relationship_count": 9,
+        "related_entity_count": 21,
+        "related_relationship_count": 2,
         "related_chunks": [
-          {
-            "chunk_id": "chunk_000",
-            "score": 0.0,
-            "text_preview": "The Complete Mahabharata in English \n \n \nThe Mahabharata \nof \nKrishna-Dwaipayana Vyasa \n \nBOOK 1 \nADI PARVA \n \n \n \nTranslated into English Prose from the Original Sanskrit Text by Kisari Mohan Ganguli [1883-1896] \n \nScanned at sacred-texts.com, 2003. Proofed at Distributed Proofing, Juliet Sutherland, Project Manager. Additional proofing \nand forma"
-          },
           {
             "chunk_id": "chunk_002",
             "score": 0.0,
@@ -392,14 +657,14 @@
             "text_preview": "\nfor the sanctity of their lives. I know thou hast revealed the divine word, even from its first utterance, in the language of truth. \nThou hast called thy present work a poem, wherefore it shall be a poem. There shall be no poets whose works may equal the \ndescriptions of this poem, even, as the three other modes called Asrama are ever unequal in "
           },
           {
+            "chunk_id": "chunk_006",
+            "score": 0.0,
+            "text_preview": "I am old. Blind as I am, because of my miserable plight and through paternal affection, I bore it all. I was foolish \nalter the thoughtless Duryodhana ever growing in folly. Having been a spectator of the riches of the mighty sons of Pandu, my \nson was derided for his awkwardness while ascending the hall. Unable to bear it all and unable himself to"
+          },
+          {
             "chunk_id": "chunk_009",
             "score": 0.0,
             "text_preview": ", and Raghu; Vijava, Virihorta, \nAnga, Bhava, Sweta, and Vripadguru; Usinara, Sata-ratha, Kanka, Duliduha, and Druma; Dambhodbhava, Para, Vena, Sagara, \nSankriti, and Nimi; Ajeya, Parasu, Pundra, Sambhu, and holy Deva-Vridha; Devahuya, Supratika, and Vrihad-ratha; \nMahatsaha, Vinitatma, Sukratu, and Nala, the king of the Nishadas; Satyavrata, Santa"
-          },
-          {
-            "chunk_id": "chunk_011",
-            "score": 0.0,
-            "text_preview": "n as the body upon the foot that it taketh. As masters of good lineage \nare ever attended upon by servants desirous of preferment so is the Bharata cherished by all poets. As the words constituting \nthe several branches of knowledge appertaining to the world and the Veda display only vowels and consonants, so this \nexcellent history displayeth only"
           }
         ]
       }
@@ -408,29 +673,197 @@
   "groq_call_log": [
     {
       "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-remaining-tokens": "5896",
+        "x-ratelimit-reset-requests": "1m26.4s",
+        "x-ratelimit-reset-tokens": "15.78s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "998",
+        "x-ratelimit-remaining-tokens": "4109",
+        "x-ratelimit-reset-requests": "2m52.8s",
+        "x-ratelimit-reset-tokens": "29.182s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "997",
+        "x-ratelimit-remaining-tokens": "2190",
+        "x-ratelimit-reset-requests": "4m19.2s",
+        "x-ratelimit-reset-tokens": "43.574s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "996",
+        "x-ratelimit-remaining-tokens": "5783",
+        "x-ratelimit-reset-requests": "5m45.6s",
+        "x-ratelimit-reset-tokens": "16.627s"
+      },
+      "preflight_wait_seconds": 43.824
+    },
+    {
+      "model": "openai/gpt-oss-120b",
       "status_code": 200,
       "usage": {
-        "queue_time": 0.05653515,
-        "prompt_tokens": 1323,
-        "prompt_time": 0.087566611,
+        "queue_time": 1.186159436,
+        "prompt_tokens": 1517,
+        "prompt_time": 0.073148603,
         "completion_tokens": 700,
-        "completion_time": 1.5004560219999998,
-        "total_tokens": 2023,
-        "total_time": 1.588022633,
-        "prompt_tokens_details": {
-          "cached_tokens": 256
-        },
+        "completion_time": 1.490386794,
+        "total_tokens": 2217,
+        "total_time": 1.5635353969999999,
         "completion_tokens_details": {
-          "reasoning_tokens": 134
+          "reasoning_tokens": 316
         }
       },
       "headers": {
         "x-ratelimit-limit-requests": "1000",
         "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "995",
+        "x-ratelimit-remaining-tokens": "4062",
+        "x-ratelimit-reset-requests": "7m12s",
+        "x-ratelimit-reset-tokens": "29.535s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "994",
+        "x-ratelimit-remaining-tokens": "1566",
+        "x-ratelimit-reset-requests": "8m38.4s",
+        "x-ratelimit-reset-tokens": "48.255s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "993",
+        "x-ratelimit-remaining-tokens": "5866",
+        "x-ratelimit-reset-requests": "10m4.8s",
+        "x-ratelimit-reset-tokens": "16.004s"
+      },
+      "preflight_wait_seconds": 48.505
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.057145506,
+        "prompt_tokens": 1508,
+        "prompt_time": 5.521353744,
+        "completion_tokens": 700,
+        "completion_time": 1.488326382,
+        "total_tokens": 2208,
+        "total_time": 7.009680126,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 212
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "992",
+        "x-ratelimit-remaining-tokens": "3989",
+        "x-ratelimit-reset-requests": "11m31.2s",
+        "x-ratelimit-reset-tokens": "30.082s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "991",
+        "x-ratelimit-remaining-tokens": "2974",
+        "x-ratelimit-reset-requests": "12m57.599s",
+        "x-ratelimit-reset-tokens": "37.695s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "990",
+        "x-ratelimit-remaining-tokens": "1471",
+        "x-ratelimit-reset-requests": "14m24s",
+        "x-ratelimit-reset-tokens": "48.967s"
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.777474167,
+        "prompt_tokens": 1546,
+        "prompt_time": 0.072348276,
+        "completion_tokens": 700,
+        "completion_time": 1.476346905,
+        "total_tokens": 2246,
+        "total_time": 1.548695181,
+        "completion_tokens_details": {
+          "reasoning_tokens": 470
+        }
+      },
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-requests": "989",
+        "x-ratelimit-remaining-tokens": "5754",
+        "x-ratelimit-reset-requests": "15m50.4s",
+        "x-ratelimit-reset-tokens": "16.844s"
+      },
+      "preflight_wait_seconds": 49.217
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "status_code": 400,
+      "usage": null,
+      "headers": {
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-limit-tokens": "8000",
         "x-ratelimit-remaining-requests": "988",
-        "x-ratelimit-remaining-tokens": "5977",
+        "x-ratelimit-remaining-tokens": "3208",
         "x-ratelimit-reset-requests": "17m16.8s",
-        "x-ratelimit-reset-tokens": "15.172s"
+        "x-ratelimit-reset-tokens": "35.94s"
       }
     },
     {
@@ -441,9 +874,9 @@
         "x-ratelimit-limit-requests": "1000",
         "x-ratelimit-limit-tokens": "8000",
         "x-ratelimit-remaining-requests": "987",
-        "x-ratelimit-remaining-tokens": "3841",
+        "x-ratelimit-remaining-tokens": "1282",
         "x-ratelimit-reset-requests": "18m43.2s",
-        "x-ratelimit-reset-tokens": "31.192s"
+        "x-ratelimit-reset-tokens": "50.385s"
       }
     },
     {
@@ -454,311 +887,85 @@
         "x-ratelimit-limit-requests": "1000",
         "x-ratelimit-limit-tokens": "8000",
         "x-ratelimit-remaining-requests": "986",
-        "x-ratelimit-remaining-tokens": "2110",
+        "x-ratelimit-remaining-tokens": "6498",
         "x-ratelimit-reset-requests": "20m9.6s",
-        "x-ratelimit-reset-tokens": "44.175s"
-      }
+        "x-ratelimit-reset-tokens": "11.265s"
+      },
+      "preflight_wait_seconds": 50.635
     },
     {
       "model": "openai/gpt-oss-120b",
-      "status_code": 400,
-      "usage": null,
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.158687916,
+        "prompt_tokens": 3853,
+        "prompt_time": 0.149722904,
+        "completion_tokens": 348,
+        "completion_time": 1.284612759,
+        "total_tokens": 4201,
+        "total_time": 1.434335663,
+        "completion_tokens_details": {
+          "reasoning_tokens": 156
+        }
+      },
       "headers": {
         "x-ratelimit-limit-requests": "1000",
         "x-ratelimit-limit-tokens": "8000",
         "x-ratelimit-remaining-requests": "985",
-        "x-ratelimit-remaining-tokens": "233",
+        "x-ratelimit-remaining-tokens": "2841",
         "x-ratelimit-reset-requests": "21m36s",
-        "x-ratelimit-reset-tokens": "58.252s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 429,
-      "usage": null,
-      "headers": {
-        "retry-after": "12",
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "985",
-        "x-ratelimit-remaining-tokens": "491",
-        "x-ratelimit-reset-requests": "21m36s",
-        "x-ratelimit-reset-tokens": "56.317s"
+        "x-ratelimit-reset-tokens": "38.692s"
       }
     },
     {
       "model": "openai/gpt-oss-120b",
       "status_code": 200,
       "usage": {
-        "queue_time": 0.052522874,
-        "prompt_tokens": 1391,
-        "prompt_time": 0.426563723,
-        "completion_tokens": 700,
-        "completion_time": 1.568909193,
-        "total_tokens": 2091,
-        "total_time": 1.995472916,
-        "prompt_tokens_details": {
-          "cached_tokens": 256
-        },
+        "queue_time": 0.346658559,
+        "prompt_tokens": 3747,
+        "prompt_time": 0.172089006,
+        "completion_tokens": 241,
+        "completion_time": 0.511405816,
+        "total_tokens": 3988,
+        "total_time": 0.683494822,
         "completion_tokens_details": {
-          "reasoning_tokens": 145
+          "reasoning_tokens": 134
         }
       },
       "headers": {
         "x-ratelimit-limit-requests": "1000",
         "x-ratelimit-limit-tokens": "8000",
         "x-ratelimit-remaining-requests": "984",
-        "x-ratelimit-remaining-tokens": "5909",
+        "x-ratelimit-remaining-tokens": "3703",
         "x-ratelimit-reset-requests": "23m2.4s",
-        "x-ratelimit-reset-tokens": "15.682s"
-      }
+        "x-ratelimit-reset-tokens": "32.227s"
+      },
+      "preflight_wait_seconds": 38.942
     },
     {
       "model": "openai/gpt-oss-120b",
-      "status_code": 400,
-      "usage": null,
+      "status_code": 200,
+      "usage": {
+        "queue_time": 0.66127172,
+        "prompt_tokens": 3829,
+        "prompt_time": 0.175928334,
+        "completion_tokens": 550,
+        "completion_time": 1.171573676,
+        "total_tokens": 4379,
+        "total_time": 1.34750201,
+        "completion_tokens_details": {
+          "reasoning_tokens": 291
+        }
+      },
       "headers": {
         "x-ratelimit-limit-requests": "1000",
         "x-ratelimit-limit-tokens": "8000",
         "x-ratelimit-remaining-requests": "983",
-        "x-ratelimit-remaining-tokens": "3709",
+        "x-ratelimit-remaining-tokens": "3621",
         "x-ratelimit-reset-requests": "24m28.8s",
-        "x-ratelimit-reset-tokens": "32.182s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 400,
-      "usage": null,
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "982",
-        "x-ratelimit-remaining-tokens": "1813",
-        "x-ratelimit-reset-requests": "25m55.199s",
-        "x-ratelimit-reset-tokens": "46.402s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 429,
-      "usage": null,
-      "headers": {
-        "retry-after": "1",
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "982",
-        "x-ratelimit-remaining-tokens": "2114",
-        "x-ratelimit-reset-requests": "25m55.199s",
-        "x-ratelimit-reset-tokens": "44.145s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 400,
-      "usage": null,
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "981",
-        "x-ratelimit-remaining-tokens": "5839",
-        "x-ratelimit-reset-requests": "27m21.6s",
-        "x-ratelimit-reset-tokens": "16.207s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 400,
-      "usage": null,
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "980",
-        "x-ratelimit-remaining-tokens": "3992",
-        "x-ratelimit-reset-requests": "28m48s",
-        "x-ratelimit-reset-tokens": "30.06s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 200,
-      "usage": {
-        "queue_time": 0.054739965,
-        "prompt_tokens": 1450,
-        "prompt_time": 0.202640214,
-        "completion_tokens": 700,
-        "completion_time": 2.005498799,
-        "total_tokens": 2150,
-        "total_time": 2.208139013,
-        "prompt_tokens_details": {
-          "cached_tokens": 256
-        },
-        "completion_tokens_details": {
-          "reasoning_tokens": 180
-        }
+        "x-ratelimit-reset-tokens": "32.842s"
       },
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "979",
-        "x-ratelimit-remaining-tokens": "2093",
-        "x-ratelimit-reset-requests": "30m14.4s",
-        "x-ratelimit-reset-tokens": "44.302s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 400,
-      "usage": null,
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "978",
-        "x-ratelimit-remaining-tokens": "562",
-        "x-ratelimit-reset-requests": "31m40.8s",
-        "x-ratelimit-reset-tokens": "55.785s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 429,
-      "usage": null,
-      "headers": {
-        "retry-after": "4",
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "978",
-        "x-ratelimit-remaining-tokens": "1002",
-        "x-ratelimit-reset-requests": "31m40.8s",
-        "x-ratelimit-reset-tokens": "52.485s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 200,
-      "usage": {
-        "queue_time": 0.056227713,
-        "prompt_tokens": 721,
-        "prompt_time": 0.025468482,
-        "completion_tokens": 700,
-        "completion_time": 1.5173459980000001,
-        "total_tokens": 1421,
-        "total_time": 1.54281448,
-        "prompt_tokens_details": {
-          "cached_tokens": 256
-        },
-        "completion_tokens_details": {
-          "reasoning_tokens": 292
-        }
-      },
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "977",
-        "x-ratelimit-remaining-tokens": "6579",
-        "x-ratelimit-reset-requests": "33m7.2s",
-        "x-ratelimit-reset-tokens": "10.657s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 200,
-      "usage": {
-        "queue_time": 0.052654648,
-        "prompt_tokens": 3810,
-        "prompt_time": 0.194040761,
-        "completion_tokens": 418,
-        "completion_time": 0.876069445,
-        "total_tokens": 4228,
-        "total_time": 1.070110206,
-        "completion_tokens_details": {
-          "reasoning_tokens": 208
-        }
-      },
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "976",
-        "x-ratelimit-remaining-tokens": "2780",
-        "x-ratelimit-reset-requests": "34m33.6s",
-        "x-ratelimit-reset-tokens": "39.15s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 429,
-      "usage": null,
-      "headers": {
-        "retry-after": "13",
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "976",
-        "x-ratelimit-remaining-tokens": "2636",
-        "x-ratelimit-reset-requests": "34m33.6s",
-        "x-ratelimit-reset-tokens": "40.23s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 200,
-      "usage": {
-        "queue_time": 0.053020947,
-        "prompt_tokens": 3843,
-        "prompt_time": 0.181681302,
-        "completion_tokens": 344,
-        "completion_time": 0.724487072,
-        "total_tokens": 4187,
-        "total_time": 0.906168374,
-        "completion_tokens_details": {
-          "reasoning_tokens": 137
-        }
-      },
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "975",
-        "x-ratelimit-remaining-tokens": "3739",
-        "x-ratelimit-reset-requests": "36m0s",
-        "x-ratelimit-reset-tokens": "31.957s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 429,
-      "usage": null,
-      "headers": {
-        "retry-after": "2",
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "975",
-        "x-ratelimit-remaining-tokens": "4044",
-        "x-ratelimit-reset-requests": "36m0s",
-        "x-ratelimit-reset-tokens": "29.67s"
-      }
-    },
-    {
-      "model": "openai/gpt-oss-120b",
-      "status_code": 200,
-      "usage": {
-        "queue_time": 0.153857418,
-        "prompt_tokens": 3887,
-        "prompt_time": 0.180666871,
-        "completion_tokens": 550,
-        "completion_time": 1.164272271,
-        "total_tokens": 4437,
-        "total_time": 1.3449391419999999,
-        "completion_tokens_details": {
-          "reasoning_tokens": 320
-        }
-      },
-      "headers": {
-        "x-ratelimit-limit-requests": "1000",
-        "x-ratelimit-limit-tokens": "8000",
-        "x-ratelimit-remaining-requests": "974",
-        "x-ratelimit-remaining-tokens": "3695",
-        "x-ratelimit-reset-requests": "37m26.4s",
-        "x-ratelimit-reset-tokens": "32.287s"
-      }
+      "preflight_wait_seconds": 32.477
     }
   ]
 }

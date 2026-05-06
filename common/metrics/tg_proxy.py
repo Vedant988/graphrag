@@ -1,7 +1,12 @@
 import json
 import time
 import re
-from pyTigerGraph import TigerGraphConnection
+from typing import Any
+
+try:
+    from pyTigerGraph import TigerGraphConnection
+except ModuleNotFoundError:
+    TigerGraphConnection = Any
 from common.metrics.prometheus_metrics import metrics
 from common.logs.logwriter import LogWriter
 import logging

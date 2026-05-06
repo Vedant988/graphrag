@@ -1,7 +1,34 @@
+import importlib.util
+import sys
+import types
 import unittest
+from pathlib import Path
 from unittest.mock import patch, MagicMock
-from app.supportai.supportai_ingest import BatchIngestion
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from common.py_schemas import Document, DocumentChunk
 from common.status import IngestionProgress
+
+SUPPORTAI_INGEST_PATH = ROOT / "graphrag" / "app" / "supportai" / "supportai_ingest.py"
+SUPPORTAI_INGEST_SPEC = importlib.util.spec_from_file_location(
+    "supportai_ingest_under_test",
+    SUPPORTAI_INGEST_PATH,
+)
+supportai_ingest_under_test = importlib.util.module_from_spec(SUPPORTAI_INGEST_SPEC)
+assert SUPPORTAI_INGEST_SPEC.loader is not None
+sys.modules["supportai_ingest_under_test"] = supportai_ingest_under_test
+SUPPORTAI_INGEST_SPEC.loader.exec_module(supportai_ingest_under_test)
+BatchIngestion = supportai_ingest_under_test.BatchIngestion
+
+
+def make_fake_storage_module(class_name, instance):
+    module = types.ModuleType(f"fake_{class_name.lower()}_module")
+    klass = MagicMock(return_value=instance)
+    setattr(module, class_name, klass)
+    return module, klass
 
 
 class TestBatchIngestion(unittest.TestCase):
@@ -18,15 +45,73 @@ class TestBatchIngestion(unittest.TestCase):
             status=self.status_mock,
         )
 
-    @patch("app.supportai.supportai_ingest.BatchIngestion._ingest")
-    @patch("boto3.client")
-    def test_ingest_blobs_s3_file_success(self, mock_boto3_client, mock_ingest):
-        mock_blob = mock_boto3_client.return_value
-        mock_get_object = mock_blob.get_object
-        mock_get_object.return_value = {
-            "Body": MagicMock(read=lambda: b"Fake document content")
-        }
+    @patch("supportai_ingest_under_test.LLMEntityRelationshipExtractor")
+    def test_document_er_extraction_uses_document_text(self, mock_extractor_cls):
+        extractor = mock_extractor_cls.return_value
+        extractor.extract.return_value = {"nodes": [], "rels": []}
+        doc = Document(document_id="doc-1", text="Doc body")
+        ingestion = BatchIngestion(
+            embedding_service=self.embedding_service_mock,
+            llm_service=self.llm_service_mock,
+            conn=self.conn_mock,
+            status=self.status_mock,
+        )
 
+        result = ingestion.document_er_extraction(doc)
+
+        mock_extractor_cls.assert_called_once_with(self.llm_service_mock)
+        extractor.extract.assert_called_once_with("Doc body")
+        self.assertEqual(result, {"nodes": [], "rels": []})
+
+    @patch("supportai_ingest_under_test.LLMEntityRelationshipExtractor")
+    def test_document_er_extraction_uses_chunk_text(self, mock_extractor_cls):
+        extractor = mock_extractor_cls.return_value
+        extractor.extract.return_value = {"nodes": [], "rels": []}
+        chunk = DocumentChunk(document_chunk_id="doc-1_chunk_0", text="Chunk body")
+        ingestion = BatchIngestion(
+            embedding_service=self.embedding_service_mock,
+            llm_service=self.llm_service_mock,
+            conn=self.conn_mock,
+            status=self.status_mock,
+        )
+
+        result = ingestion.document_er_extraction(chunk)
+
+        mock_extractor_cls.assert_called_once_with(self.llm_service_mock)
+        extractor.extract.assert_called_once_with("Chunk body")
+        self.assertEqual(result, {"nodes": [], "rels": []})
+
+    def test_documents_er_extraction_populates_entities_and_relationships(self):
+        docs = [
+            Document(document_id="doc-1", text="alpha"),
+            Document(document_id="doc-2", text="beta"),
+        ]
+        responses = [
+            {"nodes": [{"id": "A", "type": "Entity", "definition": ""}], "rels": []},
+            {"nodes": [], "rels": [{"source": "A", "target": "B", "type": "REL", "definition": ""}]},
+        ]
+
+        with patch.object(
+            self.batch_ingestion,
+            "document_er_extraction",
+            side_effect=responses,
+        ) as mock_extract:
+            self.batch_ingestion.documents_er_extraction(docs)
+
+        self.assertEqual(mock_extract.call_count, 2)
+        self.assertEqual(docs[0].entities, responses[0]["nodes"])
+        self.assertEqual(docs[0].relationships, responses[0]["rels"])
+        self.assertEqual(docs[1].entities, responses[1]["nodes"])
+        self.assertEqual(docs[1].relationships, responses[1]["rels"])
+
+    @patch("supportai_ingest_under_test.BatchIngestion._ingest")
+    def test_ingest_blobs_s3_file_success(self, mock_ingest):
+        fake_blob_store = MagicMock()
+        fake_blob_store.read_document.return_value = "Fake document content"
+        fake_module, fake_store_cls = make_fake_storage_module(
+            "S3BlobStore",
+            fake_blob_store,
+        )
         mock_ingest.return_value = None
 
         doc_source = MagicMock()
@@ -41,25 +126,24 @@ class TestBatchIngestion(unittest.TestCase):
             "aws_secret_access_key": "key",
         }
 
-        self.batch_ingestion.ingest_blobs(doc_source)
+        with patch.dict(sys.modules, {"common.storage.s3_blob_store": fake_module}):
+            self.batch_ingestion.ingest_blobs(doc_source)
+
         mock_ingest.assert_called_once()
-        mock_blob.get_object.assert_called_once_with(
-            Bucket="test-bucket", Key="directory/"
+        fake_store_cls.assert_called_once_with("id", "key")
+        fake_blob_store.read_document.assert_called_once_with(
+            "test-bucket",
+            "directory/",
         )
 
-    @patch("app.supportai.supportai_ingest.BatchIngestion._ingest")
-    @patch("azure.storage.blob.BlobServiceClient.from_connection_string")
-    def test_ingest_blobs_azure_file_success(
-        self, mock_from_connection_string, mock_ingest
-    ):
-        mock_blob_service_client = MagicMock()
-        mock_from_connection_string.return_value = mock_blob_service_client
-        mock_blob_client = MagicMock()
-        mock_blob_service_client.get_blob_client.return_value = mock_blob_client
-        mock_blob_client.download_blob.return_value.content_as_text.return_value = (
-            "Fake document content"
+    @patch("supportai_ingest_under_test.BatchIngestion._ingest")
+    def test_ingest_blobs_azure_file_success(self, mock_ingest):
+        fake_blob_store = MagicMock()
+        fake_blob_store.read_document.return_value = "Fake document content"
+        fake_module, fake_store_cls = make_fake_storage_module(
+            "AzureBlobStore",
+            fake_blob_store,
         )
-
         mock_ingest.return_value = None
 
         container_name = "test-bucket"
@@ -81,30 +165,25 @@ class TestBatchIngestion(unittest.TestCase):
             conn=MagicMock(),
             status=MagicMock(),
         )
-        batch_ingestion.ingest_blobs(doc_source)
+
+        with patch.dict(sys.modules, {"common.storage.azure_blob_store": fake_module}):
+            batch_ingestion.ingest_blobs(doc_source)
 
         mock_ingest.assert_called_once()
-        mock_blob_service_client.get_blob_client.assert_called_once()
-        mock_blob_client.download_blob.assert_called_once()
-        mock_blob_client.download_blob.return_value.content_as_text.assert_called_once()
+        fake_store_cls.assert_called_once_with("connection_string")
+        fake_blob_store.read_document.assert_called_once_with(
+            container_name,
+            blob_name,
+        )
 
-    @patch("app.supportai.supportai_ingest.BatchIngestion._ingest")
-    @patch("google.cloud.storage.Client.from_service_account_json")
-    def test_ingest_blobs_google_file_success(
-        self, mock_from_service_account_json, mock_ingest
-    ):
-        mock_blob_service_client = MagicMock()
-        mock_from_service_account_json.return_value = mock_blob_service_client
-
-        mock_bucket = MagicMock()
-        mock_blob = MagicMock()
-
-        mock_blob_service_client.bucket.return_value = mock_bucket
-        mock_bucket.blob.return_value = mock_blob
-
-        document_content = "Fake document content"
-        mock_blob.download_as_text.return_value = document_content
-
+    @patch("supportai_ingest_under_test.BatchIngestion._ingest")
+    def test_ingest_blobs_google_file_success(self, mock_ingest):
+        fake_blob_store = MagicMock()
+        fake_blob_store.read_document.return_value = "Fake document content"
+        fake_module, fake_store_cls = make_fake_storage_module(
+            "GoogleBlobStore",
+            fake_blob_store,
+        )
         mock_ingest.return_value = None
 
         container_name = "test-bucket"
@@ -126,11 +205,14 @@ class TestBatchIngestion(unittest.TestCase):
             conn=MagicMock(),
             status=MagicMock(),
         )
-        batch_ingestion.ingest_blobs(doc_source)
+        with patch.dict(sys.modules, {"common.storage.google_blob_store": fake_module}):
+            batch_ingestion.ingest_blobs(doc_source)
 
-        mock_blob_service_client.bucket.assert_called_once_with(container_name)
-        mock_bucket.blob.assert_called_once_with(blob_name)
-        mock_blob.download_as_text.assert_called_once()
+        fake_store_cls.assert_called_once_with("credentials")
+        fake_blob_store.read_document.assert_called_once_with(
+            container_name,
+            blob_name,
+        )
 
     @patch("boto3.client")
     def test_ingest_blobs_unsupported_type(self, mock_boto3_client):
