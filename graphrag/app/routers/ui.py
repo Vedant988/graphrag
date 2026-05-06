@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import shutil
 import threading
 import time
@@ -49,6 +50,7 @@ from fastapi import (
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.security.http import HTTPBase
 from pyTigerGraph import TigerGraphConnection
+from starlette.websockets import WebSocketState
 from tools.validation_utils import MapQuestionToSchemaException
 
 from common.config import db_config, graphrag_config, embedding_service, llm_config, service_status, get_chat_config, get_completion_config, get_embedding_config, get_multimodal_config, validate_graphname, get_llm_service, resolve_llm_services
@@ -84,6 +86,33 @@ llm_config_lock = asyncio.Lock()
 _role_cache: dict[tuple[str, str], tuple[float, tuple[list[str], dict[str, list[str]]]]] = {}
 _role_cache_lock = threading.Lock()
 _ROLE_CACHE_TTL = 60  # seconds
+
+
+def _has_static_api_token() -> bool:
+    return bool(db_config.get("apiToken"))
+
+
+def _local_ui_credentials_valid(username: str, password: str) -> bool:
+    expected_user = str(db_config.get("username", ""))
+    expected_password = str(db_config.get("password", ""))
+    return (
+        bool(expected_user)
+        and bool(expected_password)
+        and secrets.compare_digest(username, expected_user)
+        and secrets.compare_digest(password, expected_password)
+    )
+
+
+def _token_backed_connection(graphname: str = "") -> TigerGraphConnection:
+    return TigerGraphConnection(
+        host=db_config.get("hostname"),
+        username=db_config.get("username", ""),
+        password=db_config.get("password", ""),
+        gsPort=db_config.get("gsPort"),
+        restppPort=db_config.get("restppPort"),
+        graphname=graphname,
+        apiToken=db_config.get("apiToken", ""),
+    )
 
 def _normalize_roles(raw_roles: str) -> list[str]:
     cleaned = re.sub(r"[\[\]]", "", raw_roles).strip()
@@ -147,6 +176,18 @@ def _get_user_role_details(username: str, password: str) -> tuple[list[str], dic
         cached = _role_cache.get(cache_key)
         if cached and (now - cached[0]) < _ROLE_CACHE_TTL:
             return cached[1]
+
+    if _has_static_api_token():
+        if not _local_ui_credentials_valid(username, password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+            )
+        # In token-backed local mode, UI auth is controlled by server_config.json.
+        result = (["superuser", "globaldesigner"], {})
+        with _role_cache_lock:
+            _role_cache[cache_key] = (now, result)
+        return result
 
     conn = TigerGraphConnection(
         host=db_config.get("hostname"),
@@ -263,9 +304,17 @@ def _ecc_jobs_running(graphs: list[str], auth_header: str) -> bool:
 
 def auth(usr: str, password: str, conn=None) -> tuple[list[str], TigerGraphConnection]:
     if conn is None:
-        conn = TigerGraphConnection(
-            host=db_config["hostname"], graphname="", username=usr, password=password
-        )
+        if _has_static_api_token():
+            if not _local_ui_credentials_valid(usr, password):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect username or password",
+                )
+            conn = _token_backed_connection("")
+        else:
+            conn = TigerGraphConnection(
+                host=db_config["hostname"], graphname="", username=usr, password=password
+            )
 
     try:
         graph_list = conn.listGraphs()
@@ -1220,7 +1269,8 @@ async def chat(
         logger.error(
             f"Websocket error (graph={graphname}, conversation_id={convo_id}): {e}\n{exc}"
         )
-        await websocket.close()
+        if websocket.application_state != WebSocketState.DISCONNECTED:
+            await websocket.close()
 
 
 # =====================================================

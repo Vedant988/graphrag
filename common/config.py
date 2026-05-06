@@ -58,6 +58,29 @@ session_handler = SessionHandler()
 status_manager = StatusManager()
 service_status = {}
 
+
+class _DisabledEmbeddingConn:
+    def __init__(self, graphname: str = ""):
+        self.graphname = graphname
+
+
+class _DisabledEmbeddingStore:
+    """Placeholder store used when eager embed-store init is disabled."""
+
+    def __init__(self, graphname: str = ""):
+        self.conn = _DisabledEmbeddingConn(graphname)
+
+    def set_graphname(self, graphname):
+        self.conn.graphname = graphname
+
+    def set_connection(self, conn):
+        self.conn = conn
+
+    def __getattr__(self, name):
+        raise RuntimeError(
+            "Embedding store is disabled because INIT_EMBED_STORE=false."
+        )
+
 # Configs
 SERVER_CONFIG = os.getenv("SERVER_CONFIG", "configs/server_config.json")
 
@@ -440,6 +463,12 @@ elif llm_config["embedding_service"]["embedding_model_service"].lower() == "olla
     embedding_service = Ollama_Embedding(llm_config["embedding_service"])
 else:
     raise Exception("Embedding service not implemented")
+
+embedding_store = _DisabledEmbeddingStore(db_config.get("graphname", ""))
+service_status["embedding_store"] = {
+    "status": "disabled" if os.getenv("INIT_EMBED_STORE", "true") != "true" else "initializing",
+    "error": None,
+}
 
 def get_llm_service(service_config: dict) -> LLM_Model:
     """

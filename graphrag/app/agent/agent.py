@@ -11,6 +11,7 @@ from tools import GenerateCypher, GenerateFunction, MapQuestionToSchema
 from common.config import embedding_service, embedding_store, llm_config, get_completion_config, get_chat_config, get_llm_service
 from common.embeddings.base_embedding_store import EmbeddingStore
 from common.embeddings.embedding_services import EmbeddingModel
+from common.embeddings.tigergraph_embedding_store import TigerGraphEmbeddingStore
 from common.llm_services.base_llm import LLM_Model
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
@@ -18,6 +19,27 @@ from common.metrics.prometheus_metrics import metrics
 from common.metrics.tg_proxy import TigerGraphConnectionProxy
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_embedding_store(db_connection: TigerGraphConnectionProxy) -> EmbeddingStore:
+    """Create a usable embedding store when eager startup init is disabled."""
+    global embedding_store
+
+    if isinstance(embedding_store.conn, TigerGraphConnectionProxy):
+        return embedding_store
+
+    if embedding_store.__class__.__name__ != "_DisabledEmbeddingStore":
+        return embedding_store
+
+    LogWriter.info(
+        f"request_id={req_id_cv.get()} lazily initializing TigerGraphEmbeddingStore for graph={db_connection.graphname}"
+    )
+    embedding_store = TigerGraphEmbeddingStore(
+        db_connection,
+        embedding_service,
+        support_ai_instance=True,
+    )
+    return embedding_store
 
 
 class TigerGraphAgent:
@@ -156,6 +178,7 @@ class TigerGraphAgent:
 def make_agent(graphname, conn, use_cypher, ws: WebSocket = None, supportai_retriever="hybridsearch") -> TigerGraphAgent:
     llm_provider = get_llm_service(get_chat_config(graphname))
     chat_config = llm_provider.config
+    resolved_embedding_store = _resolve_embedding_store(conn)
 
     logger.info(
         f"[CHATBOT] graph={graphname} model={chat_config['llm_model']} "
@@ -166,7 +189,7 @@ def make_agent(graphname, conn, use_cypher, ws: WebSocket = None, supportai_retr
         llm_provider,
         conn,
         embedding_service,
-        embedding_store,
+        resolved_embedding_store,
         use_cypher=use_cypher,
         ws=ws,
         supportai_retriever=supportai_retriever
