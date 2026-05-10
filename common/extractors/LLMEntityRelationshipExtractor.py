@@ -90,8 +90,8 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
             except (json.JSONDecodeError, ValueError, IndexError):
                 pass
 
-        # Regex fallback: extract first JSON object
-        match = re.search(r'\{[\s\S]*\}', content)
+        # Regex fallback: extract first JSON object or array
+        match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', content)
         if match:
             return json.loads(match.group())
 
@@ -108,46 +108,49 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
             "rels":  [{"source", "target", "type", "definition"}]
           }
         """
-        nodes: List[Dict[str, str]] = []
-        rels: List[Dict[str, str]] = []
-        seen_nodes = set()
-        seen_rels = set()
+        nodes_dict: Dict[str, Dict[str, str]] = {}
+        rels_dict: Dict[tuple, Dict[str, str]] = {}
 
         for graph_document in graph_documents:
             for node in graph_document.nodes:
                 node_id = str(node.id)
                 node_type = str(node.type)
-                definition = str(node.properties.get("description", ""))
-                if node_id in seen_nodes:
-                    continue
-                seen_nodes.add(node_id)
-                nodes.append(
-                    {
+                definition = str(node.properties.get("description", "")).strip()
+                
+                if node_id in nodes_dict:
+                    existing_def = nodes_dict[node_id]["definition"]
+                    if definition and definition not in existing_def:
+                        nodes_dict[node_id]["definition"] = f"{existing_def} | {definition}".strip(" |")
+                else:
+                    nodes_dict[node_id] = {
                         "id": node_id,
                         "type": node_type,
                         "definition": definition,
                     }
-                )
 
             for rel in graph_document.relationships:
                 source = str(rel.source.id)
                 target = str(rel.target.id)
                 rel_type = str(rel.type)
-                definition = str(rel.properties.get("description", ""))
+                definition = str(rel.properties.get("description", "")).strip()
                 rel_key = (source, target, rel_type)
-                if rel_key in seen_rels:
-                    continue
-                seen_rels.add(rel_key)
-                rels.append(
-                    {
+                
+                if rel_key in rels_dict:
+                    existing_def = rels_dict[rel_key]["definition"]
+                    if definition and definition not in existing_def:
+                        rels_dict[rel_key]["definition"] = f"{existing_def} | {definition}".strip(" |")
+                else:
+                    rels_dict[rel_key] = {
                         "source": source,
                         "target": target,
                         "type": rel_type,
                         "definition": definition,
                     }
-                )
 
-        return {"nodes": nodes, "rels": rels}
+        return {"nodes": list(nodes_dict.values()), "rels": list(rels_dict.values())}
+
+    def _normalize_type(self, t: str) -> str:
+        return str(t).replace(" ", "_").lower()
 
     def _json_to_graph_document(
         self, json_out: Dict[str, Any], doc: str
@@ -159,7 +162,7 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                     {
                         "source": rels["source"],
                         "target": rels["target"],
-                        "type": rels["relation_type"].replace(" ", "_").upper(),
+                        "type": rels["relation_type"].replace(" ", "_"),
                         "definition": rels["definition"],
                     }
                 )
@@ -168,7 +171,7 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                     {
                         "source": rels["source"]["id"],
                         "target": rels["target"],
-                        "type": rels["relation_type"].replace(" ", "_").upper(),
+                        "type": rels["relation_type"].replace(" ", "_"),
                         "definition": rels["definition"],
                     }
                 )
@@ -177,7 +180,7 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                     {
                         "source": rels["source"],
                         "target": rels["target"]["id"],
-                        "type": rels["relation_type"].replace(" ", "_").upper(),
+                        "type": rels["relation_type"].replace(" ", "_"),
                         "definition": rels["definition"],
                     }
                 )
@@ -186,7 +189,7 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                     {
                         "source": rels["source"]["id"],
                         "target": rels["target"]["id"],
-                        "type": rels["relation_type"].replace(" ", "_").upper(),
+                        "type": rels["relation_type"].replace(" ", "_"),
                         "definition": rels["definition"],
                     }
                 )
@@ -198,27 +201,38 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
             formatted_nodes.append(
                 {
                     "id": node["id"],
-                    "type": node["node_type"].replace(" ", "_").capitalize(),
+                    "type": node["node_type"].replace(" ", "_"),
                     "definition": node["definition"],
                 }
             )
 
         if self.strict_mode:
             if self.allowed_vertex_types:
+                normalized_allowed = {self._normalize_type(t) for t in self.allowed_vertex_types}
                 formatted_nodes = [
                     node
                     for node in formatted_nodes
-                    if node["type"] in self.allowed_vertex_types
+                    if self._normalize_type(node["type"]) in normalized_allowed
                 ]
             if self.allowed_edge_types:
+                normalized_allowed = {self._normalize_type(t) for t in self.allowed_edge_types}
                 formatted_rels = [
                     rel
                     for rel in formatted_rels
-                    if rel["type"] in self.allowed_edge_types
+                    if self._normalize_type(rel["type"]) in normalized_allowed
                 ]
 
+            # Filter out dangling edges
+            valid_node_ids = {n["id"] for n in formatted_nodes}
+            formatted_rels = [
+                rel for rel in formatted_rels
+                if rel["source"] in valid_node_ids and rel["target"] in valid_node_ids
+            ]
+
         nodes = []
+        node_type_map = {}
         for node in formatted_nodes:
+            node_type_map[node["id"]] = node["type"]
             nodes.append(
                 Node(
                     id=node["id"],
@@ -226,19 +240,20 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                     properties={"description": node["definition"]},
                 )
             )
+            
         relationships = []
         for rel in formatted_rels:
+            source_type = node_type_map.get(rel["source"], "Unknown")
+            target_type = node_type_map.get(rel["target"], "Unknown")
             relationships.append(
                 Relationship(
                     source=Node(
                         id=rel["source"],
-                        type=rel["source"],
-                        properties={"description": rel["definition"]},
+                        type=source_type,
                     ),
                     target=Node(
                         id=rel["target"],
-                        type=rel["target"],
-                        properties={"description": rel["definition"]},
+                        type=target_type,
                     ),
                     type=rel["type"],
                     properties={"description": rel["definition"]},
@@ -261,14 +276,10 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                 {"input": doc_text, "format_instructions": parser.get_format_instructions()}
             )
             logger.debug(str(out))
-        except Exception:
-            logger.exception("Entity/relationship async extraction invocation failed")
-            return self._empty_graph_document(doc_text)
-        try:
             json_out = self._parse_json_output(out.content)
             return self._json_to_graph_document(json_out, doc_text)
-        except Exception:
-            logger.exception("Entity/relationship async extraction parsing failed")
+        except Exception as e:
+            logger.exception(f"Entity/relationship async extraction failed: {e}")
             return self._empty_graph_document(doc_text)
 
     def _extract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
@@ -277,14 +288,10 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
             out = chain.invoke(
                 {"input": doc_text, "format_instructions": parser.get_format_instructions()}
             )
-        except Exception:
-            logger.exception("Entity/relationship extraction invocation failed")
-            return self._empty_graph_document(doc_text)
-        try:
             json_out = self._parse_json_output(out.content)
             return self._json_to_graph_document(json_out, doc_text)
-        except Exception:
-            logger.exception("Entity/relationship extraction parsing failed")
+        except Exception as e:
+            logger.exception(f"Entity/relationship extraction failed: {e}")
             return self._empty_graph_document(doc_text)
 
     async def adocument_er_graph_documents(self, document):
@@ -320,8 +327,21 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         if self.allowed_edge_types:
             prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
         prompt = ChatPromptTemplate.from_messages(prompt)
-        chain = prompt | self.llm_service.llm  # | parser
-        er = await self._aextract_kg_from_doc(document, chain, parser)
+        
+        if hasattr(self.llm_service.llm, "with_structured_output"):
+            structured_llm = self.llm_service.llm.with_structured_output(KnowledgeGraph)
+            chain = prompt | structured_llm
+            try:
+                out = await chain.ainvoke({"input": self._coerce_text(document), "format_instructions": ""})
+                json_out = json.loads(out.json()) if hasattr(out, "json") else dict(out)
+                er = self._json_to_graph_document(json_out, self._coerce_text(document))
+            except Exception as e:
+                logger.exception(f"Structured async extraction failed: {e}")
+                er = self._empty_graph_document(self._coerce_text(document))
+        else:
+            chain = prompt | self.llm_service.llm
+            er = await self._aextract_kg_from_doc(document, chain, parser)
+            
         return er
 
     def document_er_graph_documents(self, document):
@@ -357,8 +377,21 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         if self.allowed_edge_types:
             prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
         prompt = ChatPromptTemplate.from_messages(prompt)
-        chain = prompt | self.llm_service.llm  # | parser
-        er = self._extract_kg_from_doc(document, chain, parser)
+        
+        if hasattr(self.llm_service.llm, "with_structured_output"):
+            structured_llm = self.llm_service.llm.with_structured_output(KnowledgeGraph)
+            chain = prompt | structured_llm
+            try:
+                out = chain.invoke({"input": self._coerce_text(document), "format_instructions": ""})
+                json_out = json.loads(out.json()) if hasattr(out, "json") else dict(out)
+                er = self._json_to_graph_document(json_out, self._coerce_text(document))
+            except Exception as e:
+                logger.exception(f"Structured extraction failed: {e}")
+                er = self._empty_graph_document(self._coerce_text(document))
+        else:
+            chain = prompt | self.llm_service.llm
+            er = self._extract_kg_from_doc(document, chain, parser)
+            
         return er
 
     async def adocument_er_extraction(self, document):
