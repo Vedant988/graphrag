@@ -270,29 +270,21 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
 
     async def _aextract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
         doc_text = self._coerce_text(doc)
-        try:
-            logger.debug(doc_text)
-            out = await chain.ainvoke(
-                {"input": doc_text, "format_instructions": parser.get_format_instructions()}
-            )
-            logger.debug(str(out))
-            json_out = self._parse_json_output(out.content)
-            return self._json_to_graph_document(json_out, doc_text)
-        except Exception as e:
-            logger.exception(f"Entity/relationship async extraction failed: {e}")
-            return self._empty_graph_document(doc_text)
+        logger.debug(doc_text)
+        out = await chain.ainvoke(
+            {"input": doc_text, "format_instructions": parser.get_format_instructions()}
+        )
+        logger.debug(str(out))
+        json_out = self._parse_json_output(out.content)
+        return self._json_to_graph_document(json_out, doc_text)
 
     def _extract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
         doc_text = self._coerce_text(doc)
-        try:
-            out = chain.invoke(
-                {"input": doc_text, "format_instructions": parser.get_format_instructions()}
-            )
-            json_out = self._parse_json_output(out.content)
-            return self._json_to_graph_document(json_out, doc_text)
-        except Exception as e:
-            logger.exception(f"Entity/relationship extraction failed: {e}")
-            return self._empty_graph_document(doc_text)
+        out = chain.invoke(
+            {"input": doc_text, "format_instructions": parser.get_format_instructions()}
+        )
+        json_out = self._parse_json_output(out.content)
+        return self._json_to_graph_document(json_out, doc_text)
 
     async def adocument_er_graph_documents(self, document):
         from langchain.prompts import ChatPromptTemplate
@@ -336,8 +328,8 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                 json_out = json.loads(out.json()) if hasattr(out, "json") else dict(out)
                 er = self._json_to_graph_document(json_out, self._coerce_text(document))
             except Exception as e:
-                logger.exception(f"Structured async extraction failed: {e}")
-                er = self._empty_graph_document(self._coerce_text(document))
+                logger.error(f"Structured async extraction failed: {e}")
+                raise e
         else:
             chain = prompt | self.llm_service.llm
             er = await self._aextract_kg_from_doc(document, chain, parser)
@@ -386,8 +378,8 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
                 json_out = json.loads(out.json()) if hasattr(out, "json") else dict(out)
                 er = self._json_to_graph_document(json_out, self._coerce_text(document))
             except Exception as e:
-                logger.exception(f"Structured extraction failed: {e}")
-                er = self._empty_graph_document(self._coerce_text(document))
+                logger.error(f"Structured extraction failed: {e}")
+                raise e
         else:
             chain = prompt | self.llm_service.llm
             er = self._extract_kg_from_doc(document, chain, parser)
