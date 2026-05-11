@@ -15,8 +15,19 @@
 import asyncio
 import json
 import re
+import sys
+import types
 import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
+
+if "langchain_core.tracers.langchain_v1" not in sys.modules:
+    tracer_stub = types.ModuleType("langchain_core.tracers.langchain_v1")
+
+    class LangChainTracerV1:
+        pass
+
+    tracer_stub.LangChainTracerV1 = LangChainTracerV1
+    sys.modules["langchain_core.tracers.langchain_v1"] = tracer_stub
 
 from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser

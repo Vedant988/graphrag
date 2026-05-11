@@ -1,4 +1,5 @@
 import sys
+import asyncio
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -106,6 +107,79 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
                 "rels": [],
             },
         )
+
+    def test_json_to_graph_document_accepts_structured_like_payload(self):
+        payload = {
+            "nodes": [
+                {
+                    "id": "Vyasa",
+                    "type": "Person",
+                    "node_type": "Person",
+                    "definition": "Author of the epic.",
+                    "properties": "{}",
+                },
+                {
+                    "id": "Ganesa",
+                    "type": "Deity",
+                    "node_type": "Deity",
+                    "definition": "Divine scribe.",
+                    "properties": "{\"description\": \"Divine scribe.\"}",
+                },
+            ],
+            "rels": [
+                {
+                    "source": {
+                        "id": "Vyasa",
+                        "type": "Person",
+                        "node_type": "Person",
+                        "definition": "Author of the epic.",
+                        "properties": "{}",
+                    },
+                    "target": {
+                        "id": "Ganesa",
+                        "type": "Deity",
+                        "node_type": "Deity",
+                        "definition": "Divine scribe.",
+                        "properties": "{}",
+                    },
+                    "type": "DICTATES_TO",
+                    "relation_type": "DICTATES_TO",
+                    "definition": "Vyasa dictates and Ganesa writes.",
+                    "properties": "{}",
+                }
+            ],
+        }
+
+        graph_documents = self.extractor._json_to_graph_document(payload, "sample")
+
+        self.assertEqual(len(graph_documents), 1)
+        self.assertEqual(graph_documents[0].nodes[0].id, "Vyasa")
+        self.assertEqual(graph_documents[0].relationships[0].type, "DICTATES_TO")
+
+    def test_aextract_returns_graph_documents_for_async_callers(self):
+        graph_doc = GraphDocument(
+            nodes=[
+                Node(
+                    id="Sauti",
+                    type="Narrator",
+                    properties={"description": "Narrates the story."},
+                )
+            ],
+            relationships=[],
+            source=Document(page_content="Mahabharata sample"),
+        )
+
+        with patch.object(
+            self.extractor,
+            "adocument_er_graph_documents",
+            return_value=[graph_doc],
+        ) as mock_graph_docs:
+            result = asyncio.new_event_loop().run_until_complete(
+                self.extractor.aextract("Mahabharata sample")
+            )
+
+        mock_graph_docs.assert_called_once_with("Mahabharata sample")
+        self.assertEqual(result, [graph_doc])
 
 
 if __name__ == "__main__":

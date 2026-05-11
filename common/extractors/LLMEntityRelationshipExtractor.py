@@ -155,54 +155,30 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
     def _json_to_graph_document(
         self, json_out: Dict[str, Any], doc: str
     ) -> List[GraphDocument]:
+        if isinstance(json_out, KnowledgeGraph):
+            kg = json_out
+        else:
+            payload = json_out.model_dump() if hasattr(json_out, "model_dump") else json_out
+            kg = KnowledgeGraph.model_validate(payload)
+
         formatted_rels = []
-        for rels in json_out.get("rels", []):
-            if isinstance(rels["source"], str) and isinstance(rels["target"], str):
-                formatted_rels.append(
-                    {
-                        "source": rels["source"],
-                        "target": rels["target"],
-                        "type": rels["relation_type"].replace(" ", "_"),
-                        "definition": rels["definition"],
-                    }
-                )
-            elif isinstance(rels["source"], dict) and isinstance(rels["target"], str):
-                formatted_rels.append(
-                    {
-                        "source": rels["source"]["id"],
-                        "target": rels["target"],
-                        "type": rels["relation_type"].replace(" ", "_"),
-                        "definition": rels["definition"],
-                    }
-                )
-            elif isinstance(rels["source"], str) and isinstance(rels["target"], dict):
-                formatted_rels.append(
-                    {
-                        "source": rels["source"],
-                        "target": rels["target"]["id"],
-                        "type": rels["relation_type"].replace(" ", "_"),
-                        "definition": rels["definition"],
-                    }
-                )
-            elif isinstance(rels["source"], dict) and isinstance(rels["target"], dict):
-                formatted_rels.append(
-                    {
-                        "source": rels["source"]["id"],
-                        "target": rels["target"]["id"],
-                        "type": rels["relation_type"].replace(" ", "_"),
-                        "definition": rels["definition"],
-                    }
-                )
-            else:
-                raise Exception("Relationship parsing error")
+        for rels in kg.rels:
+            formatted_rels.append(
+                {
+                    "source": rels.source.id,
+                    "target": rels.target.id,
+                    "type": rels.relation_type.replace(" ", "_"),
+                    "definition": rels.definition,
+                }
+            )
 
         formatted_nodes = []
-        for node in json_out.get("nodes", []):
+        for node in kg.nodes:
             formatted_nodes.append(
                 {
-                    "id": node["id"],
-                    "type": node["node_type"].replace(" ", "_"),
-                    "definition": node["definition"],
+                    "id": node.id,
+                    "type": node.node_type.replace(" ", "_"),
+                    "definition": node.definition,
                 }
             )
 
@@ -325,11 +301,12 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
             chain = prompt | structured_llm
             try:
                 out = await chain.ainvoke({"input": self._coerce_text(document), "format_instructions": ""})
-                json_out = json.loads(out.json()) if hasattr(out, "json") else dict(out)
+                json_out = out.model_dump() if hasattr(out, "model_dump") else out
                 er = self._json_to_graph_document(json_out, self._coerce_text(document))
             except Exception as e:
-                logger.error(f"Structured async extraction failed: {e}")
-                raise e
+                logger.warning(f"Structured async extraction failed: {e}. Falling back to text parsing.")
+                chain = prompt | self.llm_service.llm
+                er = await self._aextract_kg_from_doc(document, chain, parser)
         else:
             chain = prompt | self.llm_service.llm
             er = await self._aextract_kg_from_doc(document, chain, parser)
@@ -375,11 +352,12 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
             chain = prompt | structured_llm
             try:
                 out = chain.invoke({"input": self._coerce_text(document), "format_instructions": ""})
-                json_out = json.loads(out.json()) if hasattr(out, "json") else dict(out)
+                json_out = out.model_dump() if hasattr(out, "model_dump") else out
                 er = self._json_to_graph_document(json_out, self._coerce_text(document))
             except Exception as e:
-                logger.error(f"Structured extraction failed: {e}")
-                raise e
+                logger.warning(f"Structured extraction failed: {e}. Falling back to text parsing.")
+                chain = prompt | self.llm_service.llm
+                er = self._extract_kg_from_doc(document, chain, parser)
         else:
             chain = prompt | self.llm_service.llm
             er = self._extract_kg_from_doc(document, chain, parser)
@@ -398,6 +376,6 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         return self.document_er_extraction(text)
     
     async def aextract(self, text):
-        return await self.adocument_er_extraction(text)
+        return await self.adocument_er_graph_documents(text)
     
 

@@ -46,6 +46,12 @@ logger = logging.getLogger(__name__)
 
 consistency_checkers = {}
 
+
+def _first_query_result_vertex(res: list[dict], key: str):
+    if not res or key not in res[0] or not res[0][key]:
+        return None
+    return res[0][key][0]
+
 async def stream_docs(
     conn: AsyncTigerGraphConnection,
     docs_chan: Channel,
@@ -67,10 +73,14 @@ async def stream_docs(
                 async with tg_sem:
                     res = await conn.runInstalledQuery(
                         "StreamDocContent",
-                        params={"doc": d},
+                        params={"doc": (d,)},
                     )
+                content = _first_query_result_vertex(res, "DocContent")
+                if content is None:
+                    logger.warning("StreamDocContent returned no content for document %s", d)
+                    continue
                 logger.info(f"stream_docs writes {d} to docs")
-                await docs_chan.put(res[0]["DocContent"][0])
+                await docs_chan.put(content)
             except Exception as e:
                 exc = traceback.format_exc()
                 logger.error(f"Error retrieving doc: {d} --> {e}\n{exc}")
@@ -101,9 +111,23 @@ async def stream_chunks(
                 async with tg_sem:
                     res = await conn.runInstalledQuery(
                         "StreamChunkContent",
-                        params={"chunk": c},
+                        params={"chunk": (c,)},
                     )
-                content = res[0]["ChunkContent"][0]["attributes"]["text"].encode('raw_unicode_escape').decode('unicode_escape')
+                content_vertex = _first_query_result_vertex(res, "ChunkContent")
+                if content_vertex is None:
+                    logger.warning(
+                        "StreamChunkContent returned no content for chunk %s; it will be retried later",
+                        c,
+                    )
+                    continue
+                content_text = content_vertex.get("attributes", {}).get("text")
+                if content_text is None:
+                    logger.warning(
+                        "Chunk %s has no text attribute in StreamChunkContent; skipping",
+                        c,
+                    )
+                    continue
+                content = str(content_text).encode('raw_unicode_escape').decode('unicode_escape')
                 logger.info("chunk writes to extract_chan")
                 await extract_chan.put((content, c))
 

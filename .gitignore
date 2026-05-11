@@ -64,3 +64,6 @@ Thumbs.db
 
 # Config
 configs/server_config.json
+
+# Local graph debugger artifacts
+tests/graph_debugger/output/

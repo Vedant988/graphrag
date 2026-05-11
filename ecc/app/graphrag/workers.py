@@ -239,6 +239,13 @@ async def get_vert_desc(conn, v_id, node: Node):
     return [new_desc]
 
 
+def _relationship_vertex_id(edge) -> str:
+    source_id = util.process_id(str(edge.source.id))
+    target_id = util.process_id(str(edge.target.id))
+    rel_type = util.process_id(str(edge.type))
+    return f"{source_id}:{rel_type}:{target_id}"
+
+
 extract_sem = asyncio.Semaphore(util._worker_concurrency)
 
 
@@ -257,6 +264,13 @@ async def extract(
     async with extract_sem:
         try:
             extracted: list[GraphDocument] = await extractor.aextract(chunk)
+            if not isinstance(extracted, list):
+                logger.error(
+                    "Extractor returned %s instead of list[GraphDocument] for chunk %s",
+                    type(extracted).__name__,
+                    chunk_id,
+                )
+                extracted = []
             logger.info(
                 f"Extracting chunk: {chunk_id} ({len(extracted)} graph docs extracted)"
             )
@@ -266,6 +280,13 @@ async def extract(
 
         # upsert nodes and edges to the graph
         for doc in extracted:
+            if not hasattr(doc, "nodes") or not hasattr(doc, "relationships"):
+                logger.error(
+                    "Skipping invalid extraction result for chunk %s: expected GraphDocument, got %s",
+                    chunk_id,
+                    type(doc).__name__,
+                )
+                continue
             for i, node in enumerate(doc.nodes):
                 logger.info(f"extract writes entity vert to upsert\nNode: {node.id}")
                 v_id = util.process_id(str(node.id))
@@ -363,6 +384,8 @@ async def extract(
                 logger.info(
                     f"extract writes relates edge to upsert:{edge.source.id} -({edge.type})->  {edge.target.id}"
                 )
+                relation_type = str(edge.type)
+                relation_vertex_id = _relationship_vertex_id(edge)
                 # upsert verts first to make sure their ID becomes an attr
                 v_id = util.process_id(edge.source.id)  # src_id
                 if len(v_id) == 0:
@@ -404,6 +427,21 @@ async def extract(
                         ),
                     )
                 )
+                await upsert_chan.put(
+                    (
+                        util.upsert_vertex,
+                        (
+                            conn,
+                            "RelationshipType",
+                            relation_vertex_id,
+                            {
+                                "definition": edge.properties.get("description", ""),
+                                "short_name": relation_type,
+                                "epoch_added": int(time.time()),
+                            },
+                        ),
+                    )
+                )
 
                 # upsert the edge between the two entities
                 await upsert_chan.put(
@@ -416,7 +454,49 @@ async def extract(
                             "RELATIONSHIP",  # edgeType
                             "Entity",  # tgt_type
                             util.process_id(edge.target.id),  # tgt_id
-                            {"relation_type": edge.type},  # attributes
+                            {"relation_type": relation_type},  # attributes
+                        ),
+                    )
+                )
+                await upsert_chan.put(
+                    (
+                        util.upsert_edge,
+                        (
+                            conn,
+                            "Entity",
+                            util.process_id(edge.source.id),
+                            "IS_HEAD_OF",
+                            "RelationshipType",
+                            relation_vertex_id,
+                            None,
+                        ),
+                    )
+                )
+                await upsert_chan.put(
+                    (
+                        util.upsert_edge,
+                        (
+                            conn,
+                            "RelationshipType",
+                            relation_vertex_id,
+                            "HAS_TAIL",
+                            "Entity",
+                            util.process_id(edge.target.id),
+                            None,
+                        ),
+                    )
+                )
+                await upsert_chan.put(
+                    (
+                        util.upsert_edge,
+                        (
+                            conn,
+                            "DocumentChunk",
+                            chunk_id,
+                            "MENTIONS_RELATIONSHIP",
+                            "RelationshipType",
+                            relation_vertex_id,
+                            None,
                         ),
                     )
                 )

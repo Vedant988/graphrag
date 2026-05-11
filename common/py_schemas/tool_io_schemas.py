@@ -12,11 +12,87 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional
+import ast
+import json
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from langchain_community.graphs.graph_document import Node as BaseNode
 from langchain_community.graphs.graph_document import Relationship as BaseRelationship
+
+
+def _coerce_properties(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if value is None:
+        return {}
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped or stripped in {"{}", "null", "None"}:
+            return {}
+        for parser in (json.loads, ast.literal_eval):
+            try:
+                parsed = parser(stripped)
+            except (ValueError, SyntaxError, TypeError, json.JSONDecodeError):
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+        return {"description": stripped}
+    return {}
+
+
+def _normalize_node_payload(value: Any) -> Any:
+    if hasattr(value, "model_dump"):
+        value = value.model_dump()
+    if isinstance(value, str):
+        return {
+            "id": value,
+            "type": "Unknown",
+            "node_type": "Unknown",
+            "definition": "",
+            "properties": {},
+        }
+    if not isinstance(value, dict):
+        return value
+
+    node = dict(value)
+    node["properties"] = _coerce_properties(node.get("properties"))
+    if not node.get("type") and node.get("node_type"):
+        node["type"] = node["node_type"]
+    if not node.get("node_type") and node.get("type"):
+        node["node_type"] = node["type"]
+    if not node.get("definition"):
+        node["definition"] = (
+            node["properties"].get("description")
+            or node["properties"].get("definition")
+            or node.get("description", "")
+        )
+    return node
+
+
+def _normalize_relationship_payload(value: Any) -> Any:
+    if hasattr(value, "model_dump"):
+        value = value.model_dump()
+    if not isinstance(value, dict):
+        return value
+
+    rel = dict(value)
+    rel["properties"] = _coerce_properties(rel.get("properties"))
+    if not rel.get("type") and rel.get("relation_type"):
+        rel["type"] = rel["relation_type"]
+    if not rel.get("relation_type") and rel.get("type"):
+        rel["relation_type"] = rel["type"]
+    if not rel.get("definition"):
+        rel["definition"] = (
+            rel["properties"].get("description")
+            or rel["properties"].get("definition")
+            or rel.get("description", "")
+        )
+    if "source" in rel:
+        rel["source"] = _normalize_node_payload(rel["source"])
+    if "target" in rel:
+        rel["target"] = _normalize_node_payload(rel["target"])
+    return rel
 
 
 class MapQuestionToSchemaResponse(BaseModel):
@@ -61,6 +137,11 @@ class GenerateFunctionResponse(BaseModel):
 
 
 class Node(BaseNode):
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_node(cls, value):
+        return _normalize_node_payload(value)
+
     node_type: str = Field(
         description="Type of the node. Describe what the entity is. Ensure you use basic or elementary types for node labels.\n"
         "For example, when you identify an entity representing a person, "
@@ -73,6 +154,11 @@ class Node(BaseNode):
 
 
 class Relationship(BaseRelationship):
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_relationship(cls, value):
+        return _normalize_relationship_payload(value)
+
     relation_type: str = Field(
         description="Type of the relationship. Describe what the relationship is. Instead of using specific and momentary types such as "
         "'BECAME_PROFESSOR', use more general and timeless relationship types like "

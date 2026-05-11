@@ -203,8 +203,22 @@ async def extract(
 ):
     logger.info(f"Extracting chunk: {chunk_id}")
     extracted: list[GraphDocument] = await extractor.aextract(chunk)
+    if not isinstance(extracted, list):
+        logger.error(
+            "Extractor returned %s instead of list[GraphDocument] for chunk %s",
+            type(extracted).__name__,
+            chunk_id,
+        )
+        extracted = []
     # upsert nodes and edges to the graph
     for doc in extracted:
+        if not hasattr(doc, "nodes") or not hasattr(doc, "relationships"):
+            logger.error(
+                "Skipping invalid extraction result for chunk %s: expected GraphDocument, got %s",
+                chunk_id,
+                type(doc).__name__,
+            )
+            continue
         for node in doc.nodes:
             logger.info(f"extract writes entity vert to upsert\nNode: {node.id}")
             v_id = util.process_id(str(node.id))

@@ -21,6 +21,15 @@ from langchain_core.prompts import BasePromptTemplate
 from langchain_community.callbacks.manager import get_openai_callback
 
 logger = logging.getLogger(__name__)
+_VALID_GRAPHNAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validate_graphname(graphname: str) -> str:
+    if not graphname:
+        return graphname
+    if not _VALID_GRAPHNAME_RE.match(graphname):
+        raise ValueError(f"Invalid graph name: {graphname!r}")
+    return graphname
 
 
 class LLM_Model:
@@ -29,12 +38,65 @@ class LLM_Model:
     Used to connect to external LLM API services, and retrieve customized prompts for the tools.
     """
 
+    _PROVIDER_PROMPT_DIRS = {
+        "genai": (
+            "common/prompts/google_gemini",
+            "common/prompts/openai_gpt4",
+        ),
+        "openai": (
+            "common/prompts/openai_gpt4",
+            "common/prompts/google_gemini",
+        ),
+        "azure": (
+            "common/prompts/azure_open_ai_gpt35_turbo_instruct",
+            "common/prompts/openai_gpt4",
+        ),
+        "vertexai": (
+            "common/prompts/gcp_vertexai_palm",
+            "common/prompts/google_gemini",
+            "common/prompts/openai_gpt4",
+        ),
+        "bedrock": (
+            "common/prompts/aws_bedrock_claude3haiku",
+            "common/prompts/openai_gpt4",
+        ),
+        "groq": (
+            "common/prompts/openai_gpt4",
+            "common/prompts/google_gemini",
+        ),
+        "ollama": (
+            "common/prompts/openai_gpt4",
+            "common/prompts/google_gemini",
+        ),
+        "huggingface": (
+            "common/prompts/openai_gpt4",
+            "common/prompts/google_gemini",
+        ),
+        "watsonx": (
+            "common/prompts/openai_gpt4",
+            "common/prompts/google_gemini",
+        ),
+        "sagemaker": (
+            "common/prompts/openai_gpt4",
+            "common/prompts/google_gemini",
+        ),
+    }
+
     def __init__(self, config):
         self.llm = None
         self.config = config
-        from common.config import validate_graphname
-        self._graphname = validate_graphname(config.get("graphname"))
+        self._graphname = _validate_graphname(config.get("graphname"))
         self.prompt_path = config.get("prompt_path", "")
+
+    def _fallback_prompt_dirs(self):
+        provider = str(self.config.get("llm_service", "")).lower()
+        configured_dir = os.path.normpath(self.prompt_path.rstrip("/\\"))
+        dirs = []
+        for prompt_dir in self._PROVIDER_PROMPT_DIRS.get(provider, ()):
+            norm = os.path.normpath(prompt_dir)
+            if norm != configured_dir and norm not in dirs:
+                dirs.append(norm)
+        return dirs
 
     def _read_prompt_file(self, path):
         """Read a prompt file with per-graph override support.
@@ -46,16 +108,38 @@ class LLM_Model:
         Returns the file content, or None if the file doesn't exist anywhere.
         """
         filename = os.path.basename(path)
+        checked_paths = []
         if self._graphname:
             graph_override = os.path.join(
                 "configs", "graph_configs", self._graphname, "prompts", filename
             )
+            checked_paths.append(graph_override)
             if os.path.exists(graph_override):
-                with open(graph_override) as f:
+                with open(graph_override, encoding="utf-8") as f:
                     return f.read()
+        checked_paths.append(path)
         if os.path.exists(path):
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 return f.read()
+
+        for prompt_dir in self._fallback_prompt_dirs():
+            fallback_path = os.path.join(prompt_dir, filename)
+            checked_paths.append(fallback_path)
+            if os.path.exists(fallback_path):
+                logger.warning(
+                    "Prompt '%s' missing from configured path '%s'; falling back to '%s'",
+                    filename,
+                    self.prompt_path,
+                    fallback_path,
+                )
+                with open(fallback_path, encoding="utf-8") as f:
+                    return f.read()
+
+        logger.error(
+            "Prompt '%s' not found. Checked paths: %s",
+            filename,
+            checked_paths,
+        )
         return None
 
     def invoke_with_parser(
@@ -156,9 +240,35 @@ class LLM_Model:
     @property
     def entity_relationship_extraction_prompt(self):
         """Property to get the prompt for the EntityRelationshipExtraction tool."""
-        return self._read_prompt_file(
+        result = self._read_prompt_file(
             self.prompt_path + "entity_relationship_extraction.txt"
         )
+        if result is not None:
+            return result
+        return """# Knowledge Graph Instructions for GPT-4
+## 1. Overview
+You are a top-tier algorithm designed for extracting information in structured formats to build a knowledge graph.
+- **Nodes** represent entities, concepts, and properties of entities.
+- The aim is to achieve simplicity and clarity in the knowledge graph, making it accessible for a vast audience.
+## 2. Labeling Nodes
+- **Consistency**: Ensure you use basic or elementary types for node labels.
+- For example, when you identify an entity representing a person, always label it as **"person"**. Avoid using more specific terms like "mathematician" or "scientist".
+- **Node IDs**: Never utilize integers as node IDs. Node IDs should be names or human-readable identifiers found in the text.
+## 3. Handling Numerical Data and Dates
+- Numerical data, like age or other related information, should be incorporated as attributes or properties of the respective nodes.
+- **No Separate Nodes for Dates/Numbers**: Do not create separate nodes for dates or numerical values. Always attach them as attributes or properties of nodes.
+- **Property Format**: Properties must be in a key-value format. Only use properties for dates and numbers, string properties should be new nodes.
+- **Quotation Marks**: Never use escaped single or double quotes within property values.
+- **Naming Convention**: Use camelCase for property keys, e.g., `birthDate`.
+## 4. Coreference Resolution
+- **Maintain Entity Consistency**: When extracting entities, it's vital to ensure consistency.
+If an entity, such as "John Doe", is mentioned multiple times in the text but is referred to by different names or pronouns (e.g., "Joe", "he"),
+always use the most complete identifier for that entity throughout the knowledge graph. In this example, use "John Doe" as the entity ID.
+Remember, the knowledge graph should be coherent and easily understandable, so maintaining consistency in entity references is crucial.
+## 5. Strict Compliance
+Adhere to the rules strictly. Non-compliance will result in termination, including poor formatting.
+## 6. Handling Instances with No Relationships
+If a node has no relationships, it should still be included in the knowledge graph. Simply add the node and leave the relationships section empty."""
 
     @property
     def generate_cypher_prompt(self):
@@ -311,10 +421,16 @@ Format: {format_instructions}\
         result = self._read_prompt_file(self.prompt_path + "community_summarization.txt")
         if result is not None:
             return result
-        raise FileNotFoundError(
-            f"Community summarization prompt file not found in {self.prompt_path}. "
-            "Please ensure community_summarization.txt exists in the configured prompt path."
-        )
+        return """You are a helpful assistant responsible for generating a comprehensive summary of the data provided below.
+Given one or two entities, and a list of descriptions, all related to the same entity or group of entities.
+Please concatenate all of these into a single, comprehensive description. Make sure to include information collected from all the descriptions.
+If the provided descriptions are contradictory, please resolve the contradictions and provide a single, coherent summary, but do not add any information that is not in the description.
+Make sure it is written in third person, and include the entity names so we the have full context.
+
+#######
+-Data-
+Commuinty Title: {entity_name}
+Description List: {description_list}"""
 
     @property
     def contextualize_question_prompt(self):
