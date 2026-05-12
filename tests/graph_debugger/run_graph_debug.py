@@ -174,6 +174,146 @@ def sample_relationship_edges(conn: TigerGraphConnection, entity_samples: Any, l
     return edges
 
 
+def extract_vertex_id(vertex: dict[str, Any]) -> str:
+    if not isinstance(vertex, dict):
+        return ""
+    return str(vertex.get("v_id") or vertex.get("id") or vertex.get("attributes", {}).get("id") or "")
+
+
+def extract_chunk_coverage(conn: TigerGraphConnection, limit: int = 10000) -> dict[str, Any]:
+    chunk_result = safe_call(
+        "chunk_vertices",
+        conn.getVertices,
+        "DocumentChunk",
+        limit=limit,
+    )
+    if not chunk_result.get("ok"):
+        return chunk_result
+
+    chunks = chunk_result.get("result", [])
+    if not isinstance(chunks, list):
+        return {
+            "ok": False,
+            "section": "chunk_coverage",
+            "error": f"Unexpected DocumentChunk payload type: {type(chunks).__name__}",
+        }
+
+    ordered_chunks = sorted(
+        chunks,
+        key=lambda item: (
+            int(item.get("attributes", {}).get("idx", 0))
+            if isinstance(item, dict)
+            else 0
+        ),
+    )
+
+    rows: list[dict[str, Any]] = []
+    for chunk in ordered_chunks:
+        chunk_id = extract_vertex_id(chunk)
+        if not chunk_id:
+            continue
+
+        idx_value = chunk.get("attributes", {}).get("idx", 0) if isinstance(chunk, dict) else 0
+        contains_edges = safe_call(
+            f"chunk_contains_entity:{chunk_id}",
+            conn.getEdges,
+            "DocumentChunk",
+            chunk_id,
+            edgeType="CONTAINS_ENTITY",
+            limit=limit,
+        )
+        mentions_edges = safe_call(
+            f"chunk_mentions_relationship:{chunk_id}",
+            conn.getEdges,
+            "DocumentChunk",
+            chunk_id,
+            edgeType="MENTIONS_RELATIONSHIP",
+            limit=limit,
+        )
+
+        contains_result = contains_edges.get("result", []) if contains_edges.get("ok") else []
+        mentions_result = mentions_edges.get("result", []) if mentions_edges.get("ok") else []
+        contains_count = len(contains_result) if isinstance(contains_result, list) else 0
+        mentions_count = len(mentions_result) if isinstance(mentions_result, list) else 0
+
+        rows.append(
+            {
+                "chunk_id": chunk_id,
+                "idx": idx_value,
+                "contains_entity": contains_count,
+                "mentions_relationship": mentions_count,
+            }
+        )
+
+    chunk_count = len(rows)
+    chunks_with_entities = [row for row in rows if row["contains_entity"] > 0]
+    chunks_without_entities = [row for row in rows if row["contains_entity"] == 0]
+    chunks_with_relationship_mentions = [row for row in rows if row["mentions_relationship"] > 0]
+    chunks_without_relationship_mentions = [row for row in rows if row["mentions_relationship"] == 0]
+
+    return {
+        "ok": True,
+        "section": "chunk_coverage",
+        "result": {
+            "chunk_count": chunk_count,
+            "chunks_with_entities": len(chunks_with_entities),
+            "chunks_without_entities": len(chunks_without_entities),
+            "empty_chunk_ids": [row["chunk_id"] for row in chunks_without_entities],
+            "empty_chunk_indexes": [row["idx"] for row in chunks_without_entities],
+            "chunks_with_relationship_mentions": len(chunks_with_relationship_mentions),
+            "chunks_without_relationship_mentions": len(chunks_without_relationship_mentions),
+            "avg_entities_per_chunk": round(
+                sum(row["contains_entity"] for row in rows) / chunk_count, 2
+            )
+            if chunk_count
+            else 0.0,
+            "avg_relationship_mentions_per_chunk": round(
+                sum(row["mentions_relationship"] for row in rows) / chunk_count, 2
+            )
+            if chunk_count
+            else 0.0,
+            "top_entity_chunks": sorted(
+                rows,
+                key=lambda row: (-row["contains_entity"], row["idx"]),
+            )[:10],
+            "top_relationship_chunks": sorted(
+                rows,
+                key=lambda row: (-row["mentions_relationship"], row["idx"]),
+            )[:10],
+            "rows": rows,
+        },
+    }
+
+
+def build_richness_summary(
+    vertex_counts_result: Any,
+    edge_counts_result: Any,
+    chunk_coverage_result: Any,
+) -> dict[str, Any]:
+    vertex_counts = vertex_counts_result if isinstance(vertex_counts_result, dict) else {}
+    edge_counts = edge_counts_result if isinstance(edge_counts_result, dict) else {}
+    chunk_coverage = chunk_coverage_result if isinstance(chunk_coverage_result, dict) else {}
+
+    return {
+        "chunk_coverage": {
+            "chunks_with_contains_entity_edges": chunk_coverage.get("chunks_with_entities"),
+            "total_chunks": chunk_coverage.get("chunk_count"),
+            "chunks_with_zero_extracted_entities": chunk_coverage.get("chunks_without_entities"),
+            "empty_chunk_indexes": chunk_coverage.get("empty_chunk_indexes", []),
+            "empty_chunk_ids": chunk_coverage.get("empty_chunk_ids", []),
+        },
+        "richness": {
+            "entity": vertex_counts.get("Entity", 0),
+            "relationship_type": vertex_counts.get("RelationshipType", 0),
+            "community": vertex_counts.get("Community", 0),
+            "relationship": edge_counts.get("RELATIONSHIP", 0),
+            "contains_entity": edge_counts.get("CONTAINS_ENTITY", 0),
+            "mentions_relationship": edge_counts.get("MENTIONS_RELATIONSHIP", 0),
+            "relationship_type_edges": edge_counts.get("RELATIONSHIP_TYPE", 0),
+        },
+    }
+
+
 def inspect_graph(db_config: dict[str, Any], graphname: str, sample_limit: int) -> dict[str, Any]:
     conn = make_connection(db_config, graphname=graphname)
     connectivity = try_gsql(conn, f"USE GRAPH {graphname}\nls")
@@ -188,6 +328,7 @@ def inspect_graph(db_config: dict[str, Any], graphname: str, sample_limit: int) 
     vertex_counts = safe_call("vertex_count", conn.getVertexCount, "*")
     edge_counts = safe_call("edge_count", conn.getEdgeCount, "*")
     vertex_stats = safe_call("vertex_stats", conn.getVertexStats, "*", skipNA=True)
+    chunk_coverage = extract_chunk_coverage(conn)
 
     schema_result = schema_info.get("result", {}) if schema_info.get("ok") else {}
     vertex_types = [
@@ -211,6 +352,11 @@ def inspect_graph(db_config: dict[str, Any], graphname: str, sample_limit: int) 
     entity_result = vertex_samples.get("Entity", {})
     entity_samples = entity_result.get("result") if entity_result.get("ok") else []
     relationship_edge_samples = sample_relationship_edges(conn, entity_samples, sample_limit)
+    richness_summary = build_richness_summary(
+        vertex_counts.get("result"),
+        edge_counts.get("result"),
+        chunk_coverage.get("result"),
+    )
 
     return {
         "graphname": graphname,
@@ -219,6 +365,8 @@ def inspect_graph(db_config: dict[str, Any], graphname: str, sample_limit: int) 
         "vertex_counts": vertex_counts,
         "edge_counts": edge_counts,
         "vertex_stats": vertex_stats,
+        "chunk_coverage": chunk_coverage,
+        "richness_summary": richness_summary,
         "vertex_samples": vertex_samples,
         "relationship_edge_samples": relationship_edge_samples,
     }
@@ -304,6 +452,41 @@ def build_markdown_report(
     if edge_counts_result is not None:
         lines.append(f"- Edge count summary: `{json.dumps(edge_counts_result, ensure_ascii=True)}`")
 
+    chunk_coverage = inspection.get("chunk_coverage", {})
+    chunk_coverage_result = chunk_coverage.get("result") if chunk_coverage.get("ok") else None
+    if chunk_coverage_result is not None:
+        lines.extend(
+            [
+                "",
+                "## Chunk Coverage",
+                "",
+                f"- Chunks with `CONTAINS_ENTITY` edges: `{chunk_coverage_result.get('chunks_with_entities', 0)} / {chunk_coverage_result.get('chunk_count', 0)}`",
+                f"- Chunks with zero extracted entities: `{chunk_coverage_result.get('chunks_without_entities', 0)} / {chunk_coverage_result.get('chunk_count', 0)}`",
+                f"- Empty chunk indexes: `{', '.join(str(value) for value in chunk_coverage_result.get('empty_chunk_indexes', [])) or 'none'}`",
+                f"- Chunks with `MENTIONS_RELATIONSHIP` edges: `{chunk_coverage_result.get('chunks_with_relationship_mentions', 0)} / {chunk_coverage_result.get('chunk_count', 0)}`",
+                f"- Average entities per chunk: `{chunk_coverage_result.get('avg_entities_per_chunk', 0.0)}`",
+                f"- Average relationship mentions per chunk: `{chunk_coverage_result.get('avg_relationship_mentions_per_chunk', 0.0)}`",
+            ]
+        )
+
+    richness_summary = inspection.get("richness_summary", {})
+    richness_counts = richness_summary.get("richness", {})
+    if richness_counts:
+        lines.extend(
+            [
+                "",
+                "## Richness",
+                "",
+                f"- Entity: `{richness_counts.get('entity', 0)}`",
+                f"- RelationshipType: `{richness_counts.get('relationship_type', 0)}`",
+                f"- Community: `{richness_counts.get('community', 0)}`",
+                f"- RELATIONSHIP: `{richness_counts.get('relationship', 0)}`",
+                f"- CONTAINS_ENTITY: `{richness_counts.get('contains_entity', 0)}`",
+                f"- MENTIONS_RELATIONSHIP: `{richness_counts.get('mentions_relationship', 0)}`",
+                f"- RELATIONSHIP_TYPE: `{richness_counts.get('relationship_type_edges', 0)}`",
+            ]
+        )
+
     lines.extend(
         [
             "",
@@ -369,6 +552,7 @@ def main() -> int:
 
     if inspection is not None:
         write_json(report_dir / "inspection.json", inspection)
+        write_json(report_dir / "summary.json", inspection.get("richness_summary", {}))
 
     markdown = build_markdown_report(
         requested_graph=requested_graph,

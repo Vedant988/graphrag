@@ -15,6 +15,9 @@
 import os
 import re
 import logging
+import math
+import time
+from typing import Any
 from langchain_core.output_parsers import BaseOutputParser, PydanticOutputParser
 from langchain_core.exceptions import OutputParserException
 from langchain_core.prompts import BasePromptTemplate
@@ -142,6 +145,23 @@ class LLM_Model:
         )
         return None
 
+    def estimate_tokens(self, payload: Any) -> int:
+        if payload is None:
+            return 0
+        if isinstance(payload, str):
+            text = payload
+        else:
+            text = str(payload)
+        return max(1, math.ceil(len(text) / 4))
+
+    def wait_for_request_slot(self, payload: Any = None) -> None:
+        """Provider-specific sync rate limiting hook."""
+        return None
+
+    async def await_rate_limit_slot(self, payload: Any = None) -> None:
+        """Provider-specific async rate limiting hook."""
+        return None
+
     def invoke_with_parser(
         self,
         prompt: BasePromptTemplate,
@@ -172,6 +192,7 @@ class LLM_Model:
 
         usage_data = {}
         with get_openai_callback() as cb:
+            self.wait_for_request_slot(input_variables)
             raw_output = chain.invoke(input_variables)
 
             usage_data["input_tokens"] = cb.prompt_tokens
@@ -208,6 +229,7 @@ class LLM_Model:
 
         usage_data = {}
         with get_openai_callback() as cb:
+            await self.await_rate_limit_slot(input_variables)
             raw_output = await chain.ainvoke(input_variables)
 
             usage_data["input_tokens"] = cb.prompt_tokens
@@ -385,6 +407,9 @@ Format: {format_instructions}\
             return result
         return """Given the answer context in JSON format, rephrase it to answer the question. \n
                    Use only the provided information in context without adding any reasoning or additional logic. \n
+                   You are a strict knowledge graph interpreter. Use only relationships and facts explicitly supported by the provided context.\n
+                   If the question contains a false premise, conflates separate events, or asks for more items than the context supports, correct the premise instead of inventing missing facts.\n
+                   Do not merge details from separate causal chains unless the context explicitly connects them.\n
                    Make sure all information in the answer are covered in the generated answer.\n
 
                    Question: {question} \n

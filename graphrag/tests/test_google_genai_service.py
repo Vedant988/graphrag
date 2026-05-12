@@ -1,0 +1,96 @@
+import asyncio
+import os
+import sys
+import types
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
+
+if "langchain_core.tracers.langchain_v1" not in sys.modules:
+    tracer_stub = types.ModuleType("langchain_core.tracers.langchain_v1")
+
+    class LangChainTracerV1:
+        pass
+
+    tracer_stub.LangChainTracerV1 = LangChainTracerV1
+    sys.modules["langchain_core.tracers.langchain_v1"] = tracer_stub
+
+os.environ.setdefault(
+    "LOG_CONFIG",
+    '{"log_file_path":"D:/github/graphrag/tests/graph_debugger/output/.tmp-test-logs","log_max_size":1048576,"log_backup_count":1}',
+)
+
+from common.llm_services.google_genai_service import GoogleGenAI
+
+
+def _make_config(model_name: str) -> dict:
+    return {
+        "llm_service": "genai",
+        "llm_model": model_name,
+        "authentication_configuration": {"GOOGLE_API_KEY": "test-key"},
+        "model_kwargs": {"temperature": 0},
+        "prompt_path": "",
+    }
+
+
+class TestGoogleGenAIService(unittest.TestCase):
+    @patch("common.llm_services.google_genai_service.ChatGoogleGenerativeAI")
+    def test_flash_lite_uses_shared_free_tier_limiter(self, mock_chat_model):
+        service = GoogleGenAI(_make_config("gemini-3.1-flash-lite"))
+
+        self.assertTrue(service.uses_shared_rate_limiter)
+        self.assertIsNotNone(service._shared_rate_limiter)
+        mock_chat_model.assert_called_once()
+
+    @patch("common.llm_services.google_genai_service.ChatGoogleGenerativeAI")
+    def test_non_flash_lite_model_does_not_enable_free_tier_limiter(
+        self, mock_chat_model
+    ):
+        service = GoogleGenAI(_make_config("gemini-2.5-flash"))
+
+        self.assertFalse(service.uses_shared_rate_limiter)
+        self.assertIsNone(service._shared_rate_limiter)
+        mock_chat_model.assert_called_once()
+
+    @patch("common.llm_services.google_genai_service.ChatGoogleGenerativeAI")
+    def test_sync_wait_for_request_slot_uses_reserved_token_budget(
+        self, mock_chat_model
+    ):
+        service = GoogleGenAI(_make_config("gemini-3.1-flash-lite"))
+        service._shared_rate_limiter.acquire = MagicMock()
+
+        service.wait_for_request_slot({"input": "Bhishma instructed Vyasa."})
+
+        service._shared_rate_limiter.acquire.assert_called_once()
+        reserved_tokens = service._shared_rate_limiter.acquire.call_args.args[0]
+        self.assertGreater(reserved_tokens, 0)
+
+    @patch("common.llm_services.google_genai_service.ChatGoogleGenerativeAI")
+    def test_async_wait_for_request_slot_uses_reserved_token_budget(
+        self, mock_chat_model
+    ):
+        service = GoogleGenAI(_make_config("gemini-3.1-flash-lite"))
+        service._shared_rate_limiter.aacquire = AsyncMock()
+
+        asyncio.new_event_loop().run_until_complete(
+            service.await_rate_limit_slot({"input": "Bhishma instructed Vyasa."})
+        )
+
+        service._shared_rate_limiter.aacquire.assert_awaited_once()
+        reserved_tokens = service._shared_rate_limiter.aacquire.await_args.args[0]
+        self.assertGreater(reserved_tokens, 0)
+
+    @patch("common.llm_services.google_genai_service.ChatGoogleGenerativeAI")
+    def test_context_window_guard_rejects_oversized_requests(self, mock_chat_model):
+        service = GoogleGenAI(_make_config("gemini-3.1-flash-lite"))
+        service._shared_rate_limiter.acquire = MagicMock()
+
+        huge_payload = {"input": "x" * 4_100_000}
+
+        with self.assertRaises(ValueError):
+            service.wait_for_request_slot(huge_payload)
+
+        service._shared_rate_limiter.acquire.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()

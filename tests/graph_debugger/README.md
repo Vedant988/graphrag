@@ -9,7 +9,14 @@ Files written per run:
 - `graph_listing_ls.txt`: raw `ls` output when available
 - `graph_listing_show_graph.txt`: raw `SHOW GRAPH *` output when available
 - `inspection.json`: schema, counts, samples, and connectivity results for the target graph
+- `summary.json`: high-signal chunk coverage and richness summary
 - `report.md`: short human-readable summary
+
+The generated report now includes:
+
+- chunk coverage summary, including how many chunks have `CONTAINS_ENTITY` edges
+- empty chunk indexes for chunks with zero extracted entities
+- richness counts for `Entity`, `RelationshipType`, `Community`, `RELATIONSHIP`, `CONTAINS_ENTITY`, `MENTIONS_RELATIONSHIP`, and `RELATIONSHIP_TYPE`
 
 Run from the repo root:
 

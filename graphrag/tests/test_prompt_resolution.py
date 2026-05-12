@@ -49,6 +49,20 @@ class TestPromptResolution(unittest.TestCase):
 
         self.assertEqual(model.community_summarize_prompt, expected)
 
+    def test_genai_falls_back_to_google_gemini_chatbot_prompt_with_strict_correction_directive(self):
+        model = LLM_Model(
+            {
+                "prompt_path": "./common/prompts/llama_70b/",
+                "llm_service": "genai",
+            }
+        )
+
+        prompt = model.chatbot_response_prompt
+
+        self.assertIn("strict knowledge graph interpreter", prompt)
+        self.assertIn("false premise", prompt)
+        self.assertIn("Do not merge details from separate causal chains", prompt)
+
     @patch.object(LLM_Model, "_read_prompt_file", return_value=None)
     def test_entity_prompt_has_embedded_default_when_all_files_missing(self, _mock_read):
         model = LLM_Model({"prompt_path": "./does/not/exist/", "llm_service": "genai"})
@@ -60,6 +74,13 @@ class TestPromptResolution(unittest.TestCase):
         model = LLM_Model({"prompt_path": "./does/not/exist/", "llm_service": "genai"})
 
         self.assertIn("Description List", model.community_summarize_prompt)
+
+    @patch.object(LLM_Model, "_read_prompt_file", return_value=None)
+    def test_chatbot_prompt_has_embedded_default_when_all_files_missing(self, _mock_read):
+        model = LLM_Model({"prompt_path": "./does/not/exist/", "llm_service": "genai"})
+
+        self.assertIn("strict knowledge graph interpreter", model.chatbot_response_prompt)
+        self.assertIn("false premise", model.chatbot_response_prompt)
 
 
 if __name__ == "__main__":

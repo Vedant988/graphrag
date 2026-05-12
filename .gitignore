@@ -67,3 +67,4 @@ configs/server_config.json
 
 # Local graph debugger artifacts
 tests/graph_debugger/output/
+.tmp-test-logs/

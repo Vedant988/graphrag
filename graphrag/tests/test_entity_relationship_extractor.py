@@ -2,7 +2,7 @@ import sys
 import asyncio
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -171,8 +171,8 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
 
         with patch.object(
             self.extractor,
-            "adocument_er_graph_documents",
-            return_value=[graph_doc],
+            "_adocument_er_graph_documents",
+            AsyncMock(return_value=[graph_doc]),
         ) as mock_graph_docs:
             result = asyncio.new_event_loop().run_until_complete(
                 self.extractor.aextract("Mahabharata sample")
@@ -180,6 +180,107 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
 
         mock_graph_docs.assert_called_once_with("Mahabharata sample")
         self.assertEqual(result, [graph_doc])
+
+    def test_aextract_retries_suspiciously_empty_chunks_with_fallback_prompt(self):
+        lineage_text = (
+            "Krishna-Dwaipayana, by the injunctions of Bhishma and his own mother, "
+            "became the father of three boys by the two wives of Vichitra-virya. "
+            "Having thus raised up Dhritarashtra, Pandu, and Vidura, he returned "
+            "to his recluse abode to prosecute his religious exercise."
+        )
+        empty_graph = GraphDocument(
+            nodes=[],
+            relationships=[],
+            source=Document(page_content=lineage_text),
+        )
+        retry_graph = GraphDocument(
+            nodes=[
+                Node(
+                    id="Vyasa",
+                    type="Person",
+                    properties={"description": "Father of Dhritarashtra."},
+                ),
+                Node(
+                    id="Dhritarashtra",
+                    type="Person",
+                    properties={"description": "One of the three sons."},
+                ),
+            ],
+            relationships=[
+                Relationship(
+                    source=Node(id="Vyasa", type="Person"),
+                    target=Node(id="Dhritarashtra", type="Person"),
+                    type="father_of",
+                    properties={"description": "Vyasa fathers Dhritarashtra."},
+                )
+            ],
+            source=Document(page_content=lineage_text),
+        )
+
+        with patch.object(
+            self.extractor,
+            "_arun_graph_documents",
+            AsyncMock(side_effect=[[empty_graph], [retry_graph]]),
+        ) as mock_extract:
+            result = asyncio.new_event_loop().run_until_complete(
+                self.extractor.aextract(lineage_text)
+            )
+
+        self.assertEqual(result, [retry_graph])
+        self.assertEqual(mock_extract.await_count, 2)
+        self.assertIsNone(mock_extract.await_args_list[0].kwargs.get("extra_instruction"))
+        retry_instruction = (
+            mock_extract.await_args_list[1].kwargs.get("extra_instruction")
+            or mock_extract.await_args_list[1].args[1]
+        )
+        self.assertIn(
+            "genealogical",
+            retry_instruction.lower(),
+        )
+
+    def test_aextract_does_not_retry_short_truly_empty_chunks(self):
+        bland_text = "No names or family relations here."
+        empty_graph = GraphDocument(
+            nodes=[],
+            relationships=[],
+            source=Document(page_content=bland_text),
+        )
+
+        with patch.object(
+            self.extractor,
+            "_arun_graph_documents",
+            AsyncMock(return_value=[empty_graph]),
+        ) as mock_extract:
+            result = asyncio.new_event_loop().run_until_complete(
+                self.extractor.aextract(bland_text)
+            )
+
+        self.assertEqual(result, [empty_graph])
+        self.assertEqual(mock_extract.await_count, 1)
+
+    def test_async_request_slot_delegates_to_llm_service_limiter(self):
+        self.extractor.llm_service.uses_shared_rate_limiter = True
+        self.extractor.llm_service.await_rate_limit_slot = AsyncMock()
+
+        payload = {"input": "Mahabharata sample"}
+        asyncio.new_event_loop().run_until_complete(
+            self.extractor._await_async_request_slot(payload)
+        )
+
+        self.extractor.llm_service.await_rate_limit_slot.assert_awaited_once_with(
+            payload
+        )
+
+    def test_sync_request_slot_delegates_to_llm_service_limiter(self):
+        self.extractor.llm_service.uses_shared_rate_limiter = True
+        self.extractor.llm_service.wait_for_request_slot = MagicMock()
+
+        payload = {"input": "Mahabharata sample"}
+        self.extractor._wait_for_request_slot(payload)
+
+        self.extractor.llm_service.wait_for_request_slot.assert_called_once_with(
+            payload
+        )
 
 
 if __name__ == "__main__":

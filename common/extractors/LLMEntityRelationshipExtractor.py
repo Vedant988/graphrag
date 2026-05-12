@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import logging
 import json
 import re
+import time
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from common.extractors.BaseExtractor import BaseExtractor
@@ -31,17 +33,32 @@ logger = logging.getLogger(__name__)
 
 
 class LLMEntityRelationshipExtractor(BaseExtractor):
+    EMPTY_EXTRACTION_FALLBACK_INSTRUCTION = """The previous extraction attempt returned a valid schema but zero entities and relationships.
+Retry with a narrower mandate:
+- Extract named people, groups, places, works, and other relationally important actors.
+- Prioritize genealogical, kinship, lineage, marriage, alias, request, instruction, and causal relationships.
+- Preserve important unnamed but referential actors as entities when needed, such as "his own mother" or "the two wives of Vichitra-virya".
+- Prefer returning a partial but useful graph over an empty graph when the passage contains substantive actors or relations.
+- If the passage truly contains no extractable entities or relations, return empty lists."""
+
     def __init__(
         self,
         llm_service: LLM_Model,
         allowed_entity_types: List[str] = None,
         allowed_relationship_types: List[str] = None,
         strict_mode: bool = False,
+        empty_extraction_retries: int = 1,
+        suspicious_empty_min_chars: int = 160,
     ):
         self.llm_service = llm_service
         self.allowed_vertex_types = allowed_entity_types
         self.allowed_edge_types = allowed_relationship_types
         self.strict_mode = strict_mode
+        self.empty_extraction_retries = max(0, empty_extraction_retries)
+        self.suspicious_empty_min_chars = max(0, suspicious_empty_min_chars)
+        self._async_request_lock = asyncio.Lock()
+        self._last_async_request_started_at = 0.0
+        self._min_request_interval_seconds = self._resolve_min_request_interval_seconds()
 
     def _coerce_text(self, document: Any) -> str:
         """Accept either plain text or repo document objects."""
@@ -152,6 +169,162 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
     def _normalize_type(self, t: str) -> str:
         return str(t).replace(" ", "_").lower()
 
+    def _resolve_min_request_interval_seconds(self) -> float:
+        config = getattr(self.llm_service, "config", {}) or {}
+        configured = config.get("min_request_interval_seconds")
+        if configured is None:
+            configured = config.get("model_kwargs", {}).get(
+                "min_request_interval_seconds"
+            )
+        if configured is not None:
+            try:
+                return max(0.0, float(configured))
+            except (TypeError, ValueError):
+                logger.warning(
+                    "Invalid min_request_interval_seconds=%r; using provider default.",
+                    configured,
+                )
+
+        provider = str(config.get("llm_service", "")).lower()
+        model_name = str(config.get("llm_model", "")).lower()
+        if provider == "genai" and "gemini-3.1-flash-lite" in model_name:
+            # Gemini free-tier requests are low enough that bursty chunk extraction
+            # easily trips quota. Keep a local fallback only when the provider
+            # does not expose its own shared limiter.
+            return 4.25
+        return 0.0
+
+    def _uses_provider_rate_limiter(self) -> bool:
+        return bool(getattr(self.llm_service, "uses_shared_rate_limiter", False))
+
+    def _wait_for_request_slot(self, payload: Dict[str, Any] | None = None) -> None:
+        if self._uses_provider_rate_limiter():
+            self.llm_service.wait_for_request_slot(payload)
+            return
+
+        if self._min_request_interval_seconds <= 0:
+            return
+
+        now = time.monotonic()
+        earliest_start = (
+            self._last_async_request_started_at + self._min_request_interval_seconds
+        )
+        if earliest_start > now:
+            time.sleep(earliest_start - now)
+            now = time.monotonic()
+        self._last_async_request_started_at = now
+
+    async def _await_async_request_slot(
+        self, payload: Dict[str, Any] | None = None
+    ) -> None:
+        if self._uses_provider_rate_limiter():
+            await self.llm_service.await_rate_limit_slot(payload)
+            return
+
+        if self._min_request_interval_seconds <= 0:
+            return
+
+        async with self._async_request_lock:
+            now = time.monotonic()
+            earliest_start = (
+                self._last_async_request_started_at + self._min_request_interval_seconds
+            )
+            if earliest_start > now:
+                await asyncio.sleep(earliest_start - now)
+                now = time.monotonic()
+            self._last_async_request_started_at = now
+
+    def _graph_document_payload_counts(
+        self, graph_documents: List[GraphDocument]
+    ) -> tuple[int, int, int]:
+        doc_count = 0
+        node_count = 0
+        relationship_count = 0
+
+        for graph_document in graph_documents:
+            if not hasattr(graph_document, "nodes") or not hasattr(
+                graph_document, "relationships"
+            ):
+                continue
+            doc_count += 1
+            node_count += len(graph_document.nodes)
+            relationship_count += len(graph_document.relationships)
+
+        return doc_count, node_count, relationship_count
+
+    def _is_empty_graph_documents(self, graph_documents: List[GraphDocument]) -> bool:
+        _, node_count, relationship_count = self._graph_document_payload_counts(
+            graph_documents
+        )
+        return node_count == 0 and relationship_count == 0
+
+    def _looks_suspiciously_empty(self, doc_text: str) -> bool:
+        stripped = doc_text.strip()
+        if len(stripped) < self.suspicious_empty_min_chars:
+            return False
+
+        relation_keywords = re.search(
+            r"\b("
+            r"father|mother|son|daughter|wife|wives|husband|brother|sister|"
+            r"offspring|lineage|descended|ancestor|parent|child|children|"
+            r"married|begot|born|requested|request|instructed|instruction|"
+            r"ordered|asked|caused|cause|because|through|injunctions?"
+            r")\b",
+            stripped,
+            flags=re.IGNORECASE,
+        )
+        if relation_keywords:
+            return True
+
+        titlecase_tokens = re.findall(r"\b[A-Z][A-Za-z-]{2,}\b", stripped)
+        return len(titlecase_tokens) >= 4
+
+    def _should_retry_empty_extraction(
+        self,
+        doc_text: str,
+        graph_documents: List[GraphDocument],
+        extra_instruction: str | None,
+    ) -> bool:
+        return (
+            extra_instruction is None
+            and self.empty_extraction_retries > 0
+            and self._is_empty_graph_documents(graph_documents)
+            and self._looks_suspiciously_empty(doc_text)
+        )
+
+    def _build_prompt_messages(
+        self, extra_instruction: str | None = None
+    ) -> list[tuple[str, str]]:
+        prompt = [
+            ("system", self.llm_service.entity_relationship_extraction_prompt),
+            (
+                "human",
+                "Tip: Make sure to answer in the correct format and do "
+                "not include any explanations. "
+                "Use the given format to extract information from the "
+                "following input: {input}",
+            ),
+            (
+                "human",
+                "Mandatory: Make sure to answer in the correct format, specified here: {format_instructions}",
+            ),
+        ]
+        if self.allowed_vertex_types or self.allowed_edge_types:
+            prompt.append(
+                (
+                    "human",
+                    "Tip: Make sure to use the following types if they are applicable. "
+                    "If the input does not contain any of the types, you may create your own.",
+                )
+            )
+        if self.allowed_vertex_types:
+            prompt.append(("human", f"Allowed Node Types: {self.allowed_vertex_types}"))
+        if self.allowed_edge_types:
+            prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
+        if extra_instruction:
+            prompt.append(("human", extra_instruction))
+        return prompt
+
     def _json_to_graph_document(
         self, json_out: Dict[str, Any], doc: str
     ) -> List[GraphDocument]:
@@ -247,62 +420,48 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
     async def _aextract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
         doc_text = self._coerce_text(doc)
         logger.debug(doc_text)
-        out = await chain.ainvoke(
-            {"input": doc_text, "format_instructions": parser.get_format_instructions()}
-        )
+        payload = {
+            "input": doc_text,
+            "format_instructions": parser.get_format_instructions(),
+        }
+        await self._await_async_request_slot(payload)
+        out = await chain.ainvoke(payload)
         logger.debug(str(out))
         json_out = self._parse_json_output(out.content)
         return self._json_to_graph_document(json_out, doc_text)
 
     def _extract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
         doc_text = self._coerce_text(doc)
-        out = chain.invoke(
-            {"input": doc_text, "format_instructions": parser.get_format_instructions()}
-        )
+        payload = {
+            "input": doc_text,
+            "format_instructions": parser.get_format_instructions(),
+        }
+        self._wait_for_request_slot(payload)
+        out = chain.invoke(payload)
         json_out = self._parse_json_output(out.content)
         return self._json_to_graph_document(json_out, doc_text)
 
-    async def adocument_er_graph_documents(self, document):
+    async def _arun_graph_documents(
+        self, document, extra_instruction: str | None = None
+    ):
         from langchain.prompts import ChatPromptTemplate
         from langchain.output_parsers import PydanticOutputParser
 
-    
         parser = PydanticOutputParser(pydantic_object=KnowledgeGraph)
-        prompt = [
-            ("system", self.llm_service.entity_relationship_extraction_prompt),
-            (
-                "human",
-                "Tip: Make sure to answer in the correct format and do "
-                "not include any explanations. "
-                "Use the given format to extract information from the "
-                "following input: {input}",
-            ),
-            (
-                "human",
-                "Mandatory: Make sure to answer in the correct format, specified here: {format_instructions}",
-            ),
-        ]
-        if self.allowed_vertex_types or self.allowed_edge_types:
-            prompt.append(
-                (
-                    "human",
-                    "Tip: Make sure to use the following types if they are applicable. "
-                    "If the input does not contain any of the types, you may create your own.",
-                )
-            )
-        if self.allowed_vertex_types:
-            prompt.append(("human", f"Allowed Node Types: {self.allowed_vertex_types}"))
-        if self.allowed_edge_types:
-            prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
-        prompt = ChatPromptTemplate.from_messages(prompt)
-        
+        prompt = ChatPromptTemplate.from_messages(
+            self._build_prompt_messages(extra_instruction)
+        )
+        doc_text = self._coerce_text(document)
+
         if hasattr(self.llm_service.llm, "with_structured_output"):
             structured_llm = self.llm_service.llm.with_structured_output(KnowledgeGraph)
             chain = prompt | structured_llm
             try:
-                out = await chain.ainvoke({"input": self._coerce_text(document), "format_instructions": ""})
+                payload = {"input": doc_text, "format_instructions": ""}
+                await self._await_async_request_slot(payload)
+                out = await chain.ainvoke(payload)
                 json_out = out.model_dump() if hasattr(out, "model_dump") else out
-                er = self._json_to_graph_document(json_out, self._coerce_text(document))
+                er = self._json_to_graph_document(json_out, doc_text)
             except Exception as e:
                 logger.warning(f"Structured async extraction failed: {e}. Falling back to text parsing.")
                 chain = prompt | self.llm_service.llm
@@ -310,50 +469,50 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         else:
             chain = prompt | self.llm_service.llm
             er = await self._aextract_kg_from_doc(document, chain, parser)
-            
+
         return er
 
-    def document_er_graph_documents(self, document):
+    async def _adocument_er_graph_documents(
+        self, document, extra_instruction: str | None = None
+    ):
+        doc_text = self._coerce_text(document)
+        er = await self._arun_graph_documents(document, extra_instruction)
+
+        if self._should_retry_empty_extraction(doc_text, er, extra_instruction):
+            logger.warning(
+                "Primary extraction returned a valid schema but zero entities/relationships. "
+                "Retrying focused fallback extraction."
+            )
+            return await self._adocument_er_graph_documents(
+                document,
+                extra_instruction=self.EMPTY_EXTRACTION_FALLBACK_INSTRUCTION,
+            )
+        return er
+
+    async def adocument_er_graph_documents(self, document):
+        return await self._adocument_er_graph_documents(document)
+
+    def _run_graph_documents(
+        self, document, extra_instruction: str | None = None
+    ):
         from langchain.prompts import ChatPromptTemplate
         from langchain.output_parsers import PydanticOutputParser
 
-    
         parser = PydanticOutputParser(pydantic_object=KnowledgeGraph)
-        prompt = [
-            ("system", self.llm_service.entity_relationship_extraction_prompt),
-            (
-                "human",
-                "Tip: Make sure to answer in the correct format and do "
-                "not include any explanations. "
-                "Use the given format to extract information from the "
-                "following input: {input}",
-            ),
-            (
-                "human",
-                "Mandatory: Make sure to answer in the correct format, specified here: {format_instructions}",
-            ),
-        ]
-        if self.allowed_vertex_types or self.allowed_edge_types:
-            prompt.append(
-                (
-                    "human",
-                    "Tip: Make sure to use the following types if they are applicable. "
-                    "If the input does not contain any of the types, you may create your own.",
-                )
-            )
-        if self.allowed_vertex_types:
-            prompt.append(("human", f"Allowed Node Types: {self.allowed_vertex_types}"))
-        if self.allowed_edge_types:
-            prompt.append(("human", f"Allowed Edge Types: {self.allowed_edge_types}"))
-        prompt = ChatPromptTemplate.from_messages(prompt)
-        
+        prompt = ChatPromptTemplate.from_messages(
+            self._build_prompt_messages(extra_instruction)
+        )
+        doc_text = self._coerce_text(document)
+
         if hasattr(self.llm_service.llm, "with_structured_output"):
             structured_llm = self.llm_service.llm.with_structured_output(KnowledgeGraph)
             chain = prompt | structured_llm
             try:
-                out = chain.invoke({"input": self._coerce_text(document), "format_instructions": ""})
+                payload = {"input": doc_text, "format_instructions": ""}
+                self._wait_for_request_slot(payload)
+                out = chain.invoke(payload)
                 json_out = out.model_dump() if hasattr(out, "model_dump") else out
-                er = self._json_to_graph_document(json_out, self._coerce_text(document))
+                er = self._json_to_graph_document(json_out, doc_text)
             except Exception as e:
                 logger.warning(f"Structured extraction failed: {e}. Falling back to text parsing.")
                 chain = prompt | self.llm_service.llm
@@ -361,8 +520,28 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         else:
             chain = prompt | self.llm_service.llm
             er = self._extract_kg_from_doc(document, chain, parser)
-            
+
         return er
+
+    def _document_er_graph_documents(
+        self, document, extra_instruction: str | None = None
+    ):
+        doc_text = self._coerce_text(document)
+        er = self._run_graph_documents(document, extra_instruction)
+
+        if self._should_retry_empty_extraction(doc_text, er, extra_instruction):
+            logger.warning(
+                "Primary extraction returned a valid schema but zero entities/relationships. "
+                "Retrying focused fallback extraction."
+            )
+            return self._document_er_graph_documents(
+                document,
+                extra_instruction=self.EMPTY_EXTRACTION_FALLBACK_INSTRUCTION,
+            )
+        return er
+
+    def document_er_graph_documents(self, document):
+        return self._document_er_graph_documents(document)
 
     async def adocument_er_extraction(self, document):
         er = await self.adocument_er_graph_documents(document)
@@ -376,6 +555,6 @@ class LLMEntityRelationshipExtractor(BaseExtractor):
         return self.document_er_extraction(text)
     
     async def aextract(self, text):
-        return await self.adocument_er_graph_documents(text)
+        return await self._adocument_er_graph_documents(text)
     
 

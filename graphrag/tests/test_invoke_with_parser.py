@@ -180,6 +180,25 @@ class TestInvokeWithParser(unittest.TestCase):
                 f"Expected usage log, got: {log_calls}",
             )
 
+    @patch("common.llm_services.base_llm.get_openai_callback")
+    def test_sync_rate_limit_hook_runs_before_invoke(self, mock_cb_ctx):
+        model = _make_llm_model()
+        model.wait_for_request_slot = MagicMock()
+        prompt = PromptTemplate(template="{question}", input_variables=["question"])
+        parser = StrOutputParser()
+
+        mock_chain = _setup_chain_mock(model, "result", mock_cb_ctx)
+
+        with patch.object(type(prompt), "__or__", return_value=mock_chain):
+            model.invoke_with_parser(
+                prompt,
+                parser,
+                {"question": "test"},
+                caller_name="test_sync_rate_limit",
+            )
+
+        model.wait_for_request_slot.assert_called_once_with({"question": "test"})
+
 
 class TestAinvokeWithParser(unittest.TestCase):
     """Tests for LLM_Model.ainvoke_with_parser."""
@@ -224,6 +243,27 @@ class TestAinvokeWithParser(unittest.TestCase):
             )
         self.assertEqual(result.answer, "async_world")
         self.assertEqual(result.score, 75)
+
+    @patch("common.llm_services.base_llm.get_openai_callback")
+    def test_async_rate_limit_hook_runs_before_invoke(self, mock_cb_ctx):
+        model = _make_llm_model()
+        model.await_rate_limit_slot = AsyncMock()
+        prompt = PromptTemplate(template="{question}", input_variables=["question"])
+        parser = StrOutputParser()
+
+        mock_chain = _setup_chain_mock(model, "result", mock_cb_ctx, async_mode=True)
+
+        with patch.object(type(prompt), "__or__", return_value=mock_chain):
+            asyncio.new_event_loop().run_until_complete(
+                model.ainvoke_with_parser(
+                    prompt,
+                    parser,
+                    {"question": "test"},
+                    caller_name="test_async_rate_limit",
+                )
+            )
+
+        model.await_rate_limit_slot.assert_awaited_once_with({"question": "test"})
 
 
 def _parse_json_output(content: str) -> dict:

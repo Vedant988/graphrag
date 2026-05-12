@@ -5,7 +5,7 @@ import logging
 import re
 import traceback
 from glob import glob
-from typing import Callable
+from typing import Any, Callable
 
 import httpx
 from supportai import workers
@@ -180,7 +180,8 @@ def map_attrs(attributes: dict):
     return attrs
 
 
-def process_id(v_id: str):
+def process_id(v_id: Any):
+    v_id = str(v_id)
     has_func = re.compile(r"(.*)\(").findall(v_id)
     if len(has_func) > 0:
         v_id = has_func[0]

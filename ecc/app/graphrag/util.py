@@ -18,6 +18,7 @@ import json
 import logging
 import re
 import traceback
+from typing import Any
 
 import httpx
 from graphrag import reusable_channel, workers
@@ -205,7 +206,8 @@ def map_attrs(attributes: dict):
     return attrs
 
 
-def process_id(v_id: str):
+def process_id(v_id: Any):
+    v_id = str(v_id)
     has_func = re.compile(r"(.*)\(").findall(v_id)
     if len(has_func) > 0:
         v_id = has_func[0]

@@ -16,6 +16,8 @@ import base64
 import time
 import logging
 import httpx
+import asyncio
+import re
 from urllib.parse import quote_plus
 
 import ecc_util
@@ -194,6 +196,52 @@ async def get_vert_desc(conn, v_id, node: Node):
     return [new_desc]
 
 
+def _graph_payload_counts(graph_documents: list[GraphDocument]) -> tuple[int, int, int]:
+    valid_docs = 0
+    node_count = 0
+    relationship_count = 0
+
+    for graph_document in graph_documents:
+        if not hasattr(graph_document, "nodes") or not hasattr(
+            graph_document, "relationships"
+        ):
+            continue
+        valid_docs += 1
+        node_count += len(graph_document.nodes)
+        relationship_count += len(graph_document.relationships)
+
+    return valid_docs, node_count, relationship_count
+
+
+def _is_rate_limited_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return any(
+        token in message
+        for token in (
+            "429",
+            "quota exceeded",
+            "rate limit",
+            "resourceexhausted",
+            "retry_delay",
+            "too many requests",
+        )
+    )
+
+
+def _rate_limit_retry_delay_seconds(exc: Exception, attempt: int) -> float:
+    message = str(exc)
+    for pattern in (
+        r"Please retry in ([0-9.]+)s",
+        r"retry in ([0-9.]+) seconds",
+        r"retry_delay\s*\{\s*seconds:\s*([0-9.]+)",
+    ):
+        match = re.search(pattern, message, flags=re.IGNORECASE)
+        if match:
+            return max(1.0, float(match.group(1)))
+
+    return min(60.0, 5.0 * attempt)
+
+
 async def extract(
     upsert_chan: Channel,
     extractor: BaseExtractor,
@@ -201,15 +249,56 @@ async def extract(
     chunk: str,
     chunk_id: str,
 ):
-    logger.info(f"Extracting chunk: {chunk_id}")
-    extracted: list[GraphDocument] = await extractor.aextract(chunk)
-    if not isinstance(extracted, list):
-        logger.error(
-            "Extractor returned %s instead of list[GraphDocument] for chunk %s",
-            type(extracted).__name__,
-            chunk_id,
-        )
+    max_attempts = 3
+    try:
+        extracted: list[GraphDocument] = []
+        for attempt in range(1, max_attempts + 1):
+            try:
+                extracted = await extractor.aextract(chunk)
+                if not isinstance(extracted, list):
+                    logger.error(
+                        "Extractor returned %s instead of list[GraphDocument] for chunk %s",
+                        type(extracted).__name__,
+                        chunk_id,
+                    )
+                    extracted = []
+                break
+            except Exception as e:
+                if attempt < max_attempts and _is_rate_limited_error(e):
+                    delay = _rate_limit_retry_delay_seconds(e, attempt)
+                    logger.warning(
+                        "Rate limited while extracting chunk %s (attempt %s/%s). Retrying in %.1fs.",
+                        chunk_id,
+                        attempt,
+                        max_attempts,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                raise
+    except Exception as e:
+        logger.error(f"Failed to extract chunk {chunk_id}: {e}")
         extracted = []
+    valid_docs, node_count, relationship_count = _graph_payload_counts(extracted)
+    if node_count == 0 and relationship_count == 0:
+        if valid_docs > 0:
+            logger.warning(
+                "Chunk %s returned valid schema but ZERO entities/relations. Flagging as empty.",
+                chunk_id,
+            )
+        else:
+            logger.warning(
+                "Chunk %s produced no valid graph documents after extraction.",
+                chunk_id,
+            )
+    else:
+        logger.info(
+            "Extracting chunk: %s (%s graph docs, %s nodes, %s relationships)",
+            chunk_id,
+            valid_docs,
+            node_count,
+            relationship_count,
+        )
     # upsert nodes and edges to the graph
     for doc in extracted:
         if not hasattr(doc, "nodes") or not hasattr(doc, "relationships"):
@@ -280,7 +369,9 @@ async def extract(
                     ),
                 )
             )
-            v_id = util.process_id(edge.source.id) # source id
+            source_id = util.process_id(str(edge.source.id))
+            target_id = util.process_id(str(edge.target.id))
+            v_id = source_id # source id
             if len(v_id) == 0:
                 continue
             desc = await get_vert_desc(conn, v_id, edge.source)
@@ -298,7 +389,7 @@ async def extract(
                     ),
                 )
             )
-            v_id = util.process_id(edge.target.id) # target id
+            v_id = target_id # target id
             if len(v_id) == 0:
                 continue
             desc = await get_vert_desc(conn, v_id, edge.target) 
@@ -324,7 +415,7 @@ async def extract(
                     (
                         conn,
                         "Entity",  # src_type
-                        util.process_id(edge.source.id),  # src_id
+                        source_id,  # src_id
                         "IS_HEAD_OF",  # edgeType
                         "RelationshipType",  # tgt_type
                         edge.type,  # tgt_id
@@ -340,7 +431,7 @@ async def extract(
                         edge.type, # src_id
                         "HAS_TAIL",  # edgeType
                         "Entity",  # tgt_type
-                        util.process_id(edge.target.id),  # tgt_id
+                        target_id,  # tgt_id
                     ),
                 )
             )
