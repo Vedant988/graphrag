@@ -625,7 +625,7 @@
 }
 
 /* DEMO */
-section {
+.typewriter-demo section {
   box-sizing: border-box;
   display: flex;
   justify-content: space-between;
@@ -636,10 +636,10 @@ section {
   width: 100%;
 }
 
-section:nth-child(2) {
+.typewriter-demo section:nth-child(2) {
   top: 10rem;
 }
-section:nth-child(3) {
+.typewriter-demo section:nth-child(3) {
   top: 20rem;
 }
 

@@ -9,7 +9,7 @@ COPY . .
 
 RUN pnpm install
 RUN pnpm run build
-RUN pnpm i -g serve
+RUN npm install -g serve
 
 
 CMD [ "serve", "-s", "dist" ]

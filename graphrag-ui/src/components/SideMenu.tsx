@@ -578,6 +578,14 @@ const SideMenu = ({ height, setGetConversationId }: { height?: string, setGetCon
         + New Chat
       </div>
 
+      <div
+        className="rounded-lg h-[44px] flex items-center justify-center mx-5 mt-3 cursor-pointer border border-gray-300 text-black dark:border-[#3D3D3D] dark:text-white"
+        onClick={() => navigate("/comparison")}
+      >
+        <BsGrid className="mr-2" />
+        Comparison Dashboard
+      </div>
+
       <h1 className="Urbane-Medium text-lg pl-4 pt-5 text-black dark:text-white flex">
         <img src="./tg-logo-bk.svg" className="mr-3 ml-2" />
         <span>Chat history</span>
