@@ -14,7 +14,7 @@ The pilot uses:
 Files:
 
 - `run_pilot.py`: runs the 10-page pilot end to end
-- `questions.json`: sample questions for the pilot
+- `questions.json`: sample questions for the pilot, including benchmark metadata such as `favored_pipeline`, `benchmark_category`, and diagnosis notes
 - `data/`: generated first-10-page assets
 - `output/`: generated answers, graph artifacts, and usage logs
 

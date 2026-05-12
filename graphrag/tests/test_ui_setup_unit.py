@@ -227,6 +227,54 @@ class TestUISetupUnit(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertIn("in progress", response.json()["detail"].lower())
 
+    @patch("app.routers.ui.ws_basic_auth", return_value=(["mygraph"], MagicMock(graphname="mygraph")))
+    @patch("app.routers.ui.auth", return_value=(["mygraph"], MagicMock()))
+    @patch(
+        "app.routers.ui._run_comparison_pipeline",
+        side_effect=[
+            {
+                "pipeline": "LLM-Only",
+                "status": "success",
+                "answer": "llm-only answer",
+                "latency_seconds": 0.5,
+                "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15, "cost": 0.001, "calls": 1},
+                "error": None,
+            },
+            {
+                "pipeline": "Basic RAG",
+                "status": "success",
+                "answer": "basic rag answer",
+                "latency_seconds": 0.8,
+                "usage": {"input_tokens": 20, "output_tokens": 10, "total_tokens": 30, "cost": 0.002, "calls": 2},
+                "error": None,
+            },
+            {
+                "pipeline": "GraphRAG",
+                "status": "success",
+                "answer": "graphrag answer",
+                "latency_seconds": 1.1,
+                "usage": {"input_tokens": 25, "output_tokens": 11, "total_tokens": 36, "cost": 0.003, "calls": 3},
+                "error": None,
+            },
+        ],
+    )
+    def test_comparison_endpoint_returns_pipeline_results(
+        self, _mock_pipeline, _mock_auth, _mock_ws_auth
+    ):
+        response = self.client.post(
+            "/ui/mygraph/comparison",
+            json={"question": "What happened?"},
+            auth=("testuser", "testpass"),
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["graphname"], "mygraph")
+        self.assertEqual(data["question"], "What happened?")
+        self.assertEqual(
+            [pipeline["pipeline"] for pipeline in data["pipelines"]],
+            ["LLM-Only", "Basic RAG", "GraphRAG"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

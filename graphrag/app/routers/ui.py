@@ -31,7 +31,7 @@ from typing import Annotated
 import asyncer
 import httpx
 import requests
-from agent.agent import TigerGraphAgent, make_agent
+from agent.agent import TigerGraphAgent, _resolve_embedding_store, make_agent
 from agent.Q import DONE
 from fastapi import (
     APIRouter,
@@ -49,15 +49,19 @@ from fastapi import (
 )
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.security.http import HTTPBase
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import PromptTemplate
 from pyTigerGraph import TigerGraphConnection
 from starlette.websockets import WebSocketState
+from supportai.retrievers import HybridRetriever, SimilarityRetriever
 from tools.validation_utils import MapQuestionToSchemaException
 
-from common.config import db_config, graphrag_config, embedding_service, llm_config, service_status, get_chat_config, get_completion_config, get_embedding_config, get_multimodal_config, validate_graphname, get_llm_service, resolve_llm_services
+from common.config import db_config, graphrag_config, embedding_service, llm_config, service_status, get_chat_config, get_completion_config, get_embedding_config, get_graphrag_config, get_multimodal_config, validate_graphname, get_llm_service, resolve_llm_services
 from common.db.connections import get_db_connection_pwd_manual
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
 from common.metrics.prometheus_metrics import metrics as pmetrics
+from common.py_schemas import GraphRAGAnswerOutput
 from common.utils.graph_locks import acquire_graph_lock, release_graph_lock, acquire_rebuild_lock, release_rebuild_lock, get_rebuilding_graph
 from supportai import supportai
 from common.py_schemas.schemas import (
@@ -1058,6 +1062,141 @@ async def write_message_to_history(message: Message, usr_auth: str):
     else:
         LogWriter.info(f"chat-history not enabled. chat-history url: {ch}")
 
+
+def _normalize_usage_totals(usage: dict | None) -> dict[str, int | float]:
+    usage = usage or {}
+    return {
+        "input_tokens": int(usage.get("input_tokens") or 0),
+        "output_tokens": int(usage.get("output_tokens") or 0),
+        "total_tokens": int(usage.get("total_tokens") or 0),
+        "cost": round(float(usage.get("cost") or 0.0), 6),
+        "calls": int(usage.get("calls") or 0),
+    }
+
+
+def _comparison_llm_only(question: str, graphname: str) -> dict:
+    llm_service = get_llm_service(get_chat_config(graphname))
+    llm_service.reset_usage_tracking()
+    answer_parser = PydanticOutputParser(pydantic_object=GraphRAGAnswerOutput)
+    prompt = PromptTemplate(
+        template=(
+            "You are answering a benchmark question without retrieval, graph lookup, "
+            "or external tools. Use only your prior knowledge. If you are not sure, "
+            "say so plainly instead of fabricating details.\n\n"
+            "Question: {question}\n\n"
+            "{format_instructions}"
+        ),
+        input_variables=["question"],
+        partial_variables={
+            "format_instructions": answer_parser.get_format_instructions()
+        },
+    )
+    generated = llm_service.invoke_with_parser(
+        prompt,
+        answer_parser,
+        {"question": question},
+        caller_name="comparison_llm_only",
+    )
+    return {
+        "answer": generated.generated_answer,
+        "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+    }
+
+
+def _comparison_basic_rag(question: str, graphname: str, conn) -> dict:
+    if service_status["embedding_store"]["error"]:
+        raise RuntimeError(service_status["embedding_store"]["error"])
+
+    llm_service = get_llm_service(get_chat_config(graphname))
+    llm_service.reset_usage_tracking()
+    embedding_store_for_graph = _resolve_embedding_store(conn)
+    if embedding_store_for_graph.conn.graphname != conn.graphname:
+        embedding_store_for_graph.set_graphname(conn.graphname)
+
+    graphrag_cfg = get_graphrag_config(graphname)
+    retriever = SimilarityRetriever(
+        embedding_service,
+        embedding_store_for_graph,
+        llm_service,
+        conn,
+    )
+    result = retriever.retrieve_answer(
+        question,
+        index="DocumentChunk",
+        top_k=graphrag_cfg.get("top_k", 5),
+        withHyDE=graphrag_cfg.get("withHyDE", False),
+        expand=graphrag_cfg.get("expand", False),
+        combine=graphrag_cfg.get("combine", False),
+        verbose=False,
+    )
+    return {
+        "answer": result.get("response", ""),
+        "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+    }
+
+
+def _comparison_graphrag(question: str, graphname: str, conn) -> dict:
+    if service_status["embedding_store"]["error"]:
+        raise RuntimeError(service_status["embedding_store"]["error"])
+
+    llm_service = get_llm_service(get_chat_config(graphname))
+    llm_service.reset_usage_tracking()
+    embedding_store_for_graph = _resolve_embedding_store(conn)
+    if embedding_store_for_graph.conn.graphname != conn.graphname:
+        embedding_store_for_graph.set_graphname(conn.graphname)
+
+    graphrag_cfg = get_graphrag_config(graphname)
+    retriever = HybridRetriever(
+        embedding_service,
+        embedding_store_for_graph,
+        llm_service,
+        conn,
+    )
+    result = retriever.retrieve_answer(
+        question,
+        index=["DocumentChunk"],
+        top_k=graphrag_cfg.get("top_k", 5),
+        similarity_threshold=graphrag_cfg.get("similarity_threshold", 0.90),
+        num_hops=graphrag_cfg.get("num_hops", 2),
+        num_seen_min=graphrag_cfg.get("num_seen_min", 2),
+        expand=graphrag_cfg.get("expand", False),
+        method=graphrag_cfg.get("method", "similarity"),
+        chunk_only=graphrag_cfg.get("chunk_only", True),
+        doc_only=graphrag_cfg.get("doc_only", False),
+        combine=graphrag_cfg.get("combine", False),
+        verbose=False,
+    )
+    return {
+        "answer": result.get("response", ""),
+        "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+    }
+
+
+def _run_comparison_pipeline(name: str, runner) -> dict:
+    start = time.monotonic()
+    try:
+        result = runner()
+        status = "success"
+        error = None
+        answer = result.get("answer", "")
+        usage = result.get("usage", {})
+    except Exception as exc:
+        logger.error("Comparison pipeline '%s' failed: %s", name, exc)
+        status = "error"
+        error = str(exc)
+        answer = ""
+        usage = {}
+
+    usage_summary = _normalize_usage_totals(usage)
+    return {
+        "pipeline": name,
+        "status": status,
+        "answer": answer,
+        "latency_seconds": round(time.monotonic() - start, 3),
+        "usage": usage_summary,
+        "error": error,
+    }
+
 @router.get(route_prefix + "/{graphname}/query")
 async def graph_query(
     graphname: ValidGraphName,
@@ -1133,6 +1272,42 @@ async def graph_query(
             f"/ui/{graphname}/query request_id={req_id_cv.get()} Exception Trace:\n{exc}"
         )
         raise e
+
+
+@router.post(route_prefix + "/{graphname}/comparison")
+async def comparison_query(
+    graphname: ValidGraphName,
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)],
+    payload: dict = Body(...),
+):
+    question = str(payload.get("question", "")).strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required.")
+
+    creds = creds[1]
+    auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
+    _, conn = ws_basic_auth(auth, graphname)
+
+    pipelines = [
+        _run_comparison_pipeline(
+            "LLM-Only",
+            lambda: _comparison_llm_only(question, graphname),
+        ),
+        _run_comparison_pipeline(
+            "Basic RAG",
+            lambda: _comparison_basic_rag(question, graphname, conn),
+        ),
+        _run_comparison_pipeline(
+            "GraphRAG",
+            lambda: _comparison_graphrag(question, graphname, conn),
+        ),
+    ]
+
+    return {
+        "graphname": graphname,
+        "question": question,
+        "pipelines": pipelines,
+    }
 
 @router.websocket(route_prefix + "/{graphname}/chat")
 async def chat(

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  AlertCircle,
   ArrowRight,
   BarChart3,
   BrainCircuit,
@@ -8,6 +9,7 @@ import {
   Database,
   Gauge,
   GitBranchPlus,
+  Loader2,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -19,30 +21,38 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const defaultQuestion =
-  "In Dhritarashtra's lament to Sanjaya, what specific weapon did Aswatthaman use against the embryo of Virata's daughter, and what consequence followed?";
+  "Based entirely on the first 10 pages, trace the exact lineage and mentorship connections between the author of the Mahabharata and the warrior who was left lying on a bed of arrows. How are they connected?";
 
-const headlineMetrics = [
-  {
-    label: "GraphRAG vs Basic RAG",
-    value: "Pending live run",
-    hint: "Token reduction % will surface here after benchmark execution.",
-  },
-  {
-    label: "Cost Per Query",
-    value: "Pending pricing calc",
-    hint: "Each pipeline will report prompt + completion cost.",
-  },
-  {
-    label: "Latency",
-    value: "Pending timing run",
-    hint: "End-to-end response time will be captured side by side.",
-  },
-  {
-    label: "Accuracy",
-    value: "Judge + BERTScore",
-    hint: "LLM-as-a-Judge PASS/FAIL and BERTScore F1 land here next.",
-  },
-];
+const benchmarkPreset = {
+  id: "vyasa_bhishma_lineage",
+  favoredPipeline: "GraphRAG favored multi-hop benchmark",
+  category: "Lineage and mentorship benchmark",
+  diagnosis:
+    "This question is expected to favor GraphRAG because the answer spans distant facts about authorship, lineage, and the bed-of-arrows warrior. Basic RAG often retrieves only the author-side chunks, while GraphRAG can connect Vyasa and Bhishma through explicit multi-hop entity relationships.",
+};
+
+type ComparisonUsage = {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cost: number;
+  calls: number;
+};
+
+type ComparisonPipelineResult = {
+  pipeline: string;
+  status: string;
+  answer: string;
+  latency_seconds: number;
+  usage: ComparisonUsage;
+  error?: string | null;
+};
+
+type ComparisonResponse = {
+  graphname: string;
+  question: string;
+  pipelines: ComparisonPipelineResult[];
+};
 
 const proofPoints = [
   {
@@ -71,14 +81,8 @@ const pipelineCards = [
     borderClass: "border-slate-300/80 dark:border-slate-700/70",
     summary:
       "Worst-case baseline. No retrieval, no grounding, just the model answering from prior knowledge.",
-    answer:
-      "Ready for wiring. This panel will show the raw answer, token load, and how quickly a pure prompt-only pipeline drifts when the question requires grounded reasoning.",
-    metrics: [
-      { label: "Tokens", value: "--", hint: "Prompt + completion" },
-      { label: "Cost", value: "--", hint: "Per query" },
-      { label: "Latency", value: "--", hint: "End-to-end" },
-      { label: "Accuracy", value: "--", hint: "Judge + BERTScore" },
-    ],
+    emptyState:
+      "Run the benchmark to see how a pure prompt-only answer compares against the grounded pipelines.",
   },
   {
     name: "Basic RAG",
@@ -88,14 +92,8 @@ const pipelineCards = [
     borderClass: "border-amber-300/70 dark:border-amber-900/60",
     summary:
       "Embedding search plus an LLM. Strong on similarity, weaker when the answer depends on multi-hop relationships.",
-    answer:
-      "Ready for wiring. This panel will show retrieved-context synthesis, with metrics that make chunk count, token spend, and answer fidelity easy to compare against GraphRAG.",
-    metrics: [
-      { label: "Tokens", value: "--", hint: "Retrieval + synthesis" },
-      { label: "Cost", value: "--", hint: "Per query" },
-      { label: "Latency", value: "--", hint: "Vector search + LLM" },
-      { label: "Accuracy", value: "--", hint: "Judge + BERTScore" },
-    ],
+    emptyState:
+      "Run the benchmark to inspect the retrieval-plus-synthesis baseline side by side with GraphRAG.",
   },
   {
     name: "GraphRAG",
@@ -104,35 +102,146 @@ const pipelineCards = [
       "border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-200",
     borderClass: "border-orange-300/80 dark:border-orange-800/70",
     summary:
-      "Entity-relationship reasoning over TigerGraph. Built to answer with fewer tokens and better structural faithfulness.",
-    answer:
-      "Ready for wiring. This panel will show the graph-grounded final answer, plus benchmark metrics that prove whether graph reasoning beats similarity-only retrieval.",
-    metrics: [
-      { label: "Tokens", value: "--", hint: "Focused graph prompt" },
-      { label: "Cost", value: "--", hint: "Per query" },
-      { label: "Latency", value: "--", hint: "Retriever + answer" },
-      { label: "Accuracy", value: "--", hint: "Judge + BERTScore" },
-    ],
+      "Entity-relationship reasoning over TigerGraph. This benchmark currently runs the hybrid graph retriever.",
+    emptyState:
+      "Run the benchmark to see the graph-grounded answer, token load, and latency profile.",
   },
 ];
+
+const formatTokens = (value?: number) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? value.toLocaleString()
+    : "--";
+
+const formatLatency = (value?: number) =>
+  typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(2)}s` : "--";
+
+const formatCost = (value?: number) =>
+  typeof value === "number" && Number.isFinite(value) ? `$${value.toFixed(4)}` : "--";
 
 const Comparison = () => {
   const [showSidebar, setShowSidebar] = useState(true);
   const [query, setQuery] = useState(defaultQuestion);
   const [submittedQuery, setSubmittedQuery] = useState(defaultQuestion);
+  const [benchmarkData, setBenchmarkData] = useState<ComparisonResponse | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const selectedGraph =
     typeof window !== "undefined"
       ? sessionStorage.getItem("selectedGraph") || "gemini_1_0"
       : "gemini_1_0";
-  const ragPattern =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("ragPattern") || "Path B"
-      : "Path B";
 
-  const handleRunPreview = () => {
+  const pipelineResults = Object.fromEntries(
+    (benchmarkData?.pipelines || []).map((result) => [result.pipeline, result]),
+  ) as Record<string, ComparisonPipelineResult>;
+
+  const llmOnly = pipelineResults["LLM-Only"];
+  const basicRag = pipelineResults["Basic RAG"];
+  const graphRag = pipelineResults["GraphRAG"];
+
+  const headlineMetrics = benchmarkData
+    ? [
+        {
+          label: "GraphRAG vs Basic RAG",
+          value:
+            basicRag?.usage?.total_tokens && graphRag?.usage?.total_tokens
+              ? `${(
+                  ((basicRag.usage.total_tokens - graphRag.usage.total_tokens) /
+                    basicRag.usage.total_tokens) *
+                  100
+                ).toFixed(1)}% token delta`
+              : "Live run captured",
+          hint: "Positive values mean GraphRAG used fewer LLM tokens than Basic RAG.",
+        },
+        {
+          label: "Cost Per Query",
+          value: `L ${formatCost(llmOnly?.usage?.cost)} | B ${formatCost(
+            basicRag?.usage?.cost,
+          )} | G ${formatCost(graphRag?.usage?.cost)}`,
+          hint: "Current numbers reflect tracked LLM prompt + completion cost.",
+        },
+        {
+          label: "Latency",
+          value: `L ${formatLatency(llmOnly?.latency_seconds)} | B ${formatLatency(
+            basicRag?.latency_seconds,
+          )} | G ${formatLatency(graphRag?.latency_seconds)}`,
+          hint: "End-to-end timing for each pipeline run on the selected graph.",
+        },
+        {
+          label: "Accuracy",
+          value: "Judge + BERTScore next",
+          hint: "This page is ready for evaluation metrics once the scoring phase is wired in.",
+        },
+      ]
+    : [
+        {
+          label: "GraphRAG vs Basic RAG",
+          value: "Pending live run",
+          hint: "Token reduction % will surface here after benchmark execution.",
+        },
+        {
+          label: "Cost Per Query",
+          value: "Pending pricing calc",
+          hint: "Each pipeline will report prompt + completion cost.",
+        },
+        {
+          label: "Latency",
+          value: "Pending timing run",
+          hint: "End-to-end response time will be captured side by side.",
+        },
+        {
+          label: "Accuracy",
+          value: "Judge + BERTScore",
+          hint: "LLM-as-a-Judge PASS/FAIL and BERTScore F1 land here next.",
+        },
+      ];
+
+  const handleRunBenchmark = async () => {
     const nextQuery = query.trim() || defaultQuestion;
+    const creds =
+      typeof window !== "undefined" ? sessionStorage.getItem("creds") : null;
+
+    if (!selectedGraph) {
+      setRunError("Select a knowledge graph before running the comparison.");
+      return;
+    }
+
+    if (!creds) {
+      setRunError("Your session is missing credentials. Please log in again.");
+      return;
+    }
+
     setSubmittedQuery(nextQuery);
+    setIsRunning(true);
+    setRunError(null);
+
+    try {
+      const response = await fetch(`/ui/${selectedGraph}/comparison`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${creds}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ question: nextQuery }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || "Benchmark execution failed.");
+      }
+
+      setBenchmarkData(data);
+    } catch (error) {
+      setBenchmarkData(null);
+      setRunError(
+        error instanceof Error
+          ? error.message
+          : "Benchmark execution failed.",
+      );
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   return (
@@ -162,7 +271,7 @@ const Comparison = () => {
                       Round 1 Comparison Dashboard
                     </span>
                     <span className="rounded-full border border-gray-300 px-3 py-1 font-semibold dark:border-[#3D3D3D]">
-                      {ragPattern}
+                      Benchmark Pipelines
                     </span>
                     <span className="rounded-full border border-gray-300 px-3 py-1 font-semibold dark:border-[#3D3D3D]">
                       Graph: {selectedGraph}
@@ -201,7 +310,7 @@ const Comparison = () => {
                     </Button>
                     <div className="flex items-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm text-muted-foreground dark:border-[#3D3D3D]">
                       <ShieldCheck className="h-4 w-4 text-orange-500" />
-                      Validation and benchmark execution wire in next phase.
+                      Evaluation metrics land here after the live benchmark pass.
                     </div>
                   </div>
                 </div>
@@ -275,10 +384,10 @@ const Comparison = () => {
                     One benchmark query, rendered side by side.
                   </h2>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    This first pass is a themed dashboard shell. It already
-                    captures the benchmark framing and the comparison layout so
-                    the next phase can focus on retrieval, answer validation,
-                    token accounting, and score computation.
+                    This run executes all three benchmark pipelines against the
+                    selected graph. The GraphRAG lane currently uses the hybrid
+                    retriever so we can compare a graph-grounded answer against
+                    a pure similarity baseline and an ungrounded LLM response.
                   </p>
                 </div>
 
@@ -289,7 +398,7 @@ const Comparison = () => {
                   </div>
                   <div className="flex items-center gap-2 rounded-full border border-gray-300 px-3 py-2 dark:border-[#3D3D3D]">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    Path B customization active
+                    Live pipeline execution enabled
                   </div>
                 </div>
               </div>
@@ -300,8 +409,8 @@ const Comparison = () => {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      handleRunPreview();
+                    if (event.key === "Enter" && !isRunning) {
+                      handleRunBenchmark();
                     }
                   }}
                   placeholder="Ask one benchmark question for all three pipelines..."
@@ -309,96 +418,164 @@ const Comparison = () => {
                 <Button
                   className="gradient h-14 rounded-2xl border-0 px-6 text-white hover:opacity-95"
                   type="button"
-                  onClick={handleRunPreview}
+                  onClick={handleRunBenchmark}
+                  disabled={isRunning}
                 >
-                  Preview Benchmark Layout
-                  <Sparkles className="ml-2 h-4 w-4" />
+                  {isRunning ? "Running Benchmark" : "Run Live Benchmark"}
+                  {isRunning ? (
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="ml-2 h-4 w-4" />
+                  )}
                 </Button>
               </div>
 
               <div className="mt-4 rounded-2xl border border-dashed border-orange-500/40 bg-orange-500/[0.06] px-4 py-3 text-sm leading-6 text-muted-foreground">
-                Current query preview:
+                Current query:
                 <span className="ml-2 font-medium text-black dark:text-white">
                   {submittedQuery}
                 </span>
               </div>
+
+              <div className="mt-4 rounded-[24px] border border-amber-300/60 bg-amber-500/[0.08] px-4 py-4 text-sm leading-6 text-muted-foreground dark:border-amber-900/70">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-200">
+                    {benchmarkPreset.id}
+                  </span>
+                  <span className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-black dark:border-[#3D3D3D] dark:text-white">
+                    {benchmarkPreset.favoredPipeline}
+                  </span>
+                  <span className="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-black dark:border-[#3D3D3D] dark:text-white">
+                    {benchmarkPreset.category}
+                  </span>
+                </div>
+                <p className="mt-3">
+                  {benchmarkPreset.diagnosis}
+                </p>
+              </div>
+
+              {runError ? (
+                <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-300/60 bg-red-500/[0.06] px-4 py-3 text-sm leading-6 text-red-700 dark:border-red-900/70 dark:text-red-200">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{runError}</span>
+                </div>
+              ) : null}
             </section>
 
             <section className="grid gap-5 2xl:grid-cols-3">
-              {pipelineCards.map((pipeline) => (
-                <article
-                  key={pipeline.name}
-                  className={cn(
-                    "overflow-hidden rounded-[28px] border bg-card shadow-sm transition-colors dark:bg-[#241c1f]",
-                    pipeline.borderClass,
-                  )}
-                >
-                  <div className={cn("h-1 w-full bg-gradient-to-r", pipeline.accent)} />
-                  <div className="space-y-6 p-5 md:p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <span
-                          className={cn(
-                            "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]",
-                            pipeline.badgeClass,
-                          )}
-                        >
-                          Pipeline
-                        </span>
-                        <h3 className="mt-4 text-2xl font-semibold text-black dark:text-white">
-                          {pipeline.name}
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                          {pipeline.summary}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-gray-200 bg-background/80 p-3 dark:border-[#3D3D3D] dark:bg-black/10">
-                        {pipeline.name === "LLM-Only" ? (
-                          <BrainCircuit className="h-5 w-5 text-slate-500 dark:text-slate-200" />
-                        ) : pipeline.name === "Basic RAG" ? (
-                          <Database className="h-5 w-5 text-amber-600 dark:text-amber-200" />
-                        ) : (
-                          <GitBranchPlus className="h-5 w-5 text-orange-600 dark:text-orange-200" />
-                        )}
-                      </div>
-                    </div>
+              {pipelineCards.map((pipeline) => {
+                const result = pipelineResults[pipeline.name];
+                const isSuccess = result?.status === "success";
+                const answer = result?.error
+                  ? result.error
+                  : result?.answer || pipeline.emptyState;
 
-                    <div className="rounded-[24px] border border-gray-200 bg-background/80 p-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Final Answer
-                      </p>
-                      <p className="mt-3 text-sm leading-7 text-black dark:text-white">
-                        {pipeline.answer}
-                      </p>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {pipeline.metrics.map((metric) => (
-                        <div
-                          key={`${pipeline.name}-${metric.label}`}
-                          className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]"
-                        >
-                          <p className="text-sm text-muted-foreground">
-                            {metric.label}
-                          </p>
-                          <p className="mt-2 text-lg font-semibold text-black dark:text-white">
-                            {metric.value}
-                          </p>
+                return (
+                  <article
+                    key={pipeline.name}
+                    className={cn(
+                      "overflow-hidden rounded-[28px] border bg-card shadow-sm transition-colors dark:bg-[#241c1f]",
+                      pipeline.borderClass,
+                    )}
+                  >
+                    <div className={cn("h-1 w-full bg-gradient-to-r", pipeline.accent)} />
+                    <div className="space-y-6 p-5 md:p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <span
+                            className={cn(
+                              "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]",
+                              pipeline.badgeClass,
+                            )}
+                          >
+                            Pipeline
+                          </span>
+                          <h3 className="mt-4 text-2xl font-semibold text-black dark:text-white">
+                            {pipeline.name}
+                          </h3>
                           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                            {metric.hint}
+                            {pipeline.summary}
                           </p>
                         </div>
-                      ))}
-                    </div>
+                        <div className="rounded-2xl border border-gray-200 bg-background/80 p-3 dark:border-[#3D3D3D] dark:bg-black/10">
+                          {pipeline.name === "LLM-Only" ? (
+                            <BrainCircuit className="h-5 w-5 text-slate-500 dark:text-slate-200" />
+                          ) : pipeline.name === "Basic RAG" ? (
+                            <Database className="h-5 w-5 text-amber-600 dark:text-amber-200" />
+                          ) : (
+                            <GitBranchPlus className="h-5 w-5 text-orange-600 dark:text-orange-200" />
+                          )}
+                        </div>
+                      </div>
 
-                    <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-3 text-sm leading-6 text-muted-foreground dark:border-[#4a3b40]">
-                      When the benchmark endpoints are wired, this card will
-                      populate from the same query execution used by the other
-                      two pipelines so the comparison stays apples-to-apples.
+                      <div className="rounded-[24px] border border-gray-200 bg-background/80 p-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                          Final Answer
+                        </p>
+                        <p
+                          className={cn(
+                            "mt-3 text-sm leading-7",
+                            result?.error
+                              ? "text-red-700 dark:text-red-200"
+                              : "text-black dark:text-white",
+                          )}
+                        >
+                          {answer}
+                        </p>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-sm text-muted-foreground">Tokens</p>
+                          <p className="mt-2 text-lg font-semibold text-black dark:text-white">
+                            {formatTokens(result?.usage?.total_tokens)}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            Prompt + completion tokens across the run
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-sm text-muted-foreground">Cost</p>
+                          <p className="mt-2 text-lg font-semibold text-black dark:text-white">
+                            {formatCost(result?.usage?.cost)}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            Tracked LLM spend for this pipeline
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-sm text-muted-foreground">Latency</p>
+                          <p className="mt-2 text-lg font-semibold text-black dark:text-white">
+                            {formatLatency(result?.latency_seconds)}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            End-to-end response time
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-sm text-muted-foreground">Status</p>
+                          <p className="mt-2 text-lg font-semibold text-black dark:text-white">
+                            {isSuccess ? "Completed" : result?.error ? "Failed" : "--"}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            {result
+                              ? `LLM calls tracked: ${result.usage.calls}`
+                              : "Run the benchmark to populate this lane"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-3 text-sm leading-6 text-muted-foreground dark:border-[#4a3b40]">
+                        {result?.error
+                          ? "This pipeline failed during execution. The error above is coming from the live backend run."
+                          : result
+                            ? "Live benchmark data shown above came from the current graph and question."
+                            : "This card will populate from the live comparison endpoint once the benchmark runs."}
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </section>
           </div>
         </div>

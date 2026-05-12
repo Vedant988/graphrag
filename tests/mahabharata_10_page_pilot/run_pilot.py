@@ -276,11 +276,11 @@ def prepare_sample_assets(max_pages: int) -> dict[str, Any]:
     return metadata
 
 
-def load_questions() -> list[dict[str, str]]:
+def load_questions() -> list[dict[str, Any]]:
     return json.loads(QUESTION_FILE.read_text(encoding="utf-8"))
 
 
-def select_question(questions: list[dict[str, str]], question_id: str | None) -> dict[str, str]:
+def select_question(questions: list[dict[str, Any]], question_id: str | None) -> dict[str, Any]:
     if question_id is None:
         return questions[0]
     for question in questions:
@@ -289,7 +289,7 @@ def select_question(questions: list[dict[str, str]], question_id: str | None) ->
     raise ValueError(f"Question id '{question_id}' not found in {QUESTION_FILE}")
 
 
-def select_questions(questions: list[dict[str, str]], question_id: str | None, all_questions: bool) -> list[dict[str, str]]:
+def select_questions(questions: list[dict[str, Any]], question_id: str | None, all_questions: bool) -> list[dict[str, Any]]:
     if all_questions:
         return questions
     return [select_question(questions, question_id)]

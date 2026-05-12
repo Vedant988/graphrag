@@ -10,5 +10,22 @@
   {
     "id": "opening_frame",
     "question": "How is the Mahabharata framed in the opening pages, and who is speaking to whom?"
+  },
+  {
+    "id": "lament_root_causes",
+    "question": "Across the entire 10 pages, what are the primary justifications or root causes given for the destruction of the Kshatriya race or the massive loss of life in the war? Aggregate the distinct reasons.",
+    "favored_pipeline": "simple_rag",
+    "benchmark_category": "contiguous_control",
+    "expected_behavior": "Basic RAG should be favored because the evidence is clustered in contiguous lament and Samantapanchaka chunks.",
+    "graph_rag_diagnosis": "The graph contains the major entities, but many of the relevant war facts are encoded as DOC_CHUNK_COOCCURRENCE edges instead of richer semantic slain/killed/causal relations. That makes GraphRAG's extra graph step less valuable than direct contiguous chunk retrieval for this question."
+  },
+  {
+    "id": "vyasa_bhishma_lineage",
+    "question": "Based entirely on the first 10 pages, trace the exact lineage and mentorship connections between the author of the Mahabharata and the warrior who was left lying on a bed of arrows. How are they connected?",
+    "favored_pipeline": "graphrag",
+    "benchmark_category": "multi_hop_graph_win",
+    "expected_behavior": "GraphRAG should be favored because the answer requires linking distant facts across lineage and mentorship relations that are not semantically adjacent in the text.",
+    "graph_rag_diagnosis": "This is a graph-native benchmark. Basic RAG tends to overfocus on author-related chunks and misses the bed-of-arrows evidence, while GraphRAG can connect Vyasa and Bhishma through explicit multi-hop entity relationships.",
+    "benchmark_notes": "Observed outcome: LLM-Only refused or lacked grounded context, Basic RAG under-retrieved the cross-page relationship, and GraphRAG succeeded via multi-hop retrieval despite higher token cost and latency."
   }
 ]

@@ -181,6 +181,48 @@ class TestInvokeWithParser(unittest.TestCase):
             )
 
     @patch("common.llm_services.base_llm.get_openai_callback")
+    def test_usage_tracking_accumulates_across_calls(self, mock_cb_ctx):
+        model = _make_llm_model()
+        prompt = PromptTemplate(template="{question}", input_variables=["question"])
+        parser = StrOutputParser()
+        mock_chain = _setup_chain_mock(model, "result", mock_cb_ctx)
+
+        with patch.object(type(prompt), "__or__", return_value=mock_chain):
+            model.invoke_with_parser(
+                prompt, parser, {"question": "first"}, caller_name="test_usage_first"
+            )
+            model.invoke_with_parser(
+                prompt, parser, {"question": "second"}, caller_name="test_usage_second"
+            )
+
+        usage = model.get_usage_totals()
+        self.assertEqual(usage["input_tokens"], 20)
+        self.assertEqual(usage["output_tokens"], 10)
+        self.assertEqual(usage["total_tokens"], 30)
+        self.assertAlmostEqual(usage["cost"], 0.002)
+        self.assertEqual(usage["calls"], 2)
+
+    @patch("common.llm_services.base_llm.get_openai_callback")
+    def test_reset_usage_tracking_clears_totals(self, mock_cb_ctx):
+        model = _make_llm_model()
+        prompt = PromptTemplate(template="{question}", input_variables=["question"])
+        parser = StrOutputParser()
+        mock_chain = _setup_chain_mock(model, "result", mock_cb_ctx)
+
+        with patch.object(type(prompt), "__or__", return_value=mock_chain):
+            model.invoke_with_parser(
+                prompt, parser, {"question": "test"}, caller_name="test_usage_reset"
+            )
+
+        model.reset_usage_tracking()
+        usage = model.get_usage_totals()
+        self.assertEqual(usage["input_tokens"], 0)
+        self.assertEqual(usage["output_tokens"], 0)
+        self.assertEqual(usage["total_tokens"], 0)
+        self.assertEqual(usage["cost"], 0.0)
+        self.assertEqual(usage["calls"], 0)
+
+    @patch("common.llm_services.base_llm.get_openai_callback")
     def test_sync_rate_limit_hook_runs_before_invoke(self, mock_cb_ctx):
         model = _make_llm_model()
         model.wait_for_request_slot = MagicMock()

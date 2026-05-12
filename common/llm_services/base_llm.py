@@ -16,6 +16,7 @@ import os
 import re
 import logging
 import math
+import threading
 import time
 from typing import Any
 from langchain_core.output_parsers import BaseOutputParser, PydanticOutputParser
@@ -90,6 +91,20 @@ class LLM_Model:
         self.config = config
         self._graphname = _validate_graphname(config.get("graphname"))
         self.prompt_path = config.get("prompt_path", "")
+        self._usage_lock = threading.Lock()
+        self._usage_totals = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+            "calls": 0,
+        }
+        self._last_usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "cost": 0.0,
+        }
 
     def _fallback_prompt_dirs(self):
         provider = str(self.config.get("llm_service", "")).lower()
@@ -154,6 +169,45 @@ class LLM_Model:
             text = str(payload)
         return max(1, math.ceil(len(text) / 4))
 
+    def reset_usage_tracking(self) -> None:
+        with self._usage_lock:
+            self._usage_totals = {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+                "calls": 0,
+            }
+            self._last_usage = {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+                "cost": 0.0,
+            }
+
+    def get_usage_totals(self) -> dict[str, int | float]:
+        with self._usage_lock:
+            return dict(self._usage_totals)
+
+    def get_last_usage(self) -> dict[str, int | float]:
+        with self._usage_lock:
+            return dict(self._last_usage)
+
+    def _record_usage(self, usage_data: dict[str, int | float]) -> None:
+        with self._usage_lock:
+            self._last_usage = dict(usage_data)
+            self._usage_totals["input_tokens"] += int(
+                usage_data.get("input_tokens") or 0
+            )
+            self._usage_totals["output_tokens"] += int(
+                usage_data.get("output_tokens") or 0
+            )
+            self._usage_totals["total_tokens"] += int(
+                usage_data.get("total_tokens") or 0
+            )
+            self._usage_totals["cost"] += float(usage_data.get("cost") or 0.0)
+            self._usage_totals["calls"] += 1
+
     def wait_for_request_slot(self, payload: Any = None) -> None:
         """Provider-specific sync rate limiting hook."""
         return None
@@ -199,6 +253,7 @@ class LLM_Model:
             usage_data["output_tokens"] = cb.completion_tokens
             usage_data["total_tokens"] = cb.total_tokens
             usage_data["cost"] = cb.total_cost
+            self._record_usage(usage_data)
             logger.info(f"{caller_name} usage: {usage_data}")
 
         raw_text = raw_output.content if hasattr(raw_output, "content") else str(raw_output)
@@ -236,6 +291,7 @@ class LLM_Model:
             usage_data["output_tokens"] = cb.completion_tokens
             usage_data["total_tokens"] = cb.total_tokens
             usage_data["cost"] = cb.total_cost
+            self._record_usage(usage_data)
             logger.info(f"{caller_name} usage: {usage_data}")
 
         raw_text = raw_output.content if hasattr(raw_output, "content") else str(raw_output)
