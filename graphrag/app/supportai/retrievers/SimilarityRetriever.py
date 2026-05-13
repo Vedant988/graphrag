@@ -55,14 +55,19 @@ class SimilarityRetriever(BaseRetriever):
                 res[1]["verbose"]["expanded_questions"] = questions
         return res
 
-    def retrieve_answer(self, question, index, top_k=1, withHyDE=False, expand=False, combine=False, verbose=False):
+    def retrieve_answer(self, question, index, top_k=1, withHyDE=False, expand=False, combine=False, verbose=False, max_score_candidates=None):
         retrieved = self.search(question, index, top_k, withHyDE, expand, verbose)
         context = [retrieved[0]["final_retrieval"][x] for x in retrieved[0]["final_retrieval"]]
         if combine:
             context = ["\n".join(context)]
             resp = self._generate_response(question, context, verbose=verbose)
         else:
-            scored = self._score_candidates(question, context, top_k=top_k)
+            scored = self._score_candidates(
+                question,
+                context,
+                top_k=top_k,
+                max_candidates=max_score_candidates,
+            )
             resp = self._generate_response(question, scored, verbose=verbose)
 
         if verbose and len(retrieved) > 1 and "verbose" in retrieved[1]:

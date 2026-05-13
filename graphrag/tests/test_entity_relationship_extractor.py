@@ -23,7 +23,10 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
         source = Node(
             id="Vyasa",
             type="Person",
-            properties={"description": "Author of the epic."},
+            properties={
+                "description": "Author of the epic.",
+                "evidence": "Krishna-Dwaipayana is the author of the Bharata.",
+            },
         )
         target = Node(
             id="Ganesa",
@@ -37,7 +40,10 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
                     source=source,
                     target=target,
                     type="DICTATES_TO",
-                    properties={"description": "Vyasa dictates and Ganesa writes."},
+                    properties={
+                        "description": "Vyasa dictates and Ganesa writes.",
+                        "evidence": "Ganesa wrote down what Vyasa recited.",
+                    },
                 )
             ],
             source=Document(page_content="sample"),
@@ -52,6 +58,7 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
                     "id": "Vyasa",
                     "type": "Person",
                     "definition": "Author of the epic.",
+                    "evidence": "Krishna-Dwaipayana is the author of the Bharata.",
                 },
                 {
                     "id": "Ganesa",
@@ -68,6 +75,7 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
                     "target": "Ganesa",
                     "type": "DICTATES_TO",
                     "definition": "Vyasa dictates and Ganesa writes.",
+                    "evidence": "Ganesa wrote down what Vyasa recited.",
                 }
             ],
         )
@@ -116,6 +124,7 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
                     "type": "Person",
                     "node_type": "Person",
                     "definition": "Author of the epic.",
+                    "evidence": "Vyasa composed the Bharata.",
                     "properties": "{}",
                 },
                 {
@@ -145,6 +154,7 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
                     "type": "DICTATES_TO",
                     "relation_type": "DICTATES_TO",
                     "definition": "Vyasa dictates and Ganesa writes.",
+                    "evidence": "Ganesa writes while Vyasa recites.",
                     "properties": "{}",
                 }
             ],
@@ -155,6 +165,80 @@ class TestLLMEntityRelationshipExtractor(unittest.TestCase):
         self.assertEqual(len(graph_documents), 1)
         self.assertEqual(graph_documents[0].nodes[0].id, "Vyasa")
         self.assertEqual(graph_documents[0].relationships[0].type, "DICTATES_TO")
+        self.assertEqual(
+            graph_documents[0].nodes[0].properties.get("evidence"),
+            "Vyasa composed the Bharata.",
+        )
+        self.assertEqual(
+            graph_documents[0].relationships[0].properties.get("evidence"),
+            "Ganesa writes while Vyasa recites.",
+        )
+
+    def test_json_to_graph_document_canonicalizes_aliases_and_drops_self_loops(self):
+        payload = {
+            "nodes": [
+                {
+                    "id": "Vyasa",
+                    "node_type": "Sage",
+                    "definition": "A sage also known as Krishna-Dwaipayana.",
+                    "properties": "{}",
+                },
+                {
+                    "id": "KrishnaDwaipayana",
+                    "node_type": "Sage",
+                    "definition": "Author of the Mahabharata.",
+                    "properties": "{}",
+                },
+                {
+                    "id": "Bhishma",
+                    "node_type": "Warrior",
+                    "definition": "A Kuru elder.",
+                    "properties": "{}",
+                },
+                {
+                    "id": "Mahabharata",
+                    "node_type": "TextWork",
+                    "definition": "Epic poem.",
+                    "properties": "{}",
+                },
+            ],
+            "rels": [
+                {
+                    "source": {"id": "Bhishma", "node_type": "Warrior", "definition": "A Kuru elder."},
+                    "target": {"id": "Vyasa", "node_type": "Sage", "definition": "A sage also known as Krishna-Dwaipayana."},
+                    "relation_type": "ENJOINED",
+                    "definition": "Bhishma enjoined Vyasa.",
+                },
+                {
+                    "source": {"id": "KrishnaDwaipayana", "node_type": "Sage", "definition": "Author of the Mahabharata."},
+                    "target": {"id": "Mahabharata", "node_type": "TextWork", "definition": "Epic poem."},
+                    "relation_type": "AUTHORED",
+                    "definition": "Krishna-Dwaipayana authored the Mahabharata.",
+                },
+                {
+                    "source": {"id": "Bhishma", "node_type": "Warrior", "definition": "A Kuru elder."},
+                    "target": {"id": "Bhishma", "node_type": "Warrior", "definition": "A Kuru elder."},
+                    "relation_type": "FOUGHT_FOR",
+                    "definition": "Bhishma fought for ten days.",
+                },
+            ],
+        }
+
+        graph_documents = self.extractor._json_to_graph_document(payload, "sample")
+        self.assertEqual(len(graph_documents), 1)
+
+        doc = graph_documents[0]
+        node_ids = {node.id for node in doc.nodes}
+        self.assertIn("Krishna-Dwaipayana", node_ids)
+        self.assertNotIn("Vyasa", node_ids)
+        self.assertNotIn("KrishnaDwaipayana", node_ids)
+
+        relationship_triplets = {
+            (rel.source.id, rel.type, rel.target.id) for rel in doc.relationships
+        }
+        self.assertIn(("Bhishma", "ENJOINED", "Krishna-Dwaipayana"), relationship_triplets)
+        self.assertIn(("Krishna-Dwaipayana", "AUTHORED", "Mahabharata"), relationship_triplets)
+        self.assertNotIn(("Bhishma", "FOUGHT_FOR", "Bhishma"), relationship_triplets)
 
     def test_aextract_returns_graph_documents_for_async_callers(self):
         graph_doc = GraphDocument(

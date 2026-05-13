@@ -21,7 +21,7 @@ from common.llm_services.base_llm import LLM_Model
 
 
 class TestPromptResolution(unittest.TestCase):
-    def test_genai_falls_back_to_google_gemini_entity_prompt(self):
+    def test_genai_prefers_configured_entity_prompt_path_when_present(self):
         model = LLM_Model(
             {
                 "prompt_path": "./common/prompts/llama_70b/",
@@ -30,7 +30,7 @@ class TestPromptResolution(unittest.TestCase):
         )
 
         expected = (
-            ROOT / "common" / "prompts" / "google_gemini" / "entity_relationship_extraction.txt"
+            ROOT / "common" / "prompts" / "llama_70b" / "entity_relationship_extraction.txt"
         ).read_text(encoding="utf-8")
 
         self.assertEqual(model.entity_relationship_extraction_prompt, expected)
@@ -63,6 +63,20 @@ class TestPromptResolution(unittest.TestCase):
         self.assertIn("false premise", prompt)
         self.assertIn("Do not merge details from separate causal chains", prompt)
 
+    def test_genai_falls_back_to_google_gemini_retrieval_router_prompt(self):
+        model = LLM_Model(
+            {
+                "prompt_path": "./common/prompts/llama_70b/",
+                "llm_service": "genai",
+            }
+        )
+
+        expected = (
+            ROOT / "common" / "prompts" / "google_gemini" / "retrieval_router.txt"
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(model.retrieval_router_prompt, expected)
+
     @patch.object(LLM_Model, "_read_prompt_file", return_value=None)
     def test_entity_prompt_has_embedded_default_when_all_files_missing(self, _mock_read):
         model = LLM_Model({"prompt_path": "./does/not/exist/", "llm_service": "genai"})
@@ -81,6 +95,14 @@ class TestPromptResolution(unittest.TestCase):
 
         self.assertIn("strict knowledge graph interpreter", model.chatbot_response_prompt)
         self.assertIn("false premise", model.chatbot_response_prompt)
+
+    @patch.object(LLM_Model, "_read_prompt_file", return_value=None)
+    def test_retrieval_router_prompt_has_embedded_default_when_all_files_missing(self, _mock_read):
+        model = LLM_Model({"prompt_path": "./does/not/exist/", "llm_service": "genai"})
+
+        self.assertIn("strict retrieval router", model.retrieval_router_prompt)
+        self.assertIn("GRAPH", model.retrieval_router_prompt)
+        self.assertIn("VECTOR", model.retrieval_router_prompt)
 
 
 if __name__ == "__main__":

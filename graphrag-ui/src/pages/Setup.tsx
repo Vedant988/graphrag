@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useConfirm } from "@/hooks/useConfirm";
+import { readSiteSession, refreshSiteSession } from "@/lib/siteSession";
 
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 100;
 const envUploadLimit = Number(import.meta.env.VITE_MAX_UPLOAD_SIZE_MB);
@@ -1002,18 +1003,26 @@ const [activeTab, setActiveTab] = useState("upload");
 
   // Load available graphs from sessionStorage on mount
   useEffect(() => {
-    const store = JSON.parse(sessionStorage.getItem("site") || "{}");
-    if (store.graphs && Array.isArray(store.graphs)) {
-      setAvailableGraphs(store.graphs);
-      // Auto-select first graph if available
-      if (store.graphs.length > 0 && !ingestGraphName) {
-        setIngestGraphName(store.graphs[0]);
+    const syncGraphs = async () => {
+      let store = readSiteSession();
+      try {
+        store = await refreshSiteSession();
+      } catch {
+        // fall back to cached session state
       }
-      // Auto-select first graph for refresh as well
-      if (store.graphs.length > 0 && !refreshGraphName) {
-        setRefreshGraphName(store.graphs[0]);
+      if (store.graphs && Array.isArray(store.graphs)) {
+        setAvailableGraphs(store.graphs);
+        if (store.graphs.length > 0 && !ingestGraphName) {
+          setIngestGraphName(store.graphs[0]);
+        }
+        if (store.graphs.length > 0 && !refreshGraphName) {
+          setRefreshGraphName(store.graphs[0]);
+        }
+      } else {
+        setAvailableGraphs([]);
       }
-    }
+    };
+    void syncGraphs();
   }, []);
 
   // Load files when ingest dialog opens or graph name changes

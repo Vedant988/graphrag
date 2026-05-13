@@ -66,7 +66,7 @@ class TigerGraphAgent:
         embedding_store: EmbeddingStore,
         use_cypher: bool = False,
         ws=None,
-        supportai_retriever="hybridsearch"
+        supportai_retriever="autorouter"
     ):
         self.conn = db_connection
 
@@ -175,7 +175,7 @@ class TigerGraphAgent:
             )
 
 
-def make_agent(graphname, conn, use_cypher, ws: WebSocket = None, supportai_retriever="hybridsearch") -> TigerGraphAgent:
+def make_agent(graphname, conn, use_cypher, ws: WebSocket = None, supportai_retriever="autorouter") -> TigerGraphAgent:
     llm_provider = get_llm_service(get_chat_config(graphname))
     chat_config = llm_provider.config
     resolved_embedding_store = _resolve_embedding_store(conn)

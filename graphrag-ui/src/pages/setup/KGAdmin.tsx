@@ -21,6 +21,7 @@ import {
 import { useConfirm } from "@/hooks/useConfirm";
 import { useNavigate } from "react-router-dom";
 import IngestGraph from "./IngestGraph";
+import { readSiteSession, refreshSiteSession } from "@/lib/siteSession";
 
 const KGAdmin = () => {
   const [confirm, confirmDialog, isConfirmDialogOpen] = useConfirm();
@@ -73,13 +74,23 @@ const KGAdmin = () => {
 
   // Load available graphs
   useEffect(() => {
-    const store = JSON.parse(sessionStorage.getItem("site") || "{}");
-    if (store.graphs && Array.isArray(store.graphs)) {
-      setAvailableGraphs(store.graphs);
-      if (store.graphs.length > 0 && !refreshGraphName) {
-        setRefreshGraphName(store.graphs[0]);
+    const syncGraphs = async () => {
+      let store = readSiteSession();
+      try {
+        store = await refreshSiteSession();
+      } catch {
+        // fall back to cached session state
       }
-    }
+      if (store.graphs && Array.isArray(store.graphs)) {
+        setAvailableGraphs(store.graphs);
+        if (store.graphs.length > 0 && !refreshGraphName) {
+          setRefreshGraphName(store.graphs[0]);
+        }
+      } else {
+        setAvailableGraphs([]);
+      }
+    };
+    void syncGraphs();
   }, []);
 
   // Initialize Graph

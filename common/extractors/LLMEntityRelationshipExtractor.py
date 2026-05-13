@@ -17,6 +17,7 @@ import logging
 import json
 import re
 import time
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from common.extractors.BaseExtractor import BaseExtractor
@@ -40,6 +41,12 @@ Retry with a narrower mandate:
 - Preserve important unnamed but referential actors as entities when needed, such as "his own mother" or "the two wives of Vichitra-virya".
 - Prefer returning a partial but useful graph over an empty graph when the passage contains substantive actors or relations.
 - If the passage truly contains no extractable entities or relations, return empty lists."""
+    ALIAS_RELATION_TYPES = {"ALIAS_OF", "SAME_AS", "COREFERS_TO", "IDENTICAL_TO"}
+    GENERIC_ENTITY_TYPES = {"unknown", "entity", "thing", "concept", ""}
+    ALIAS_PATTERNS = (
+        re.compile(r"\b(?:also known as|aka|a\.k\.a\.|also called|also referred to as)\s+([A-Z][A-Za-z0-9'./ -]{2,80})"),
+        re.compile(r"\b([A-Z][A-Za-z0-9'./ -]{2,80})\s*,\s*(?:also known as|aka|a\.k\.a\.|also called)\b"),
+    )
 
     def __init__(
         self,
@@ -121,8 +128,8 @@ Retry with a narrower mandate:
 
         The rest of the repo expects:
           {
-            "nodes": [{"id", "type", "definition"}],
-            "rels":  [{"source", "target", "type", "definition"}]
+            "nodes": [{"id", "type", "definition", "evidence?"}],
+            "rels":  [{"source", "target", "type", "definition", "evidence?"}]
           }
         """
         nodes_dict: Dict[str, Dict[str, str]] = {}
@@ -133,36 +140,50 @@ Retry with a narrower mandate:
                 node_id = str(node.id)
                 node_type = str(node.type)
                 definition = str(node.properties.get("description", "")).strip()
+                evidence = str(node.properties.get("evidence", "")).strip()
                 
                 if node_id in nodes_dict:
                     existing_def = nodes_dict[node_id]["definition"]
                     if definition and definition not in existing_def:
                         nodes_dict[node_id]["definition"] = f"{existing_def} | {definition}".strip(" |")
+                    existing_evidence = nodes_dict[node_id].get("evidence", "")
+                    if evidence and evidence not in existing_evidence:
+                        nodes_dict[node_id]["evidence"] = f"{existing_evidence} | {evidence}".strip(" |")
                 else:
-                    nodes_dict[node_id] = {
+                    node_entry = {
                         "id": node_id,
                         "type": node_type,
                         "definition": definition,
                     }
+                    if evidence:
+                        node_entry["evidence"] = evidence
+                    nodes_dict[node_id] = node_entry
 
             for rel in graph_document.relationships:
                 source = str(rel.source.id)
                 target = str(rel.target.id)
                 rel_type = str(rel.type)
                 definition = str(rel.properties.get("description", "")).strip()
+                evidence = str(rel.properties.get("evidence", "")).strip()
                 rel_key = (source, target, rel_type)
                 
                 if rel_key in rels_dict:
                     existing_def = rels_dict[rel_key]["definition"]
                     if definition and definition not in existing_def:
                         rels_dict[rel_key]["definition"] = f"{existing_def} | {definition}".strip(" |")
+                    existing_evidence = rels_dict[rel_key].get("evidence", "")
+                    if evidence and evidence not in existing_evidence:
+                        rels_dict[rel_key]["evidence"] = f"{existing_evidence} | {evidence}".strip(" |")
                 else:
-                    rels_dict[rel_key] = {
+                    rel_entry = {
                         "source": source,
                         "target": target,
                         "type": rel_type,
                         "definition": definition,
                     }
+                    if evidence:
+                        rel_entry["evidence"] = evidence
+                    rels_dict[rel_key] = rel_entry
 
         return {"nodes": list(nodes_dict.values()), "rels": list(rels_dict.values())}
 
@@ -325,6 +346,273 @@ Retry with a narrower mandate:
             prompt.append(("human", extra_instruction))
         return prompt
 
+    def _normalize_whitespace(self, value: str) -> str:
+        return re.sub(r"\s+", " ", str(value or "")).strip()
+
+    def _surface_key(self, value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+    def _normalize_relation_type(self, value: str) -> str:
+        return re.sub(r"[^A-Za-z0-9]+", "_", str(value or "").strip()).strip("_").upper()
+
+    def _merge_text_values(self, values: List[str]) -> str:
+        merged: List[str] = []
+        seen = set()
+        for value in values:
+            normalized = self._normalize_whitespace(value)
+            if not normalized:
+                continue
+            key = normalized.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(normalized)
+        return " | ".join(merged)
+
+    def _extract_alias_candidates(self, *texts: str) -> list[str]:
+        aliases: list[str] = []
+        seen = set()
+        for text in texts:
+            normalized_text = self._normalize_whitespace(text)
+            if not normalized_text:
+                continue
+            for pattern in self.ALIAS_PATTERNS:
+                for match in pattern.findall(normalized_text):
+                    candidate = self._normalize_whitespace(match).strip(" ,.;:()[]{}")
+                    if len(candidate) < 3:
+                        continue
+                    if not re.search(r"[A-Za-z]", candidate):
+                        continue
+                    key = candidate.lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    aliases.append(candidate)
+        return aliases
+
+    def _canonical_id_score(self, candidate: str, node_type: str, description: str) -> tuple[int, int, int, int]:
+        candidate = self._normalize_whitespace(candidate)
+        tokens = re.findall(r"[A-Za-z0-9]+", candidate)
+        token_count = len(tokens)
+        has_separator = int(bool(re.search(r"[-\s]", candidate)))
+        alpha_len = len(re.sub(r"[^A-Za-z0-9]+", "", candidate))
+        type_bonus = 0 if self._normalize_type(node_type) in self.GENERIC_ENTITY_TYPES else 1
+        description_bonus = min(len(description), 200)
+        return (type_bonus, token_count + has_separator, alpha_len, description_bonus)
+
+    def _preferred_node_type(self, types: List[str]) -> str:
+        non_generic = [
+            t for t in (self._normalize_whitespace(value) for value in types)
+            if self._normalize_type(t) not in self.GENERIC_ENTITY_TYPES
+        ]
+        if non_generic:
+            return max(non_generic, key=lambda value: (len(re.findall(r"[A-Za-z0-9]+", value)), len(value)))
+        fallback = [self._normalize_whitespace(value) for value in types if self._normalize_whitespace(value)]
+        return fallback[0] if fallback else "Unknown"
+
+    def _canonicalize_graph_document(self, graph_document: GraphDocument) -> GraphDocument:
+        raw_nodes: list[dict[str, Any]] = []
+        for node in graph_document.nodes:
+            raw_nodes.append(
+                {
+                    "id": self._normalize_whitespace(node.id),
+                    "type": self._normalize_whitespace(node.type) or "Unknown",
+                    "description": self._normalize_whitespace(node.properties.get("description", "")),
+                    "evidence": self._normalize_whitespace(node.properties.get("evidence", "")),
+                }
+            )
+
+        for rel in graph_document.relationships:
+            for rel_node in (rel.source, rel.target):
+                raw_nodes.append(
+                    {
+                        "id": self._normalize_whitespace(rel_node.id),
+                        "type": self._normalize_whitespace(rel_node.type) or "Unknown",
+                        "description": self._normalize_whitespace(rel_node.properties.get("description", "")),
+                        "evidence": self._normalize_whitespace(rel_node.properties.get("evidence", "")),
+                    }
+                )
+
+        deduped_nodes: dict[tuple[str, str], dict[str, Any]] = {}
+        for node in raw_nodes:
+            if not node["id"]:
+                continue
+            key = (node["id"], self._normalize_type(node["type"]))
+            if key not in deduped_nodes:
+                deduped_nodes[key] = dict(node)
+                deduped_nodes[key]["aliases"] = self._extract_alias_candidates(
+                    node["id"], node["description"], node["evidence"]
+                )
+                continue
+            existing = deduped_nodes[key]
+            existing["description"] = self._merge_text_values(
+                [existing.get("description", ""), node["description"]]
+            )
+            existing["evidence"] = self._merge_text_values(
+                [existing.get("evidence", ""), node["evidence"]]
+            )
+            existing["aliases"] = sorted(
+                {
+                    *existing.get("aliases", []),
+                    *self._extract_alias_candidates(node["id"], node["description"], node["evidence"]),
+                },
+                key=str.lower,
+            )
+
+        nodes = list(deduped_nodes.values())
+        index_by_surface: dict[str, list[int]] = defaultdict(list)
+        for idx, node in enumerate(nodes):
+            index_by_surface[self._surface_key(node["id"])].append(idx)
+
+        parent = list(range(len(nodes)))
+
+        def find(index: int) -> int:
+            while parent[index] != index:
+                parent[index] = parent[parent[index]]
+                index = parent[index]
+            return index
+
+        def union(left: int, right: int) -> None:
+            left_root = find(left)
+            right_root = find(right)
+            if left_root != right_root:
+                parent[right_root] = left_root
+
+        for indexes in index_by_surface.values():
+            if len(indexes) < 2:
+                continue
+            base = indexes[0]
+            for other in indexes[1:]:
+                union(base, other)
+
+        for idx, node in enumerate(nodes):
+            for alias in node.get("aliases", []):
+                alias_surface = self._surface_key(alias)
+                if not alias_surface:
+                    continue
+                for other in index_by_surface.get(alias_surface, []):
+                    union(idx, other)
+
+        cluster_members: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        for idx, node in enumerate(nodes):
+            cluster_members[find(idx)].append(node)
+
+        canonical_nodes: dict[str, Node] = {}
+        id_mapping: dict[str, str] = {}
+        for members in cluster_members.values():
+            candidate_ids: list[str] = []
+            descriptions: list[str] = []
+            evidences: list[str] = []
+            aliases: list[str] = []
+            types: list[str] = []
+
+            for member in members:
+                candidate_ids.append(member["id"])
+                candidate_ids.extend(member.get("aliases", []))
+                descriptions.append(member.get("description", ""))
+                evidences.append(member.get("evidence", ""))
+                aliases.append(member["id"])
+                aliases.extend(member.get("aliases", []))
+                types.append(member.get("type", "Unknown"))
+
+            merged_description = self._merge_text_values(descriptions)
+            merged_evidence = self._merge_text_values(evidences)
+            chosen_type = self._preferred_node_type(types)
+            canonical_id = max(
+                {candidate for candidate in candidate_ids if self._normalize_whitespace(candidate)},
+                key=lambda candidate: self._canonical_id_score(candidate, chosen_type, merged_description),
+            )
+            merged_aliases = sorted(
+                {
+                    self._normalize_whitespace(alias)
+                    for alias in aliases
+                    if self._normalize_whitespace(alias)
+                    and self._surface_key(alias) != self._surface_key(canonical_id)
+                },
+                key=str.lower,
+            )
+
+            properties: dict[str, Any] = {"description": merged_description}
+            if merged_evidence:
+                properties["evidence"] = merged_evidence
+            if merged_aliases:
+                properties["aliases"] = merged_aliases
+
+            canonical_nodes[canonical_id] = Node(
+                id=canonical_id,
+                type=chosen_type,
+                properties=properties,
+            )
+
+            for member in members:
+                id_mapping[member["id"]] = canonical_id
+                for alias in member.get("aliases", []):
+                    normalized_alias = self._normalize_whitespace(alias)
+                    if normalized_alias:
+                        id_mapping[normalized_alias] = canonical_id
+
+        rel_map: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for rel in graph_document.relationships:
+            relation_type = self._normalize_relation_type(rel.type)
+            if not relation_type:
+                continue
+            source_id = id_mapping.get(self._normalize_whitespace(rel.source.id), self._normalize_whitespace(rel.source.id))
+            target_id = id_mapping.get(self._normalize_whitespace(rel.target.id), self._normalize_whitespace(rel.target.id))
+            if not source_id or not target_id:
+                continue
+            if source_id == target_id and relation_type not in self.ALIAS_RELATION_TYPES:
+                logger.info(
+                    "Dropping suspicious self-loop relationship %s -(%s)-> %s during post-extraction validation.",
+                    source_id,
+                    relation_type,
+                    target_id,
+                )
+                continue
+
+            key = (source_id, target_id, relation_type)
+            description = self._normalize_whitespace(rel.properties.get("description", ""))
+            evidence = self._normalize_whitespace(rel.properties.get("evidence", ""))
+            if key not in rel_map:
+                rel_map[key] = {
+                    "description": description,
+                    "evidence": evidence,
+                }
+            else:
+                rel_map[key]["description"] = self._merge_text_values(
+                    [rel_map[key]["description"], description]
+                )
+                rel_map[key]["evidence"] = self._merge_text_values(
+                    [rel_map[key]["evidence"], evidence]
+                )
+
+        canonical_relationships: list[Relationship] = []
+        for (source_id, target_id, relation_type), payload in rel_map.items():
+            source_node = canonical_nodes.setdefault(
+                source_id,
+                Node(id=source_id, type="Unknown", properties={"description": source_id}),
+            )
+            target_node = canonical_nodes.setdefault(
+                target_id,
+                Node(id=target_id, type="Unknown", properties={"description": target_id}),
+            )
+            properties: dict[str, Any] = {"description": payload["description"]}
+            if payload.get("evidence"):
+                properties["evidence"] = payload["evidence"]
+            canonical_relationships.append(
+                Relationship(
+                    source=Node(id=source_node.id, type=source_node.type, properties=source_node.properties),
+                    target=Node(id=target_node.id, type=target_node.type, properties=target_node.properties),
+                    type=relation_type,
+                    properties=properties,
+                )
+            )
+
+        return GraphDocument(
+            nodes=list(canonical_nodes.values()),
+            relationships=canonical_relationships,
+            source=graph_document.source,
+        )
+
     def _json_to_graph_document(
         self, json_out: Dict[str, Any], doc: str
     ) -> List[GraphDocument]:
@@ -342,6 +630,7 @@ Retry with a narrower mandate:
                     "target": rels.target.id,
                     "type": rels.relation_type.replace(" ", "_"),
                     "definition": rels.definition,
+                    "evidence": rels.evidence or "",
                 }
             )
 
@@ -352,6 +641,7 @@ Retry with a narrower mandate:
                     "id": node.id,
                     "type": node.node_type.replace(" ", "_"),
                     "definition": node.definition,
+                    "evidence": node.evidence or "",
                 }
             )
 
@@ -382,11 +672,14 @@ Retry with a narrower mandate:
         node_type_map = {}
         for node in formatted_nodes:
             node_type_map[node["id"]] = node["type"]
+            node_properties = {"description": node["definition"]}
+            if node.get("evidence"):
+                node_properties["evidence"] = node["evidence"]
             nodes.append(
                 Node(
                     id=node["id"],
                     type=node["type"],
-                    properties={"description": node["definition"]},
+                    properties=node_properties,
                 )
             )
             
@@ -394,6 +687,9 @@ Retry with a narrower mandate:
         for rel in formatted_rels:
             source_type = node_type_map.get(rel["source"], "Unknown")
             target_type = node_type_map.get(rel["target"], "Unknown")
+            rel_properties = {"description": rel["definition"]}
+            if rel.get("evidence"):
+                rel_properties["evidence"] = rel["evidence"]
             relationships.append(
                 Relationship(
                     source=Node(
@@ -405,17 +701,21 @@ Retry with a narrower mandate:
                         type=target_type,
                     ),
                     type=rel["type"],
-                    properties={"description": rel["definition"]},
+                    properties=rel_properties,
                 )
             )
 
-        return self._empty_graph_document(doc) if not nodes and not relationships else [
+        if not nodes and not relationships:
+            return self._empty_graph_document(doc)
+
+        canonical_graph = self._canonicalize_graph_document(
             GraphDocument(
                 nodes=nodes,
                 relationships=relationships,
                 source=Document(page_content=doc),
             )
-        ]
+        )
+        return [canonical_graph]
 
     async def _aextract_kg_from_doc(self, doc, chain, parser) -> list[GraphDocument]:
         doc_text = self._coerce_text(doc)

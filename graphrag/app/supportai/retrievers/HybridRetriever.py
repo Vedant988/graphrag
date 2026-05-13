@@ -85,7 +85,7 @@ class HybridRetriever(BaseRetriever):
                 res[1]["verbose"]["expanded_questions"] = questions
         return res
 
-    def retrieve_answer(self, question, index, top_k=1, similarity_threshold=0.90, num_hops=2, num_seen_min=1, expand: bool = False, method: str = "similarity", chunk_only: bool = False, doc_only: bool = False, combine: bool = False, verbose: bool = False):
+    def retrieve_answer(self, question, index, top_k=1, similarity_threshold=0.90, num_hops=2, num_seen_min=1, expand: bool = False, method: str = "similarity", chunk_only: bool = False, doc_only: bool = False, combine: bool = False, verbose: bool = False, max_score_candidates=None):
         retrieved = self.search(question, index, top_k, similarity_threshold, num_hops, num_seen_min, expand, method, chunk_only, doc_only, verbose)
 
         if combine:
@@ -96,7 +96,12 @@ class HybridRetriever(BaseRetriever):
             resp = self._generate_response(question, context, verbose=verbose)
         else:
             context = ["\n".join(retrieved[0]["final_retrieval"][x]) for x in retrieved[0]["final_retrieval"]]
-            scored = self._score_candidates(question, context, top_k=top_k)
+            scored = self._score_candidates(
+                question,
+                context,
+                top_k=top_k,
+                max_candidates=max_score_candidates,
+            )
             resp = self._generate_response(question, scored, verbose=verbose)
         
         if verbose and len(retrieved) > 1 and "verbose" in retrieved[1]:

@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { LANGUAGES } from "../constants";
+import { parseApiResponse } from "@/lib/http";
 
 const formSchema = z.object({
   email: z.string().min(2, {
@@ -56,11 +57,11 @@ export function Login() {
           Authorization: `Basic ${creds}`,
         },
       });
+      const payload = await parseApiResponse(res);
 
       if (res.ok) {
-        const data = await res.json();
         sessionStorage.setItem("creds", creds);
-        sessionStorage.setItem("site", JSON.stringify(data));
+        sessionStorage.setItem("site", JSON.stringify(payload));
         setUser(username);
         sessionStorage.setItem("username", username);
         navigate("/chat");
@@ -68,7 +69,7 @@ export function Login() {
         setHint("Invalid credentials");
         navigate("/");
       } else {
-        setHint(`Server error (${res.status}). Please try again later.`);
+        setHint(payload?.detail || `Server error (${res.status}). Please try again later.`);
         navigate("/");
       }
     } catch {

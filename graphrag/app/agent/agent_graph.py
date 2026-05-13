@@ -21,6 +21,7 @@ from typing import Dict, List, Optional
 
 from agent.agent_generation import TigerGraphAgentGenerator
 from agent.agent_hallucination_check import TigerGraphAgentHallucinationCheck
+from agent.retrieval_router import TigerGraphSupportAIRouter
 from agent.agent_rewrite import TigerGraphAgentRewriter
 from agent.agent_router import TigerGraphAgentRouter
 from agent.agent_usefulness_check import TigerGraphAgentUsefulnessCheck
@@ -55,6 +56,7 @@ class GraphState(TypedDict):
     answer: Optional[GraphRAGResponse]
     lookup_source: Optional[str]
     schema_mapping: Optional[MapQuestionToSchemaResponse]
+    retrieval_route: Optional[dict]
     error_history: list[dict] = []
     question_retry_count: int = 0
 
@@ -94,6 +96,31 @@ class TigerGraphAgentGraph:
         except Exception as e:
             logger.info(f"SupportAI schema not found in graph {self.db_connection.graphname}. Disabling supportai.")
             self.supportai_enabled = False
+
+    def _effective_hybrid_search_config(self, state):
+        cfg = self._graphrag_cfg.copy()
+        route = state.get("retrieval_route") or {}
+        graph_profile = route.get("graph_profile") or {}
+        if graph_profile:
+            cfg.update(
+                {
+                    "top_k": graph_profile.get("top_k", cfg.get("top_k", 5)),
+                    "num_seen_min": graph_profile.get(
+                        "num_seen_min",
+                        cfg.get("num_seen_min", 2),
+                    ),
+                    "num_hops": graph_profile.get("num_hops", cfg.get("num_hops", 2)),
+                    "chunk_only": graph_profile.get(
+                        "chunk_only",
+                        cfg.get("chunk_only", True),
+                    ),
+                    "doc_only": graph_profile.get(
+                        "doc_only",
+                        cfg.get("doc_only", False),
+                    ),
+                }
+            )
+        return cfg
 
     def emit_progress(self, msg):
         if self.q is not None:
@@ -359,15 +386,16 @@ class TigerGraphAgentGraph:
             self.llm_provider,
             self.db_connection,
         )
-        chunk_only=self._graphrag_cfg.get("chunk_only", True)
+        search_cfg = self._effective_hybrid_search_config(state)
+        chunk_only = search_cfg.get("chunk_only", True)
         step = retriever.search(
             state["question"],
             indices=["DocumentChunk"],
-            top_k=self._graphrag_cfg.get("top_k", 5),
-            num_seen_min=self._graphrag_cfg.get("num_seen_min", 2),
-            num_hops=self._graphrag_cfg.get("num_hops", 2),
+            top_k=search_cfg.get("top_k", 5),
+            num_seen_min=search_cfg.get("num_seen_min", 2),
+            num_hops=search_cfg.get("num_hops", 2),
             chunk_only=chunk_only,
-            doc_only=self._graphrag_cfg.get("doc_only", False),
+            doc_only=search_cfg.get("doc_only", False),
         )
 
         query_name = "GraphRAG_Hybrid_Vector_Search"
@@ -375,6 +403,8 @@ class TigerGraphAgentGraph:
             "function_call": query_name,
             "result": step[0],
         }
+        if state.get("retrieval_route"):
+            state["context"]["retrieval_route"] = state["retrieval_route"]
         state["lookup_source"] = "supportai"
         return state
     
@@ -401,6 +431,8 @@ class TigerGraphAgentGraph:
             "function_call": query_name,
             "result": step[0],
         }
+        if state.get("retrieval_route"):
+            state["context"]["retrieval_route"] = state["retrieval_route"]
         state["lookup_source"] = "supportai"
         return state
     
@@ -426,6 +458,8 @@ class TigerGraphAgentGraph:
             "function_call": query_name,
             "result": step[0],
         }
+        if state.get("retrieval_route"):
+            state["context"]["retrieval_route"] = state["retrieval_route"]
         state["lookup_source"] = "supportai"
         return state
     
@@ -452,6 +486,8 @@ class TigerGraphAgentGraph:
             "function_call": query_name,
             "result": step[0],
         }
+        if state.get("retrieval_route"):
+            state["context"]["retrieval_route"] = state["retrieval_route"]
         state["lookup_source"] = "supportai"
         return state
     
@@ -459,6 +495,41 @@ class TigerGraphAgentGraph:
         """
         Run the agent supportai search.
         """
+        if self.supportai_retriever == "autorouter":
+            self.emit_progress("Choosing the fastest grounded retrieval path")
+            router = TigerGraphSupportAIRouter(self.llm_provider)
+            try:
+                route_decision = router.route_question(
+                    state["question"]
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Auto router failed for question '%s'; falling back to graph search: %s",
+                    state["question"],
+                    exc,
+                )
+                route_decision = {
+                    "route": "GRAPH",
+                    "source": "fallback",
+                    "reason": f"router_error:{exc}",
+                    "graph_profile": router.graph_profile_for_question(
+                        state["question"]
+                    ).model_dump(),
+                }
+            else:
+                route_decision = route_decision.model_dump()
+                if route_decision["route"] == "GRAPH":
+                    route_decision["graph_profile"] = router.graph_profile_for_question(
+                        state["question"]
+                    ).model_dump()
+
+            state["retrieval_route"] = route_decision
+            if route_decision["route"] == "VECTOR":
+                self.emit_progress("Routing to Basic RAG search")
+                return self.similarity_search(state)
+
+            self.emit_progress("Routing to GraphRAG search")
+            return self.hybrid_search(state)
         if self.supportai_retriever == "hybridsearch":
             return self.hybrid_search(state)
         elif self.supportai_retriever == "similaritysearch":

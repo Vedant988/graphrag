@@ -12,13 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 from fastapi.security import HTTPBasicCredentials
 from fastapi.testclient import TestClient
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+APP_ROOT = ROOT / "app"
+if str(APP_ROOT) not in sys.path:
+    sys.path.insert(0, str(APP_ROOT))
+os.environ.setdefault(
+    "LOG_CONFIG",
+    '{"log_file_path":"D:/github/graphrag/.tmp_test_logs","log_max_size":1048576,"log_backup_count":0}',
+)
+
 from app.main import app
 
 # main.py uses `import routers` (absolute), so the module is registered as

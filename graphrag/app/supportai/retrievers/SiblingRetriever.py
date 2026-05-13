@@ -60,7 +60,7 @@ class SiblingRetriever(BaseRetriever):
         return res
 
     def retrieve_answer(
-        self, question, index, top_k=1, lookback=3, lookahead=3, withHyDE=False, expand=False, combine=False, verbose=False
+        self, question, index, top_k=1, lookback=3, lookahead=3, withHyDE=False, expand=False, combine=False, verbose=False, max_score_candidates=None
     ):
         retrieved = self.search(question, index, top_k, lookback, lookahead, withHyDE, expand, verbose)
         content = {}
@@ -72,7 +72,12 @@ class SiblingRetriever(BaseRetriever):
             context = ["\n ".join(context)]
             resp = self._generate_response(question, context, verbose=verbose)
         else:
-            scored = self._score_candidates(question, context, top_k=top_k)
+            scored = self._score_candidates(
+                question,
+                context,
+                top_k=top_k,
+                max_candidates=max_score_candidates,
+            )
             resp = self._generate_response(question, scored, verbose=verbose)
 
         if verbose and len(retrieved) > 1 and "verbose" in retrieved[1]:

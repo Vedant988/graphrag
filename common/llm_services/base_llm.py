@@ -216,6 +216,42 @@ class LLM_Model:
         """Provider-specific async rate limiting hook."""
         return None
 
+    def _invoke_prompt_sync(
+        self,
+        prompt: BasePromptTemplate,
+        input_variables: dict,
+        caller_name: str = "unknown",
+    ):
+        chain = prompt | self.llm
+        usage_data = {}
+        with get_openai_callback() as cb:
+            self.wait_for_request_slot(input_variables)
+            raw_output = chain.invoke(input_variables)
+
+            usage_data["input_tokens"] = cb.prompt_tokens
+            usage_data["output_tokens"] = cb.completion_tokens
+            usage_data["total_tokens"] = cb.total_tokens
+            usage_data["cost"] = cb.total_cost
+        return raw_output, usage_data
+
+    async def _invoke_prompt_async(
+        self,
+        prompt: BasePromptTemplate,
+        input_variables: dict,
+        caller_name: str = "unknown",
+    ):
+        chain = prompt | self.llm
+        usage_data = {}
+        with get_openai_callback() as cb:
+            await self.await_rate_limit_slot(input_variables)
+            raw_output = await chain.ainvoke(input_variables)
+
+            usage_data["input_tokens"] = cb.prompt_tokens
+            usage_data["output_tokens"] = cb.completion_tokens
+            usage_data["total_tokens"] = cb.total_tokens
+            usage_data["cost"] = cb.total_cost
+        return raw_output, usage_data
+
     def invoke_with_parser(
         self,
         prompt: BasePromptTemplate,
@@ -242,19 +278,11 @@ class LLM_Model:
             OutputParserException: If all parsing attempts fail.
         """
 
-        chain = prompt | self.llm
-
-        usage_data = {}
-        with get_openai_callback() as cb:
-            self.wait_for_request_slot(input_variables)
-            raw_output = chain.invoke(input_variables)
-
-            usage_data["input_tokens"] = cb.prompt_tokens
-            usage_data["output_tokens"] = cb.completion_tokens
-            usage_data["total_tokens"] = cb.total_tokens
-            usage_data["cost"] = cb.total_cost
-            self._record_usage(usage_data)
-            logger.info(f"{caller_name} usage: {usage_data}")
+        raw_output, usage_data = self._invoke_prompt_sync(
+            prompt, input_variables, caller_name
+        )
+        self._record_usage(usage_data)
+        logger.info(f"{caller_name} usage: {usage_data}")
 
         raw_text = raw_output.content if hasattr(raw_output, "content") else str(raw_output)
 
@@ -279,20 +307,11 @@ class LLM_Model:
         Uses chain.ainvoke() to avoid blocking the event loop,
         suitable for async callers (e.g., ECC workers).
         """
-
-        chain = prompt | self.llm
-
-        usage_data = {}
-        with get_openai_callback() as cb:
-            await self.await_rate_limit_slot(input_variables)
-            raw_output = await chain.ainvoke(input_variables)
-
-            usage_data["input_tokens"] = cb.prompt_tokens
-            usage_data["output_tokens"] = cb.completion_tokens
-            usage_data["total_tokens"] = cb.total_tokens
-            usage_data["cost"] = cb.total_cost
-            self._record_usage(usage_data)
-            logger.info(f"{caller_name} usage: {usage_data}")
+        raw_output, usage_data = await self._invoke_prompt_async(
+            prompt, input_variables, caller_name
+        )
+        self._record_usage(usage_data)
+        logger.info(f"{caller_name} usage: {usage_data}")
 
         raw_text = raw_output.content if hasattr(raw_output, "content") else str(raw_output)
 
@@ -444,6 +463,23 @@ Return a JSON with a single key 'datasource' and no preamble or explanation.
 Question to route: {question}
 Conversation history: {conversation}
 Format: {format_instructions}\
+"""
+
+    @property
+    def retrieval_router_prompt(self):
+        """Property to get the prompt for routing supportai retrieval."""
+        result = self._read_prompt_file(self.prompt_path + "retrieval_router.txt")
+        if result is not None:
+            return result
+        return """You are a strict retrieval router for a RAG system.
+Classify the user question into exactly one retrieval strategy:
+- GRAPH: Use when the question requires multi-hop relationships, lineage, causality, connections between entities, aggregation across distant sections, or counting/listing many items spread through the corpus.
+- VECTOR: Use when the question is a direct factual lookup that can likely be answered from a small, contiguous set of text chunks.
+
+Return only JSON using the required format.
+
+Question: {question}
+Format: {format_instructions}
 """
 
     @property

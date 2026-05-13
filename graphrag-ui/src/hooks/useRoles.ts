@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { readSiteSession, refreshSiteSession } from "@/lib/siteSession";
+import { parseApiResponse } from "@/lib/http";
 
 export interface RolesState {
   userRoles: string[];
@@ -43,8 +45,14 @@ export function useRoles(refreshKey?: unknown): RolesState {
       return;
     }
 
-    // Try loading from sessionStorage first (populated at login)
-    const site = JSON.parse(sessionStorage.getItem("site") || "{}");
+    let site = readSiteSession();
+    try {
+      site = await refreshSiteSession();
+    } catch {
+      // fall back to cached session state
+    }
+
+    // Try loading from refreshed sessionStorage first
     if (Array.isArray(site.roles)) {
       const roles = site.roles.map((role: string) => role.toLowerCase());
       setUserRoles(roles);
@@ -66,7 +74,7 @@ export function useRoles(refreshKey?: unknown): RolesState {
         setHasCreds(false);
         return;
       }
-      const data = await response.json();
+      const data = await parseApiResponse(response);
       const roles = Array.isArray(data.roles) ? data.roles : [];
       setUserRoles(roles.map((role: string) => role.toLowerCase()));
       setGraphRoles(parseGraphRoles(data.graph_roles));

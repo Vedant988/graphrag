@@ -8,6 +8,11 @@ from common.config import get_chat_config, get_graphrag_config
 
 from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+from supportai.retrievers.scoring_utils import (
+    extract_question_keywords,
+    rank_contexts_for_scoring,
+    limit_contexts_for_scoring,
+)
 
 import re
 import logging
@@ -119,11 +124,33 @@ class BaseRetriever:
             self.logger.warning("score_candidate: all parsing failed, returning score 0")
             return CommunityAnswer(answer=str(context).strip(), quality_score=0)
 
-    def _score_candidates(self, question, contexts, top_k=None):
+    def _extract_question_keywords(self, question):
+        return extract_question_keywords(question)
+
+    def _rank_contexts_for_scoring(self, question, contexts):
+        return rank_contexts_for_scoring(question, contexts)
+
+    def _limit_contexts_for_scoring(self, question, contexts, max_candidates=None):
+        limited = limit_contexts_for_scoring(question, contexts, max_candidates)
+        if len(limited) == len(contexts):
+            return limited
+        self.logger.info(
+            "Limiting score_candidate fan-out from %s to %s contexts",
+            len(contexts),
+            len(limited),
+        )
+        return limited
+
+    def _score_candidates(self, question, contexts, top_k=None, max_candidates=None):
         """Score multiple context chunks in parallel and return top-k ranked candidates."""
         if not contexts:
             return []
 
+        contexts = self._limit_contexts_for_scoring(
+            question,
+            contexts,
+            max_candidates=max_candidates,
+        )
         graphrag_cfg = get_graphrag_config(self.conn.graphname if self.conn else None)
         max_workers = graphrag_cfg.get("default_concurrency", 10)
 

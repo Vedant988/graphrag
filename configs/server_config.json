@@ -1,1 +1,62 @@
-../docs/tutorials/configs/server_config.json
+{
+  "db_config": {
+    "hostname": "https://tg-6b7796c6-7835-4de4-9ebb-111c0a57fdfc.tg-2635877100.i.tgcloud.io",
+    "restppPort": "443",
+    "gsPort": "443",
+    "username": "tigergraph",
+    "password": "tigergraph",
+    "getToken": false,
+    "apiToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ2ZWRhbnRiYWR1a2FsZTY5QGdtYWlsLmNvbSIsImlhdCI6MTc3ODY4ODA1NywiZXhwIjoxNzc5MjkyODYyLCJpc3MiOiJUaWdlckdyYXBoIn0.dl5pGjGi9AWmgXK5Od1sJkLKzYYCCLwwGSj-bktHxXw",
+    "default_timeout": 300,
+    "default_mem_threshold": 5000,
+    "default_thread_limit": 8
+  },
+  "graphrag_config": {
+    "reuse_embedding": true,
+    "ecc": "http://graphrag-ecc:8001",
+    "chat_history_api": "http://chat-history:8002",
+    "chunker_config": {}
+  },
+  "llm_config": {
+    "token_limit": 0,
+      "embedding_service": {
+      "embedding_model_service": "genai",
+      "model_name": "models/gemini-embedding-001",
+      "dimensions": 1536,
+      "authentication_configuration": {
+        "GOOGLE_API_KEY": "AIzaSyDBOqEHHSB00Pfqdtlh7mx_ZVhtBjsFsYs"
+      }
+    },  
+    "completion_service": {
+      "llm_service": "genai",
+      "llm_model": "gemini-3.1-flash-lite",
+      "authentication_configuration": {
+        "GOOGLE_API_KEY": "AIzaSyDBOqEHHSB00Pfqdtlh7mx_ZVhtBjsFsYs"
+      },
+      "model_kwargs": {
+        "temperature": 0
+      },
+      "prompt_path": "./common/prompts/llama_70b/"
+    },
+    "multimodal_service": {
+      "llm_service": "genai",
+      "llm_model": "gemini-2.5-flash",
+      "authentication_configuration": {
+        "GOOGLE_API_KEY": "AIzaSyDBOqEHHSB00Pfqdtlh7mx_ZVhtBjsFsYs"
+      },
+      "model_kwargs": {
+        "temperature": 0
+      }
+    }
+  },
+  "chat_config": {
+    "apiPort": "8002",
+    "dbPath": "chats.db",
+    "dbLogPath": "db.log",
+    "logPath": "requestLogs.jsonl",
+    "conversationAccessRoles": [
+      "superuser",
+      "globaldesigner"
+    ]
+  }
+}

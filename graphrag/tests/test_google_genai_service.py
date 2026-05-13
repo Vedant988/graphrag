@@ -33,6 +33,40 @@ def _make_config(model_name: str) -> dict:
 
 
 class TestGoogleGenAIService(unittest.TestCase):
+    class _FakeCallback:
+        prompt_tokens = 0
+        completion_tokens = 0
+        total_tokens = 0
+        total_cost = 0.0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class _FakeChain:
+        def __init__(self, llm, sync_handler, async_handler=None):
+            self.llm = llm
+            self.sync_handler = sync_handler
+            self.async_handler = async_handler or sync_handler
+
+        def invoke(self, input_variables):
+            return self.sync_handler(self.llm, input_variables)
+
+        async def ainvoke(self, input_variables):
+            return self.async_handler(self.llm, input_variables)
+
+    class _FakePrompt:
+        def __init__(self, sync_handler, async_handler=None):
+            self.sync_handler = sync_handler
+            self.async_handler = async_handler
+
+        def __or__(self, llm):
+            return TestGoogleGenAIService._FakeChain(
+                llm, self.sync_handler, self.async_handler
+            )
+
     @patch("common.llm_services.google_genai_service.ChatGoogleGenerativeAI")
     def test_flash_lite_uses_shared_free_tier_limiter(self, mock_chat_model):
         service = GoogleGenAI(_make_config("gemini-3.1-flash-lite"))
@@ -90,6 +124,62 @@ class TestGoogleGenAIService(unittest.TestCase):
             service.wait_for_request_slot(huge_payload)
 
         service._shared_rate_limiter.acquire.assert_not_called()
+
+    @patch("common.llm_services.google_genai_service.get_openai_callback")
+    @patch("common.llm_services.google_genai_service.ChatGoogleGenerativeAI")
+    def test_sync_invoke_rotates_to_fallback_key_on_rate_limit(
+        self, mock_chat_model, mock_callback
+    ):
+        mock_callback.return_value = self._FakeCallback()
+        mock_chat_model.side_effect = lambda **kwargs: types.SimpleNamespace(
+            api_key=kwargs.get("google_api_key", "")
+        )
+
+        def sync_handler(llm, _input_variables):
+            if llm.api_key == "test-key":
+                raise RuntimeError("429 RESOURCE_EXHAUSTED: rate limit reached")
+            return types.SimpleNamespace(content="fallback success")
+
+        prompt = self._FakePrompt(sync_handler)
+        with patch.dict(
+            os.environ,
+            {"GOOGLE_API_KEY_FALLBACK": "fallback-key"},
+            clear=False,
+        ):
+            service = GoogleGenAI(_make_config("gemini-2.5-flash"))
+            raw_output, usage = service._invoke_prompt_sync(
+                prompt, {"question": "Who is Vyasa?"}, "sync_fallback_test"
+            )
+
+        self.assertEqual(raw_output.content, "fallback success")
+        self.assertEqual(service._active_api_key, "fallback-key")
+        self.assertEqual(usage["total_tokens"], 0)
+        self.assertEqual(
+            [call.kwargs.get("google_api_key") for call in mock_chat_model.call_args_list],
+            ["test-key", "fallback-key"],
+        )
+
+    @patch("common.llm_services.google_genai_service.ChatGoogleGenerativeAI")
+    def test_collects_configured_key_before_env_fallback_keys(self, mock_chat_model):
+        mock_chat_model.side_effect = lambda **kwargs: types.SimpleNamespace(
+            api_key=kwargs.get("google_api_key", "")
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "GOOGLE_API_KEY_FALLBACK": "fallback-key-a",
+                "GOOGLE_API_KEY_BACKUP_1": "fallback-key-b",
+                "GOOGLE_API_KEY": "test-key",
+            },
+            clear=False,
+        ):
+            service = GoogleGenAI(_make_config("gemini-2.5-flash"))
+
+        self.assertEqual(
+            service._api_keys,
+            ["test-key", "fallback-key-a", "fallback-key-b"],
+        )
 
 
 if __name__ == "__main__":

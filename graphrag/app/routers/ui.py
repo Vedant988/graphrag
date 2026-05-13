@@ -32,6 +32,7 @@ import asyncer
 import httpx
 import requests
 from agent.agent import TigerGraphAgent, _resolve_embedding_store, make_agent
+from agent.retrieval_router import TigerGraphSupportAIRouter
 from agent.Q import DONE
 from fastapi import (
     APIRouter,
@@ -1074,6 +1075,24 @@ def _normalize_usage_totals(usage: dict | None) -> dict[str, int | float]:
     }
 
 
+def _comparison_stage(
+    key: str,
+    label: str,
+    start_time: float,
+    detail: str,
+    **metadata,
+) -> dict:
+    stage = {
+        "key": key,
+        "label": label,
+        "seconds": round(time.monotonic() - start_time, 3),
+        "detail": detail,
+    }
+    if metadata:
+        stage["metadata"] = metadata
+    return stage
+
+
 def _comparison_llm_only(question: str, graphname: str) -> dict:
     llm_service = get_llm_service(get_chat_config(graphname))
     llm_service.reset_usage_tracking()
@@ -1091,6 +1110,7 @@ def _comparison_llm_only(question: str, graphname: str) -> dict:
             "format_instructions": answer_parser.get_format_instructions()
         },
     )
+    generation_start = time.monotonic()
     generated = llm_service.invoke_with_parser(
         prompt,
         answer_parser,
@@ -1100,6 +1120,17 @@ def _comparison_llm_only(question: str, graphname: str) -> dict:
     return {
         "answer": generated.generated_answer,
         "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+        "latency_breakdown": {
+            "summary": "Single LLM call with no retrieval or graph traversal.",
+            "stages": [
+                _comparison_stage(
+                    "generation",
+                    "Model generation",
+                    generation_start,
+                    "The model answered directly from prior knowledge without retrieval.",
+                )
+            ],
+        },
     }
 
 
@@ -1120,18 +1151,75 @@ def _comparison_basic_rag(question: str, graphname: str, conn) -> dict:
         llm_service,
         conn,
     )
-    result = retriever.retrieve_answer(
+    retrieval_start = time.monotonic()
+    result = retriever.search(
         question,
         index="DocumentChunk",
         top_k=graphrag_cfg.get("top_k", 5),
         withHyDE=graphrag_cfg.get("withHyDE", False),
         expand=graphrag_cfg.get("expand", False),
-        combine=graphrag_cfg.get("combine", False),
         verbose=False,
     )
+    final_retrieval = result[0].get("final_retrieval", {})
+    context = [final_retrieval[x] for x in final_retrieval]
+    stages = [
+        _comparison_stage(
+            "retrieval",
+            "Vector retrieval",
+            retrieval_start,
+            "Creates an embedding, runs similarity search, and gathers candidate chunks.",
+            retrieved_items=len(context),
+        )
+    ]
+
+    if graphrag_cfg.get("combine", False):
+        context = ["\n".join(context)]
+        synthesis_start = time.monotonic()
+        resp = retriever._generate_response(question, context, verbose=False)
+        stages.append(
+            _comparison_stage(
+                "synthesis",
+                "Answer synthesis",
+                synthesis_start,
+                "The model synthesized the answer from the combined retrieved context.",
+                context_items=len(context),
+            )
+        )
+    else:
+        scoring_start = time.monotonic()
+        scored = retriever._score_candidates(
+            question,
+            context,
+            top_k=graphrag_cfg.get("top_k", 5),
+        )
+        stages.append(
+            _comparison_stage(
+                "ranking",
+                "Context ranking",
+                scoring_start,
+                "The model ranked retrieved chunks before final answer synthesis.",
+                candidate_items=len(context),
+                selected_items=len(scored),
+            )
+        )
+        synthesis_start = time.monotonic()
+        resp = retriever._generate_response(question, scored, verbose=False)
+        stages.append(
+            _comparison_stage(
+                "synthesis",
+                "Answer synthesis",
+                synthesis_start,
+                "The model wrote the final answer from the highest-ranked chunks.",
+                context_items=len(scored),
+            )
+        )
     return {
-        "answer": result.get("response", ""),
+        "answer": resp.get("response", ""),
         "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+        "latency_breakdown": {
+            "summary": "Basic RAG spends time on vector retrieval first, then on LLM ranking and synthesis.",
+            "stages": stages,
+        },
     }
 
 
@@ -1152,23 +1240,102 @@ def _comparison_graphrag(question: str, graphname: str, conn) -> dict:
         llm_service,
         conn,
     )
-    result = retriever.retrieve_answer(
+    routing_start = time.monotonic()
+    graph_profile = TigerGraphSupportAIRouter(llm_service).graph_profile_for_question(
+        question
+    )
+    stages = [
+        _comparison_stage(
+            "routing",
+            "Query planning",
+            routing_start,
+            "GraphRAG chose hop depth, thresholds, and retrieval mode for this question.",
+            top_k=graph_profile.top_k,
+            num_hops=graph_profile.num_hops,
+            chunk_only=graph_profile.chunk_only,
+            doc_only=graph_profile.doc_only,
+        )
+    ]
+
+    retrieval_start = time.monotonic()
+    result = retriever.search(
         question,
-        index=["DocumentChunk"],
-        top_k=graphrag_cfg.get("top_k", 5),
-        similarity_threshold=graphrag_cfg.get("similarity_threshold", 0.90),
-        num_hops=graphrag_cfg.get("num_hops", 2),
-        num_seen_min=graphrag_cfg.get("num_seen_min", 2),
+        indices=["DocumentChunk"],
+        top_k=graph_profile.top_k,
+        similarity_threshold=graph_profile.similarity_threshold,
+        num_hops=graph_profile.num_hops,
+        num_seen_min=graph_profile.num_seen_min,
         expand=graphrag_cfg.get("expand", False),
         method=graphrag_cfg.get("method", "similarity"),
-        chunk_only=graphrag_cfg.get("chunk_only", True),
-        doc_only=graphrag_cfg.get("doc_only", False),
-        combine=graphrag_cfg.get("combine", False),
+        chunk_only=graph_profile.chunk_only,
+        doc_only=graph_profile.doc_only,
         verbose=False,
     )
+    final_retrieval = result[0].get("final_retrieval", {})
+    stages.append(
+        _comparison_stage(
+            "retrieval",
+            "Graph retrieval",
+            retrieval_start,
+            "Walks the graph-aware retrieval path and collects relationship-grounded evidence.",
+            retrieved_groups=len(final_retrieval),
+        )
+    )
+
+    if graph_profile.combine:
+        context = []
+        for item in final_retrieval:
+            context += final_retrieval[item]
+        context = ["\n".join(set(context))]
+        synthesis_start = time.monotonic()
+        resp = retriever._generate_response(question, context, verbose=False)
+        stages.append(
+            _comparison_stage(
+                "synthesis",
+                "Answer synthesis",
+                synthesis_start,
+                "The model synthesized an answer directly from the merged graph context.",
+                context_items=len(context),
+            )
+        )
+    else:
+        context = ["\n".join(final_retrieval[item]) for item in final_retrieval]
+        scoring_start = time.monotonic()
+        scored = retriever._score_candidates(
+            question,
+            context,
+            top_k=graph_profile.top_k,
+            max_candidates=graph_profile.max_score_candidates,
+        )
+        stages.append(
+            _comparison_stage(
+                "ranking",
+                "Evidence ranking",
+                scoring_start,
+                "The model ranked graph-grounded evidence before drafting the final response.",
+                candidate_items=len(context),
+                selected_items=len(scored),
+            )
+        )
+        synthesis_start = time.monotonic()
+        resp = retriever._generate_response(question, scored, verbose=False)
+        stages.append(
+            _comparison_stage(
+                "synthesis",
+                "Answer synthesis",
+                synthesis_start,
+                "The model wrote the final answer from the highest-value graph evidence.",
+                context_items=len(scored),
+            )
+        )
     return {
-        "answer": result.get("response", ""),
+        "answer": resp.get("response", ""),
         "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+        "profile": graph_profile.model_dump(),
+        "latency_breakdown": {
+            "summary": "GraphRAG first plans the route, then retrieves graph-grounded evidence, ranks it, and synthesizes the answer.",
+            "stages": stages,
+        },
     }
 
 
@@ -1180,21 +1347,39 @@ def _run_comparison_pipeline(name: str, runner) -> dict:
         error = None
         answer = result.get("answer", "")
         usage = result.get("usage", {})
+        latency_breakdown = result.get("latency_breakdown", {})
+        profile = result.get("profile")
     except Exception as exc:
         logger.error("Comparison pipeline '%s' failed: %s", name, exc)
         status = "error"
         error = str(exc)
         answer = ""
         usage = {}
+        latency_breakdown = {}
+        profile = None
 
     usage_summary = _normalize_usage_totals(usage)
+    total_latency = round(time.monotonic() - start, 3)
     return {
         "pipeline": name,
         "status": status,
         "answer": answer,
-        "latency_seconds": round(time.monotonic() - start, 3),
+        "latency_seconds": total_latency,
         "usage": usage_summary,
         "error": error,
+        "latency_breakdown": {
+            "summary": latency_breakdown.get("summary"),
+            "stages": latency_breakdown.get("stages", []),
+            "accounted_seconds": round(
+                sum(
+                    float(stage.get("seconds") or 0)
+                    for stage in latency_breakdown.get("stages", [])
+                ),
+                3,
+            ),
+            "total_seconds": total_latency,
+        },
+        "profile": profile,
     }
 
 @router.get(route_prefix + "/{graphname}/query")
@@ -1222,7 +1407,7 @@ async def graph_query(
 
         # create agent
         # get retrieval pattern to use
-        rag_pattern = rag_pattern or "hybridsearch"
+        rag_pattern = rag_pattern or "autorouter"
         agent = make_agent(graphname, conn, use_cypher, supportai_retriever=rag_pattern)
 
         prev_id = None
@@ -1320,7 +1505,7 @@ async def chat(
     
     Expected message flow:
     1. Authentication (base64 encoded username:password)
-    2. RAG pattern (e.g., "hybridsearch", "similaritysearch", etc.)
+    2. RAG pattern (e.g., "autorouter", "hybridsearch", "similaritysearch", etc.)
     3. Conversation ID (or "new" for new conversation)
     4. User messages
     """
@@ -1355,7 +1540,7 @@ async def chat(
         return
 
     # Get RAG pattern
-    rag_pattern = rag_pattern or "hybridsearch"
+    rag_pattern = rag_pattern or "autorouter"
 
     # Get conversation ID
     try:

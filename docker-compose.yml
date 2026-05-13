@@ -18,6 +18,7 @@ services:
       INIT_EMBED_STORE: "false"
       GROQ_API_KEY: "${GROQ_API_KEY}"
       GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
+      GOOGLE_API_KEY_FALLBACK: "${GOOGLE_API_KEY_fallback_key}"
     volumes:
       - ./configs/:/code/configs
 
@@ -36,6 +37,7 @@ services:
       INIT_EMBED_STORE: "false"
       GROQ_API_KEY: "${GROQ_API_KEY}"
       GOOGLE_API_KEY: "${GOOGLE_API_KEY}"
+      GOOGLE_API_KEY_FALLBACK: "${GOOGLE_API_KEY_fallback_key}"
     volumes:
       - ./configs/:/code/configs
 

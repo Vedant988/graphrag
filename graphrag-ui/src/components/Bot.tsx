@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { readSiteSession, refreshSiteSession } from "@/lib/siteSession";
 
 const Bot = ({ layout, getConversationId }: { layout?: string | undefined, getConversationId?:any }) => {
   const [store, setStore] = useState<any>();
@@ -28,34 +29,24 @@ const Bot = ({ layout, getConversationId }: { layout?: string | undefined, getCo
   const location = useLocation();
 
   useEffect(() => {
-    // Function to load store from sessionStorage
-    const loadStore = () => {
-      const parseStore = JSON.parse(sessionStorage.getItem("site") || "{}");
-      setStore(parseStore);
-      return parseStore;
+    const syncStore = async () => {
+      try {
+        const site = await refreshSiteSession();
+        setStore(site);
+        setSelectedGraph(sessionStorage.getItem("selectedGraph") || "");
+      } catch {
+        const site = readSiteSession();
+        setStore(site);
+        setSelectedGraph(sessionStorage.getItem("selectedGraph") || "");
+      }
     };
 
-    // Initial load
-    const parseStore = loadStore();
-
-    // Validate selectedGraph against the current graph list
-    const storedGraph = sessionStorage.getItem("selectedGraph");
-    const availableGraphs = parseStore?.graphs || [];
-    if (!storedGraph || !availableGraphs.includes(storedGraph)) {
-      if (availableGraphs.length > 0) {
-        const firstGraph = availableGraphs[0];
-        setSelectedGraph(firstGraph);
-        sessionStorage.setItem("selectedGraph", firstGraph);
-      } else {
-        setSelectedGraph('');
-        sessionStorage.removeItem("selectedGraph");
-      }
-    }
+    void syncStore();
 
     // Set default ragPattern if no value in sessionStorage
     if (!sessionStorage.getItem("ragPattern")) {
-      setRagPattern("Hybrid Search");
-      sessionStorage.setItem("ragPattern", "Hybrid Search");
+      setRagPattern("Auto Router");
+      sessionStorage.setItem("ragPattern", "Auto Router");
     }
 
     const date = new Date();
@@ -65,7 +56,7 @@ const Bot = ({ layout, getConversationId }: { layout?: string | undefined, getCo
 
     // Update graph list when window gets focus (when navigating back from Setup)
     const handleFocus = () => {
-      loadStore();
+      void syncStore();
     };
 
     window.addEventListener('focus', handleFocus);
@@ -78,8 +69,16 @@ const Bot = ({ layout, getConversationId }: { layout?: string | undefined, getCo
 
   // Reload graph list when navigating back to chat (location change)
   useEffect(() => {
-    const parseStore = JSON.parse(sessionStorage.getItem("site") || "{}");
-    setStore(parseStore);
+    const syncStore = async () => {
+      try {
+        const site = await refreshSiteSession();
+        setStore(site);
+      } catch {
+        setStore(readSiteSession());
+      }
+      setSelectedGraph(sessionStorage.getItem("selectedGraph") || "");
+    };
+    void syncStore();
   }, [location]);
 
   const handleSelect = (value) => {
@@ -119,7 +118,7 @@ const Bot = ({ layout, getConversationId }: { layout?: string | undefined, getCo
                 <DropdownMenuLabel>Select a GraphRAG Pattern</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  {["Similarity Search", "Contextual Search", "Hybrid Search", "Community Search"].map((f, i) => (
+                  {["Auto Router", "Similarity Search", "Contextual Search", "Hybrid Search", "Community Search"].map((f, i) => (
                     <DropdownMenuItem key={i} onSelect={() => handleSelectRag(f)}>
                       {/* <User className="mr-2 h-4 w-4" /> */}
                       <span>{f}</span>

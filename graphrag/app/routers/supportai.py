@@ -18,6 +18,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.security.http import HTTPBase
+from agent.retrieval_router import TigerGraphSupportAIRouter
 from supportai import supportai
 from supportai.retrievers import (
     EntityRelationshipRetriever,
@@ -50,12 +51,89 @@ router = APIRouter(tags=["SupportAI"])
 
 security = HTTPBase(scheme="basic", auto_error=False)
 
+_AUTO_ROUTER_METHODS = {"auto", "autorouter", "autorag"}
+
 
 def check_embedding_store_status():
     if service_status["embedding_store"]["error"]:
         return HTTPException(
             status_code=503, detail=service_status["embedding_store"]["error"]
         )
+
+
+def _resolve_supportai_method(method: str, question: str, llm_service) -> tuple[str, dict | None]:
+    normalized = (method or "").lower().replace(" ", "")
+    if normalized not in _AUTO_ROUTER_METHODS:
+        return normalized, None
+
+    router = TigerGraphSupportAIRouter(llm_service)
+    try:
+        decision = router.route_question(question).model_dump()
+        if decision["route"] == "GRAPH":
+            decision["graph_profile"] = router.graph_profile_for_question(question).model_dump()
+    except Exception as exc:
+        decision = {
+            "route": "GRAPH",
+            "source": "fallback",
+            "reason": f"router_error:{exc}",
+        }
+        try:
+            decision["graph_profile"] = router.graph_profile_for_question(question).model_dump()
+        except Exception:
+            pass
+    resolved = "hybrid" if decision["route"] == "GRAPH" else "similarity"
+    logger.info("Auto router resolved supportai method to %s with %s", resolved, decision)
+    return resolved, decision
+
+
+def _apply_auto_router_defaults(query: SupportAIQuestion, method: str, router_decision: dict | None) -> None:
+    if not router_decision:
+        return
+
+    graph_profile = router_decision.get("graph_profile") or {}
+    query.method_params.setdefault("top_k", graph_profile.get("top_k", 5))
+    if method == "similarity":
+        query.method_params.setdefault("index", "DocumentChunk")
+        query.method_params.setdefault("withHyDE", False)
+    elif method == "hybrid":
+        query.method_params.setdefault("indices", ["DocumentChunk"])
+        query.method_params.setdefault(
+            "similarity_threshold",
+            graph_profile.get("similarity_threshold", 0.90),
+        )
+        query.method_params.setdefault("num_hops", graph_profile.get("num_hops", 2))
+        query.method_params.setdefault(
+            "num_seen_min",
+            graph_profile.get("num_seen_min", 2),
+        )
+        query.method_params.setdefault("method", "similarity")
+        query.method_params.setdefault(
+            "chunk_only",
+            graph_profile.get("chunk_only", True),
+        )
+        query.method_params.setdefault(
+            "doc_only",
+            graph_profile.get("doc_only", False),
+        )
+        query.method_params.setdefault(
+            "combine",
+            graph_profile.get("combine", False),
+        )
+        query.method_params.setdefault(
+            "max_score_candidates",
+            graph_profile.get("max_score_candidates"),
+        )
+
+
+def _attach_router_decision(result: dict, router_decision: dict | None) -> dict:
+    if not router_decision:
+        return result
+
+    result["router_decision"] = router_decision
+    retrieved = result.get("retrieved")
+    if isinstance(retrieved, dict):
+        retrieved["router_decision"] = router_decision
+    return result
 
 
 @router.post("/{graphname}/graphrag/initialize")
@@ -113,13 +191,18 @@ def search(
 ):
     check_embedding_store_status()
     conn = conn.state.conn
+    llm_service = get_llm_service(get_chat_config(graphname))
+    method, router_decision = _resolve_supportai_method(
+        query.method, query.question, llm_service
+    )
+    _apply_auto_router_defaults(query, method, router_decision)
     if "expand" not in query.method_params:
         query.method_params["expand"] = False
     if "verbose" not in query.method_params:
         query.method_params["verbose"] = False
-    if query.method.lower() == "hybrid":
+    if method == "hybrid":
         retriever = HybridRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         if "method" not in query.method_params:
             query.method_params["method"] = "similarity"
@@ -142,11 +225,11 @@ def search(
             query.method_params["doc_only"],
             query.method_params["verbose"],
         )
-    elif query.method.lower() == "similarity":
+    elif method == "similarity":
         if "index" not in query.method_params:
             raise Exception("Index name not provided")
         retriever = SimilarityRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         res = retriever.search(
             query.question,
@@ -156,11 +239,11 @@ def search(
             query.method_params["expand"],
             query.method_params["verbose"],
         )
-    elif query.method.lower() == "contextual":
+    elif method == "contextual":
         if "index" not in query.method_params:
             raise Exception("Index name not provided")
         retriever = SiblingRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         res = retriever.search(
             query.question,
@@ -172,14 +255,14 @@ def search(
             query.method_params["expand"],
             query.method_params["verbose"],
         )
-    elif query.method.lower() == "entityrelationship":
+    elif method == "entityrelationship":
         retriever = EntityRelationshipRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         res = retriever.search(query.question, query.method_params["top_k"])
-    elif query.method.lower() == "community":
+    elif method == "community":
         retriever = CommunityRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         if "with_chunk" not in query.method_params:
             query.method_params["with_chunk"] = True
@@ -199,7 +282,7 @@ def search(
         )
     else:
         raise Exception(f"Method {query.method} not implemented")
-    return res
+    return _attach_router_decision(res, router_decision)
 
 
 @router.post("/{graphname}/graphrag/answerquestion")
@@ -212,6 +295,11 @@ def answer_question(
 ):
     check_embedding_store_status()
     conn = conn.state.conn
+    llm_service = get_llm_service(get_chat_config(graphname))
+    method, router_decision = _resolve_supportai_method(
+        query.method, query.question, llm_service
+    )
+    _apply_auto_router_defaults(query, method, router_decision)
     resp = GraphRAGResponse
     resp.response_type = "supportai"
     if "combine" not in query.method_params:
@@ -220,9 +308,9 @@ def answer_question(
         query.method_params["expand"] = False
     if "verbose" not in query.method_params:
         query.method_params["verbose"] = False
-    if query.method.lower() == "hybrid":
+    if method == "hybrid":
         retriever = HybridRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         if "method" not in query.method_params:
             query.method_params["method"] = "Similarity"
@@ -245,12 +333,13 @@ def answer_question(
             query.method_params["doc_only"],
             query.method_params["combine"],
             query.method_params["verbose"],
+            query.method_params.get("max_score_candidates"),
         )
-    elif query.method.lower() == "similarity":
+    elif method == "similarity":
         if "index" not in query.method_params:
             raise Exception("Index name not provided")
         retriever = SimilarityRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         res = retriever.retrieve_answer(
             query.question,
@@ -260,12 +349,13 @@ def answer_question(
             query.method_params["expand"],
             query.method_params["combine"],
             query.method_params["verbose"],
+            query.method_params.get("max_score_candidates"),
         )
-    elif query.method.lower() == "contextual":
+    elif method == "contextual":
         if "index" not in query.method_params:
             raise Exception("Index name not provided")
         retriever = SiblingRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         res = retriever.retrieve_answer(
             query.question,
@@ -277,16 +367,17 @@ def answer_question(
             query.method_params["expand"],
             query.method_params["combine"],
             query.method_params["verbose"],
+            query.method_params.get("max_score_candidates"),
         )
-    elif query.method.lower() == "entityrelationship":
+    elif method == "entityrelationship":
         retriever = EntityRelationshipRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         res = retriever.retrieve_answer(query.question, query.method_params["top_k"])
 
-    elif query.method.lower() == "community":
+    elif method == "community":
         retriever = CommunityRetriever(
-            embedding_service, embedding_store, get_llm_service(get_chat_config(graphname)), conn
+            embedding_service, embedding_store, llm_service, conn
         )
         if "with_chunk" not in query.method_params:
             query.method_params["with_chunk"] = True
@@ -304,10 +395,12 @@ def answer_question(
             query.method_params["with_doc"],
             query.method_params["combine"],
             query.method_params["verbose"],
+            query.method_params.get("max_score_candidates"),
         )
     else:
         raise Exception("Method not implemented")
 
+    res = _attach_router_decision(res, router_decision)
     resp.natural_language_response = res["response"]
     resp.query_sources = res["retrieved"]
 

@@ -89,7 +89,8 @@ class CommunityRetriever(BaseRetriever):
                         with_chunk: bool = False,
                         with_doc: bool = False,
                         combine: bool = False,
-                        verbose: bool = False):
+                        verbose: bool = False,
+                        max_score_candidates=None):
         retrieved = self.search(question, community_level, top_k, similarity_threshold, expand, with_chunk, with_doc, verbose)
 
         if combine:
@@ -100,7 +101,12 @@ class CommunityRetriever(BaseRetriever):
             resp = self._generate_response(question, context, verbose=verbose)
         else:
             context = ["\n".join(retrieved[0]["final_retrieval"][x]) for x in retrieved[0]["final_retrieval"]]
-            new_context = self._score_candidates(question, context, top_k=top_k)
+            new_context = self._score_candidates(
+                question,
+                context,
+                top_k=top_k,
+                max_candidates=max_score_candidates,
+            )
             resp = self._generate_response(question, new_context, verbose=verbose)
 
         if verbose and len(retrieved) > 1 and "verbose" in retrieved[1]:

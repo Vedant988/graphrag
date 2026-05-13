@@ -22,10 +22,12 @@ from collections import deque
 from datetime import datetime, timezone
 
 from common.llm_services import LLM_Model
+from langchain_community.callbacks.manager import get_openai_callback
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
+from common.utils.gemini_fallback import collect_gemini_api_keys, is_gemini_rate_limit_error
 
 logger = logging.getLogger(__name__)
 
@@ -139,9 +141,10 @@ class _GeminiRateLimiter:
             await asyncio.sleep(delay)
 
 
-def _stable_api_key_fingerprint(config: dict) -> str:
-    auth = config.get("authentication_configuration", {}) or {}
-    api_key = str(auth.get("GOOGLE_API_KEY", ""))
+def _stable_api_key_fingerprint(config: dict, api_key: str | None = None) -> str:
+    if api_key is None:
+        auth = config.get("authentication_configuration", {}) or {}
+        api_key = str(auth.get("GOOGLE_API_KEY", ""))
     if not api_key:
         return "anonymous"
     return hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:16]
@@ -186,11 +189,13 @@ def _resolve_rate_limits(config: dict) -> dict | None:
     return limits
 
 
-def _get_shared_rate_limiter(config: dict, limits: dict) -> _GeminiRateLimiter:
+def _get_shared_rate_limiter(
+    config: dict, limits: dict, api_key: str | None = None
+) -> _GeminiRateLimiter:
     registry_key = (
         str(config.get("llm_service", "")).lower(),
         str(config.get("llm_model", "")).lower(),
-        _stable_api_key_fingerprint(config),
+        _stable_api_key_fingerprint(config, api_key),
         int(limits["requests_per_minute"]),
         int(limits["requests_per_day"]),
         int(limits["tokens_per_minute"]),
@@ -216,23 +221,148 @@ class GoogleGenAI(LLM_Model):
             os.environ[auth_detail] = auth_value
 
         model_name = config["llm_model"]
-        self.llm = ChatGoogleGenerativeAI(
-            temperature=config["model_kwargs"]["temperature"],
-            model=model_name,
-            timeout=None,
-            max_retries=2,
-        )
+        self._client_lock = threading.Lock()
+        self._model_name = model_name
+        self._temperature = config["model_kwargs"]["temperature"]
+        self._api_keys = collect_gemini_api_keys(config)
+        self._llm_clients: dict[str, ChatGoogleGenerativeAI] = {}
+        self._active_api_key_index = 0
+        self._active_api_key = self._api_keys[0] if self._api_keys else ""
         self.prompt_path = config.get("prompt_path", self.prompt_path)
         self._rate_limits = _resolve_rate_limits(config)
+        self._rate_limiters_by_key: dict[str, _GeminiRateLimiter] = {}
         self._shared_rate_limiter = None
         self.uses_shared_rate_limiter = self._rate_limits is not None
-        if self._rate_limits is not None:
-            self._shared_rate_limiter = _get_shared_rate_limiter(
-                config, self._rate_limits
-            )
+        self.llm = self._client_for_key(self._active_api_key)
+        self._shared_rate_limiter = self._rate_limiter_for_key(self._active_api_key)
         LogWriter.info(
-            f"request_id={req_id_cv.get()} instantiated GoogleGenAI model_name={model_name}"
+            f"request_id={req_id_cv.get()} instantiated GoogleGenAI model_name={model_name} "
+            f"with {max(1, len(self._api_keys))} configured Gemini key(s)"
         )
+
+    def _build_client(self, api_key: str | None):
+        kwargs = {
+            "temperature": self._temperature,
+            "model": self._model_name,
+            "timeout": None,
+            "max_retries": 2,
+        }
+        if api_key:
+            kwargs["google_api_key"] = api_key
+            os.environ["GOOGLE_API_KEY"] = api_key
+        return ChatGoogleGenerativeAI(**kwargs)
+
+    def _client_for_key(self, api_key: str | None):
+        cache_key = api_key or "__default__"
+        client = self._llm_clients.get(cache_key)
+        if client is None:
+            client = self._build_client(api_key)
+            self._llm_clients[cache_key] = client
+        return client
+
+    def _rate_limiter_for_key(self, api_key: str | None):
+        if self._rate_limits is None:
+            return None
+        cache_key = api_key or "__default__"
+        limiter = self._rate_limiters_by_key.get(cache_key)
+        if limiter is None:
+            limiter = _get_shared_rate_limiter(self.config, self._rate_limits, api_key)
+            self._rate_limiters_by_key[cache_key] = limiter
+        return limiter
+
+    def _set_active_key_unlocked(self, index: int) -> None:
+        self._active_api_key_index = index
+        self._active_api_key = self._api_keys[index] if self._api_keys else ""
+        self.llm = self._client_for_key(self._active_api_key)
+        self._shared_rate_limiter = self._rate_limiter_for_key(self._active_api_key)
+
+    def _active_client_state(self):
+        with self._client_lock:
+            return (
+                self._active_api_key_index,
+                self._active_api_key,
+                self.llm,
+                self._shared_rate_limiter,
+            )
+
+    def _activate_next_key(self, attempted_keys: set[str]) -> bool:
+        if len(self._api_keys) <= 1:
+            return False
+        with self._client_lock:
+            for offset in range(1, len(self._api_keys)):
+                next_index = (self._active_api_key_index + offset) % len(self._api_keys)
+                next_key = self._api_keys[next_index]
+                if next_key in attempted_keys:
+                    continue
+                self._set_active_key_unlocked(next_index)
+                return True
+        return False
+
+    def _invoke_prompt_sync(self, prompt, input_variables: dict, caller_name: str = "unknown"):
+        attempted_keys: set[str] = set()
+        last_exc = None
+
+        while True:
+            _, api_key, llm, limiter = self._active_client_state()
+            attempted_keys.add(api_key or "__default__")
+            try:
+                chain = prompt | llm
+                usage_data = {}
+                with get_openai_callback() as cb:
+                    if limiter is not None:
+                        limiter.acquire(self._reserved_tokens_for_payload(input_variables))
+                    raw_output = chain.invoke(input_variables)
+                    usage_data["input_tokens"] = cb.prompt_tokens
+                    usage_data["output_tokens"] = cb.completion_tokens
+                    usage_data["total_tokens"] = cb.total_tokens
+                    usage_data["cost"] = cb.total_cost
+                return raw_output, usage_data
+            except Exception as exc:
+                last_exc = exc
+                if not is_gemini_rate_limit_error(exc):
+                    raise
+                if not self._activate_next_key(attempted_keys):
+                    raise
+                LogWriter.warning(
+                    f"{caller_name} hit Gemini rate limits on the active key; "
+                    "rotating to the next configured fallback key."
+                )
+
+        raise last_exc  # pragma: no cover
+
+    async def _invoke_prompt_async(self, prompt, input_variables: dict, caller_name: str = "unknown"):
+        attempted_keys: set[str] = set()
+        last_exc = None
+
+        while True:
+            _, api_key, llm, limiter = self._active_client_state()
+            attempted_keys.add(api_key or "__default__")
+            try:
+                chain = prompt | llm
+                usage_data = {}
+                with get_openai_callback() as cb:
+                    if limiter is not None:
+                        await limiter.aacquire(
+                            self._reserved_tokens_for_payload(input_variables)
+                        )
+                    raw_output = await chain.ainvoke(input_variables)
+                    usage_data["input_tokens"] = cb.prompt_tokens
+                    usage_data["output_tokens"] = cb.completion_tokens
+                    usage_data["total_tokens"] = cb.total_tokens
+                    usage_data["cost"] = cb.total_cost
+                return raw_output, usage_data
+            except Exception as exc:
+                last_exc = exc
+                if not is_gemini_rate_limit_error(exc):
+                    raise
+                if not self._activate_next_key(attempted_keys):
+                    raise
+                LogWriter.warning(
+                    f"{caller_name} hit Gemini rate limits on the active key; "
+                    "rotating to the next configured fallback key."
+                )
+
+        raise last_exc  # pragma: no cover
 
     def _reserved_tokens_for_payload(self, payload) -> int:
         if not self._rate_limits:

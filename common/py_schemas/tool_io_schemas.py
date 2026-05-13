@@ -67,6 +67,11 @@ def _normalize_node_payload(value: Any) -> Any:
             or node["properties"].get("definition")
             or node.get("description", "")
         )
+    if not node.get("evidence"):
+        node["evidence"] = (
+            node["properties"].get("evidence")
+            or node.get("supporting_text", "")
+        )
     return node
 
 
@@ -87,6 +92,11 @@ def _normalize_relationship_payload(value: Any) -> Any:
             rel["properties"].get("description")
             or rel["properties"].get("definition")
             or rel.get("description", "")
+        )
+    if not rel.get("evidence"):
+        rel["evidence"] = (
+            rel["properties"].get("evidence")
+            or rel.get("supporting_text", "")
         )
     if "source" in rel:
         rel["source"] = _normalize_node_payload(rel["source"])
@@ -143,13 +153,14 @@ class Node(BaseNode):
         return _normalize_node_payload(value)
 
     node_type: str = Field(
-        description="Type of the node. Describe what the entity is. Ensure you use basic or elementary types for node labels.\n"
-        "For example, when you identify an entity representing a person, "
-        "always label it as 'Person'. Avoid using more specific terms "
-        "like 'Mathematician' or 'Scientist'"
+        description="Type of the node. Use the most specific stable type grounded in the text, such as Person, Warrior, Sage, Deity, RoyalFigure, Group, Place, Event, TextWork, Artifact, Lineage, or Concept."
     )
     definition: str = Field(
-        description="Definition of the node. Describe what the entity is."
+        description="Normalized factual description of what the entity is in the context of the passage."
+    )
+    evidence: Optional[str] = Field(
+        default=None,
+        description="Short grounded evidence span from the passage supporting this node."
     )
 
 
@@ -160,14 +171,16 @@ class Relationship(BaseRelationship):
         return _normalize_relationship_payload(value)
 
     relation_type: str = Field(
-        description="Type of the relationship. Describe what the relationship is. Instead of using specific and momentary types such as "
-        "'BECAME_PROFESSOR', use more general and timeless relationship types like "
-        "'PROFESSOR'. However, do not sacrifice any accuracy for generality"
+        description="Canonical reusable relationship type in uppercase with underscores, such as FATHERED, ENJOINED, MENTORED, AUTHORED, SLAIN_BY, LOCATED_IN, or CAUSED. Preserve accuracy without inventing brittle one-off types when a canonical verb works."
     )
     source: Node = Field(description="The source node of the relationship.")
     target: Node = Field(description="The target node of the relationship.")
     definition: str = Field(
-        description="Definition of the relationship. Describe what the relationship is."
+        description="Normalized factual description of who did what to whom, and why or in what context if the passage provides it."
+    )
+    evidence: Optional[str] = Field(
+        default=None,
+        description="Short grounded evidence span from the passage supporting this relationship."
     )
 
 
