@@ -1,0 +1,32 @@
+[
+  {
+    "id": "sauti_role",
+    "label": "Sauti opening role",
+    "question": "Who is Sauti and what role does he play in the opening of the Mahabharata?",
+    "correct_answer": "Sauti is Ugrasrava, the son of Lomaharshana. In the opening frame he arrives before Saunaka and the sages at Naimisa and serves as the narrator who recites the Bharata that Vyasa composed and Vaisampayana had earlier recited."
+  },
+  {
+    "id": "ganesa_composition",
+    "label": "Ganesa as scribe",
+    "question": "What role does Ganesa play in the composition of the Mahabharata according to these opening pages?",
+    "correct_answer": "Ganesa acts as Vyasa's divine scribe. He agrees to write the poem continuously while Vyasa composes it, and Vyasa inserts difficult verses so Ganesa must pause to understand them before continuing."
+  },
+  {
+    "id": "opening_frame",
+    "label": "Opening narrative frame",
+    "question": "How is the Mahabharata framed in the opening pages, and who is speaking to whom?",
+    "correct_answer": "The opening pages frame the Mahabharata as Sauti speaking to Saunaka and the assembled sages at Naimisa. Sauti recounts the Bharata that Vaisampayana, Vyasa's disciple, had narrated earlier at King Janamejaya's sacrifice."
+  },
+  {
+    "id": "lament_root_causes",
+    "label": "War destruction causes",
+    "question": "Across the entire 10 pages, what are the primary justifications or root causes given for the destruction of the Kshatriya race or the massive loss of life in the war? Aggregate the distinct reasons.",
+    "correct_answer": "The opening pages tie the destruction to Duryodhana's envy, deceit, and refusal to heed wise counsel from Vidura, Bhishma, Drona, and Kripa; to the gambling and exile that deepened the conflict; and finally to the Kaurava-Pandava war at Samanta-panchaka, where Time used the assembled armies as the instrument of destruction."
+  },
+  {
+    "id": "vyasa_bhishma_lineage",
+    "label": "Vyasa and Bhishma connection",
+    "question": "Based entirely on the first 10 pages, trace the exact lineage and mentorship connections between the author of the Mahabharata and the warrior who was left lying on a bed of arrows. How are they connected?",
+    "correct_answer": "The author is Krishna-Dwaipayana Vyasa, the son of Parasara and Satyavati. The warrior on the bed of arrows is Bhishma, the son of Santanu and Ganga. They are connected because Satyavati later married Santanu, which made Vyasa Bhishma's stepbrother through the Kuru household, and the text also says Vyasa fathered Dhritarashtra, Pandu, and Vidura at the injunction of Bhishma and Satyavati to preserve the Kuru line."
+  }
+]

@@ -37,14 +37,6 @@ import { readSiteSession, refreshSiteSession } from "@/lib/siteSession";
 const defaultQuestion =
   "Based entirely on the first 10 pages, trace the exact lineage and mentorship connections between the author of the Mahabharata and the warrior who was left lying on a bed of arrows. How are they connected?";
 
-const benchmarkPreset = {
-  id: "vyasa_bhishma_lineage",
-  favoredPipeline: "GraphRAG favored multi-hop benchmark",
-  category: "Lineage and mentorship benchmark",
-  diagnosis:
-    "This question usually rewards graph-grounded retrieval because the answer depends on multiple linked facts rather than one semantically similar chunk.",
-};
-
 type ComparisonUsage = {
   input_tokens: number;
   output_tokens: number;
@@ -68,6 +60,27 @@ type ComparisonLatencyBreakdown = {
   total_seconds: number;
 };
 
+type ComparisonJudgeResult = {
+  status: string;
+  verdict?: string | null;
+  model?: string | null;
+  reason?: string | null;
+};
+
+type ComparisonSemanticSimilarityResult = {
+  status: string;
+  score?: number | null;
+  model?: string | null;
+  reason?: string | null;
+};
+
+type ComparisonAccuracy = {
+  available: boolean;
+  summary?: string | null;
+  llm_judge: ComparisonJudgeResult;
+  semantic_similarity: ComparisonSemanticSimilarityResult;
+};
+
 type ComparisonPipelineResult = {
   pipeline: string;
   status: string;
@@ -76,13 +89,26 @@ type ComparisonPipelineResult = {
   usage: ComparisonUsage;
   error?: string | null;
   latency_breakdown?: ComparisonLatencyBreakdown;
+  accuracy?: ComparisonAccuracy;
   profile?: Record<string, unknown> | null;
+};
+
+type ComparisonEvaluationContext = {
+  status: string;
+  benchmark_id?: string | null;
+  benchmark_label?: string | null;
+  reference_source?: string | null;
+  judge_model?: string | null;
+  similarity_model?: string | null;
+  evaluation_seconds?: number | null;
+  note?: string | null;
 };
 
 type ComparisonResponse = {
   graphname: string;
   question: string;
   pipelines: ComparisonPipelineResult[];
+  evaluation_context?: ComparisonEvaluationContext;
 };
 
 const pipelineCards = [
@@ -129,6 +155,9 @@ const formatLatency = (value?: number) =>
 const formatCost = (value?: number) =>
   typeof value === "number" && Number.isFinite(value) ? `$${value.toFixed(4)}` : "--";
 
+const formatScore = (value?: number | null) =>
+  typeof value === "number" && Number.isFinite(value) ? value.toFixed(3) : "--";
+
 const formatPercent = (value: number) =>
   `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
 
@@ -146,6 +175,41 @@ const normalizePipelineName = (value: string) => value.toLowerCase().replace(/\s
 
 const getDominantStage = (stages: ComparisonLatencyStage[]) =>
   [...stages].sort((left, right) => right.seconds - left.seconds)[0];
+
+const getJudgeDisplay = (accuracy?: ComparisonAccuracy) => {
+  const status = accuracy?.llm_judge?.status;
+  if (status === "pass") {
+    return "PASS";
+  }
+  if (status === "fail") {
+    return "FAIL";
+  }
+  if (status === "error") {
+    return "Error";
+  }
+  if (status === "skipped") {
+    return "Pending";
+  }
+  return "--";
+};
+
+const getJudgeTone = (accuracy?: ComparisonAccuracy) => {
+  const status = accuracy?.llm_judge?.status;
+  if (status === "pass") {
+    return "text-emerald-700 dark:text-emerald-300";
+  }
+  if (status === "fail") {
+    return "text-red-700 dark:text-red-300";
+  }
+  return "text-black dark:text-white";
+};
+
+const getAccuracyRank = (result: ComparisonPipelineResult) => {
+  const judgeStatus = result.accuracy?.llm_judge?.status;
+  const judgeRank = judgeStatus === "pass" ? 2 : judgeStatus === "fail" ? 1 : 0;
+  const semanticScore = result.accuracy?.semantic_similarity?.score ?? -1;
+  return judgeRank * 10 + semanticScore;
+};
 
 const Comparison = () => {
   const [showSidebar, setShowSidebar] = useState(true);
@@ -250,6 +314,15 @@ const Comparison = () => {
   const cheapestPipeline = [...successfulPipelines].sort(
     (left, right) => left.usage.cost - right.usage.cost,
   )[0];
+  const bestAccuracyPipeline = [...successfulPipelines]
+    .filter(
+      (result) =>
+        result.accuracy?.available ||
+        result.accuracy?.llm_judge?.status === "pass" ||
+        result.accuracy?.llm_judge?.status === "fail" ||
+        result.accuracy?.semantic_similarity?.status === "success",
+    )
+    .sort((left, right) => getAccuracyRank(right) - getAccuracyRank(left))[0];
   const graphRag = pipelineResults["GraphRAG"];
   const basicRag = pipelineResults["Basic RAG"];
 
@@ -293,10 +366,16 @@ const Comparison = () => {
           icon: Wallet,
         },
         {
-          label: "Transparency",
-          value: "Stage timing active",
-          subvalue: "Retrieval, ranking, and synthesis are separated",
-          icon: Gauge,
+          label: "Answer quality",
+          value: bestAccuracyPipeline?.pipeline || "--",
+          subvalue: bestAccuracyPipeline
+            ? `${getJudgeDisplay(bestAccuracyPipeline.accuracy)} / Semantic ${formatScore(
+                bestAccuracyPipeline.accuracy?.semantic_similarity?.score,
+              )}`
+            : benchmarkData?.evaluation_context?.status === "matched"
+              ? "Accuracy review is still settling"
+              : "Match a benchmark question to unlock judge + semantic similarity",
+          icon: CheckCircle2,
         },
       ]
     : [
@@ -319,15 +398,17 @@ const Comparison = () => {
           icon: Wallet,
         },
         {
-          label: "Transparency",
-          value: "Stage timing ready",
-          subvalue: "Backend breakdown will appear after the first run",
-          icon: Gauge,
+          label: "Answer quality",
+          value: "Pending run",
+          subvalue: "Judge verdict and semantic similarity appear after a matched benchmark run",
+          icon: CheckCircle2,
         },
       ];
 
   const handleRunBenchmark = async () => {
     const nextQuery = query.trim() || defaultQuestion;
+    const benchmarkId =
+      nextQuery === defaultQuestion ? "vyasa_bhishma_lineage" : undefined;
     const creds =
       typeof window !== "undefined" ? sessionStorage.getItem("creds") : null;
 
@@ -352,7 +433,10 @@ const Comparison = () => {
           Authorization: `Basic ${creds}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ question: nextQuery }),
+        body: JSON.stringify({
+          question: nextQuery,
+          ...(benchmarkId ? { benchmark_id: benchmarkId } : {}),
+        }),
       });
 
       const data = await parseApiResponse(response);
@@ -489,7 +573,8 @@ const Comparison = () => {
                     <p className="max-w-3xl text-base leading-7 text-muted-foreground md:text-lg">
                       This view now reads like an executive review instead of a dump.
                       Run the same prompt through LLM-Only, Basic RAG, and GraphRAG,
-                      then inspect where time and tokens were actually spent.
+                      then inspect where time, tokens, cost, and answer quality were
+                      actually spent.
                     </p>
                   </div>
 
@@ -514,7 +599,7 @@ const Comparison = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                        Benchmark Brief
+                        Run Brief
                       </p>
                       <h2 className="mt-2 text-2xl font-semibold text-black dark:text-white">
                         Premium surface, less noise.
@@ -530,20 +615,6 @@ const Comparison = () => {
                       <p className="text-sm text-muted-foreground">Selected graph</p>
                       <p className="mt-2 text-lg font-semibold text-black dark:text-white">
                         {selectedGraph}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-gray-200 bg-card px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#2a2024]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-200">
-                          {benchmarkPreset.id}
-                        </span>
-                        <span className="rounded-full border border-gray-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] dark:border-[#3D3D3D]">
-                          {benchmarkPreset.category}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                        {benchmarkPreset.diagnosis}
                       </p>
                     </div>
 
@@ -593,7 +664,7 @@ const Comparison = () => {
                       One run, with the latency story exposed.
                     </h2>
                     <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-                      The comparison endpoint now separates retrieval, ranking, and synthesis so the total latency is not a black box anymore.
+                      The comparison endpoint now separates retrieval, ranking, and synthesis, and it adds benchmark-grounded answer checks when a reference answer is available.
                     </p>
                   </div>
 
@@ -631,6 +702,20 @@ const Comparison = () => {
                     </span>
                   </div>
 
+                  {benchmarkData?.evaluation_context?.note ? (
+                    <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-3 text-sm leading-6 text-muted-foreground dark:border-[#4a3b40]">
+                      {benchmarkData.evaluation_context.note}
+                      {benchmarkData.evaluation_context.status === "matched" &&
+                      benchmarkData.evaluation_context.evaluation_seconds ? (
+                        <span className="ml-2 font-medium text-black dark:text-white">
+                          Accuracy review {formatLatency(
+                            benchmarkData.evaluation_context.evaluation_seconds,
+                          )}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {runError ? (
                     <div className="flex items-start gap-3 rounded-2xl border border-red-300/60 bg-red-500/[0.06] px-4 py-3 text-sm leading-6 text-red-700 dark:border-red-900/70 dark:text-red-200">
                       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -654,10 +739,18 @@ const Comparison = () => {
                     </div>
                     <div className="rounded-2xl border border-gray-200 bg-card px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#2a2024]">
                       <p className="text-sm font-medium text-black dark:text-white">
+                        Dual answer quality
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        The dashboard now pairs HF LLM-as-a-Judge verdicts with hosted semantic similarity so answer quality is visible beside speed and spend.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-200 bg-card px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#2a2024]">
+                      <p className="text-sm font-medium text-black dark:text-white">
                         Explainable latency
                       </p>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Every pipeline now reports stage timings so you can see whether retrieval, ranking, or synthesis dominated the run.
+                        Every pipeline still reports stage timings so you can see whether retrieval, ranking, or synthesis dominated the run.
                       </p>
                     </div>
                   </div>
@@ -725,13 +818,17 @@ const Comparison = () => {
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                         <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
                           <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                             Tokens
                           </p>
                           <p className="mt-3 text-xl font-semibold text-black dark:text-white">
                             {formatTokens(result?.usage?.total_tokens)}
+                          </p>
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            in {formatTokens(result?.usage?.input_tokens)} / out{" "}
+                            {formatTokens(result?.usage?.output_tokens)}
                           </p>
                         </div>
                         <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
@@ -740,6 +837,9 @@ const Comparison = () => {
                           </p>
                           <p className="mt-3 text-xl font-semibold text-black dark:text-white">
                             {formatCost(result?.usage?.cost)}
+                          </p>
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            Gemini pricing from prompt and completion tokens
                           </p>
                         </div>
                         <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
@@ -750,6 +850,38 @@ const Comparison = () => {
                             {formatLatency(result?.latency_seconds)}
                           </p>
                         </div>
+                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                            HF Judge
+                          </p>
+                          <p
+                            className={cn(
+                              "mt-3 text-xl font-semibold",
+                              getJudgeTone(result?.accuracy),
+                            )}
+                          >
+                            {getJudgeDisplay(result?.accuracy)}
+                          </p>
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            {result?.accuracy?.llm_judge?.reason || "PASS / FAIL grading"}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                            HF Semantic
+                          </p>
+                          <p className="mt-3 text-xl font-semibold text-black dark:text-white">
+                            {formatScore(result?.accuracy?.semantic_similarity?.score)}
+                          </p>
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            hosted similarity
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-3 text-sm leading-6 text-muted-foreground dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                        {result?.accuracy?.summary ||
+                          "Accuracy review appears when the query matches a benchmark reference answer."}
                       </div>
 
                       <details className="group rounded-[24px] border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">

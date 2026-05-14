@@ -3,10 +3,10 @@
     "hostname": "https://tg-6b7796c6-7835-4de4-9ebb-111c0a57fdfc.tg-2635877100.i.tgcloud.io",
     "restppPort": "443",
     "gsPort": "443",
-    "username": "tigergraph",
-    "password": "tigergraph",
+    "username": "YOUR_TG_USERNAME",
+    "password": "YOUR_TG_PASSWORD",
     "getToken": false,
-    "apiToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ2ZWRhbnRiYWR1a2FsZTY5QGdtYWlsLmNvbSIsImlhdCI6MTc3ODY4ODA1NywiZXhwIjoxNzc5MjkyODYyLCJpc3MiOiJUaWdlckdyYXBoIn0.dl5pGjGi9AWmgXK5Od1sJkLKzYYCCLwwGSj-bktHxXw",
+    "apiToken": "YOUR_TG_API_TOKEN",
     "default_timeout": 300,
     "default_mem_threshold": 5000,
     "default_thread_limit": 8
@@ -19,19 +19,29 @@
   },
   "llm_config": {
     "token_limit": 0,
-      "embedding_service": {
+    "authentication_configuration": {
+      "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY",
+      "GOOGLE_API_KEY_FALLBACK": "YOUR_GOOGLE_API_KEY_FALLBACK",
+      "GROQ_API_KEY": "YOUR_GROQ_API_KEY",
+      "HUGGINGFACEHUB_API_TOKEN": "YOUR_HF_TOKEN"
+    },
+    "comparison_service": {
+      "judge_model": "meta-llama/Llama-3.1-8B-Instruct",
+      "similarity_model": "sentence-transformers/all-MiniLM-L6-v2"
+    },
+    "embedding_service": {
       "embedding_model_service": "genai",
       "model_name": "models/gemini-embedding-001",
       "dimensions": 1536,
       "authentication_configuration": {
-        "GOOGLE_API_KEY": "AIzaSyDBOqEHHSB00Pfqdtlh7mx_ZVhtBjsFsYs"
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY"
       }
     },  
     "completion_service": {
       "llm_service": "genai",
       "llm_model": "gemini-3.1-flash-lite",
       "authentication_configuration": {
-        "GOOGLE_API_KEY": "AIzaSyDBOqEHHSB00Pfqdtlh7mx_ZVhtBjsFsYs"
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY"
       },
       "model_kwargs": {
         "temperature": 0
@@ -42,7 +52,7 @@
       "llm_service": "genai",
       "llm_model": "gemini-2.5-flash",
       "authentication_configuration": {
-        "GOOGLE_API_KEY": "AIzaSyDBOqEHHSB00Pfqdtlh7mx_ZVhtBjsFsYs"
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY"
       },
       "model_kwargs": {
         "temperature": 0

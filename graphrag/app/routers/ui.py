@@ -26,6 +26,7 @@ import threading
 import time
 import traceback
 import uuid
+from pathlib import Path as FilePath
 from typing import Annotated
 
 import asyncer
@@ -57,12 +58,18 @@ from starlette.websockets import WebSocketState
 from supportai.retrievers import HybridRetriever, SimilarityRetriever
 from tools.validation_utils import MapQuestionToSchemaException
 
+try:
+    from huggingface_hub import InferenceClient
+except Exception:  # pragma: no cover - optional dependency at runtime
+    InferenceClient = None
+
 from common.config import db_config, graphrag_config, embedding_service, llm_config, service_status, get_chat_config, get_completion_config, get_embedding_config, get_graphrag_config, get_multimodal_config, validate_graphname, get_llm_service, resolve_llm_services
 from common.db.connections import get_db_connection_pwd_manual
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
 from common.metrics.prometheus_metrics import metrics as pmetrics
 from common.py_schemas import GraphRAGAnswerOutput
+from common.utils.gemini_fallback import calculate_gemini_token_cost
 from common.utils.graph_locks import acquire_graph_lock, release_graph_lock, acquire_rebuild_lock, release_rebuild_lock, get_rebuilding_graph
 from supportai import supportai
 from common.py_schemas.schemas import (
@@ -91,6 +98,22 @@ llm_config_lock = asyncio.Lock()
 _role_cache: dict[tuple[str, str], tuple[float, tuple[list[str], dict[str, list[str]]]]] = {}
 _role_cache_lock = threading.Lock()
 _ROLE_CACHE_TTL = 60  # seconds
+_COMPARISON_BENCHMARKS_PATH = FilePath(
+    os.getenv("COMPARISON_BENCHMARKS_FILE", "configs/comparison_benchmarks.json")
+)
+_comparison_benchmarks_cache: list[dict] | None = None
+_comparison_benchmarks_mtime: float | None = None
+_comparison_benchmarks_lock = threading.Lock()
+_DEFAULT_HF_JUDGE_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
+_DEFAULT_HF_SIMILARITY_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+_COMPARISON_JUDGE_PROMPT = """Grade the system's answer.
+Question: {question}
+Correct answer: {correct_answer}
+System answer: {system_answer}
+
+Reply with only PASS or FAIL.
+PASS = the system answer correctly addresses the question with no major errors.
+FAIL = the answer is wrong, missing, or contradicts the correct answer."""
 
 
 def _has_static_api_token() -> bool:
@@ -1064,13 +1087,24 @@ async def write_message_to_history(message: Message, usr_auth: str):
         LogWriter.info(f"chat-history not enabled. chat-history url: {ch}")
 
 
-def _normalize_usage_totals(usage: dict | None) -> dict[str, int | float]:
+def _normalize_usage_totals(
+    usage: dict | None,
+    *,
+    llm_service_name: str | None = None,
+) -> dict[str, int | float]:
     usage = usage or {}
+    input_tokens = int(usage.get("input_tokens") or 0)
+    output_tokens = int(usage.get("output_tokens") or 0)
+    total_tokens = int(usage.get("total_tokens") or 0)
+    cost = float(usage.get("cost") or 0.0)
+    normalized_service_name = str(llm_service_name or "").lower()
+    if normalized_service_name == "genai":
+        cost = calculate_gemini_token_cost(input_tokens, output_tokens)
     return {
-        "input_tokens": int(usage.get("input_tokens") or 0),
-        "output_tokens": int(usage.get("output_tokens") or 0),
-        "total_tokens": int(usage.get("total_tokens") or 0),
-        "cost": round(float(usage.get("cost") or 0.0), 6),
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": total_tokens,
+        "cost": round(cost, 6),
         "calls": int(usage.get("calls") or 0),
     }
 
@@ -1093,8 +1127,348 @@ def _comparison_stage(
     return stage
 
 
+def _normalize_comparison_question(value: str | None) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip()).lower()
+
+
+def _load_comparison_benchmarks() -> list[dict]:
+    global _comparison_benchmarks_cache, _comparison_benchmarks_mtime
+
+    try:
+        stat = _COMPARISON_BENCHMARKS_PATH.stat()
+    except OSError:
+        return []
+
+    with _comparison_benchmarks_lock:
+        if (
+            _comparison_benchmarks_cache is not None
+            and _comparison_benchmarks_mtime == stat.st_mtime
+        ):
+            return list(_comparison_benchmarks_cache)
+
+        try:
+            with _COMPARISON_BENCHMARKS_PATH.open(encoding="utf-8") as handle:
+                raw = json.load(handle)
+        except Exception as exc:
+            logger.warning(
+                "Failed to load comparison benchmark references from %s: %s",
+                _COMPARISON_BENCHMARKS_PATH,
+                exc,
+            )
+            return []
+
+        benchmarks = raw if isinstance(raw, list) else []
+        _comparison_benchmarks_cache = benchmarks
+        _comparison_benchmarks_mtime = stat.st_mtime
+        return list(benchmarks)
+
+
+def _resolve_comparison_reference(
+    question: str,
+    benchmark_id: str | None = None,
+    reference_answer: str | None = None,
+) -> dict | None:
+    if str(reference_answer or "").strip():
+        return {
+            "id": benchmark_id or "custom_reference",
+            "label": benchmark_id or "Custom reference",
+            "question": question,
+            "correct_answer": str(reference_answer).strip(),
+            "source": "request payload",
+        }
+
+    benchmarks = _load_comparison_benchmarks()
+    if not benchmarks:
+        return None
+
+    normalized_question = _normalize_comparison_question(question)
+    if benchmark_id:
+        for benchmark in benchmarks:
+            if str(benchmark.get("id", "")).strip() == benchmark_id and str(
+                benchmark.get("correct_answer", "")
+            ).strip():
+                matched = dict(benchmark)
+                matched["source"] = str(_COMPARISON_BENCHMARKS_PATH)
+                return matched
+
+    for benchmark in benchmarks:
+        if (
+            _normalize_comparison_question(benchmark.get("question"))
+            == normalized_question
+            and str(benchmark.get("correct_answer", "")).strip()
+        ):
+            matched = dict(benchmark)
+            matched["source"] = str(_COMPARISON_BENCHMARKS_PATH)
+            return matched
+
+    return None
+
+
+def _get_comparison_eval_config(graphname: str) -> dict[str, str]:
+    graph_llm = {}
+    try:
+        graph_llm = _load_graph_llm_config(graphname)
+    except Exception:
+        graph_llm = {}
+
+    comparison_cfg = copy.deepcopy(llm_config.get("comparison_service", {}) or {})
+    comparison_cfg.update(graph_llm.get("comparison_service", {}) or {})
+
+    auth = {}
+    try:
+        auth = get_chat_config(graphname).get("authentication_configuration", {}) or {}
+    except Exception:
+        auth = {}
+
+    token = (
+        str(auth.get("HUGGINGFACEHUB_API_TOKEN", "")).strip()
+        or str(auth.get("HF_TOKEN", "")).strip()
+    )
+    judge_model = (
+        str(comparison_cfg.get("judge_model", "")).strip()
+        or _DEFAULT_HF_JUDGE_MODEL
+    )
+    similarity_model = (
+        str(comparison_cfg.get("similarity_model", "")).strip()
+        or _DEFAULT_HF_SIMILARITY_MODEL
+    )
+    return {
+        "token": token,
+        "judge_model": judge_model,
+        "similarity_model": similarity_model,
+    }
+
+
+def _extract_hf_message_content(message_content) -> str:
+    if isinstance(message_content, str):
+        return message_content
+    if isinstance(message_content, list):
+        return " ".join(
+            str(part.get("text", "")).strip()
+            for part in message_content
+            if isinstance(part, dict)
+        ).strip()
+    return str(message_content or "").strip()
+
+
+def _comparison_accuracy_summary(llm_judge: dict, semantic_similarity: dict) -> str:
+    judge_status = llm_judge.get("status")
+    similarity_status = semantic_similarity.get("status")
+    similarity_score = semantic_similarity.get("score")
+
+    if judge_status == "pass" and isinstance(similarity_score, (int, float)):
+        return (
+            f"HF judge returned PASS and hosted semantic similarity landed at {float(similarity_score):.3f}, "
+            "which is a strong answer-quality signal."
+        )
+    if judge_status == "fail" and isinstance(similarity_score, (int, float)):
+        return (
+            f"HF judge returned FAIL while hosted semantic similarity landed at {float(similarity_score):.3f}, "
+            "so semantic overlap exists but correctness is still not trusted."
+        )
+    if judge_status == "pass":
+        return "HF judge returned PASS for this answer."
+    if judge_status == "fail":
+        return "HF judge returned FAIL for this answer."
+    if similarity_status == "success" and isinstance(similarity_score, (int, float)):
+        return (
+            f"Hosted semantic similarity landed at {float(similarity_score):.3f}. "
+            f"HF judge is unavailable: {llm_judge.get('reason', 'not configured')}."
+        )
+    return (
+        llm_judge.get("reason")
+        or semantic_similarity.get("reason")
+        or "Accuracy review is not available for this answer yet."
+    )
+
+
+def _compare_answer_with_hf_judge(
+    question: str,
+    correct_answer: str,
+    system_answer: str,
+    eval_config: dict[str, str],
+) -> dict:
+    judge_model = str(eval_config.get("judge_model", "")).strip() or _DEFAULT_HF_JUDGE_MODEL
+    if not str(system_answer or "").strip():
+        return {
+            "status": "fail",
+            "verdict": "FAIL",
+            "model": judge_model,
+            "reason": "The pipeline returned no answer, which counts as FAIL.",
+        }
+    if InferenceClient is None:
+        return {
+            "status": "skipped",
+            "verdict": None,
+            "model": judge_model,
+            "reason": "huggingface-hub is not available in this environment.",
+        }
+
+    token = str(eval_config.get("token", "")).strip()
+    if not token:
+        return {
+            "status": "skipped",
+            "verdict": None,
+            "model": judge_model,
+            "reason": "Set HUGGINGFACEHUB_API_TOKEN in llm_config.authentication_configuration to enable LLM-as-a-Judge scoring.",
+        }
+
+    try:
+        client = InferenceClient(model=judge_model, token=token)
+        response = client.chat_completion(
+            messages=[
+                {
+                    "role": "user",
+                    "content": _COMPARISON_JUDGE_PROMPT.format(
+                        question=question,
+                        correct_answer=correct_answer,
+                        system_answer=system_answer,
+                    ),
+                }
+            ],
+            max_tokens=10,
+            temperature=0.0,
+        )
+        content = _extract_hf_message_content(
+            response.choices[0].message.content
+            if getattr(response, "choices", None)
+            else ""
+        ).upper()
+        if "PASS" in content and "FAIL" not in content:
+            return {
+                "status": "pass",
+                "verdict": "PASS",
+                "model": judge_model,
+                "reason": None,
+            }
+        if "FAIL" in content:
+            return {
+                "status": "fail",
+                "verdict": "FAIL",
+                "model": judge_model,
+                "reason": None,
+            }
+        return {
+            "status": "error",
+            "verdict": None,
+            "model": judge_model,
+            "reason": "The judge model returned an unexpected verdict.",
+        }
+    except Exception as exc:
+        logger.warning("HF judge evaluation failed: %s", exc)
+        return {
+            "status": "error",
+            "verdict": None,
+            "model": judge_model,
+            "reason": str(exc),
+        }
+
+
+def _compare_answer_with_hf_similarity(
+    correct_answer: str,
+    system_answer: str,
+    eval_config: dict[str, str],
+) -> dict:
+    similarity_model = (
+        str(eval_config.get("similarity_model", "")).strip()
+        or _DEFAULT_HF_SIMILARITY_MODEL
+    )
+    if InferenceClient is None:
+        return {
+            "status": "skipped",
+            "score": None,
+            "model": similarity_model,
+            "reason": "huggingface-hub is not available in this environment.",
+        }
+
+    token = str(eval_config.get("token", "")).strip()
+    if not token:
+        return {
+            "status": "skipped",
+            "score": None,
+            "model": similarity_model,
+            "reason": "Set HUGGINGFACEHUB_API_TOKEN in llm_config.authentication_configuration to enable hosted semantic similarity scoring.",
+        }
+
+    if not str(system_answer or "").strip():
+        return {
+            "status": "success",
+            "score": 0.0,
+            "model": similarity_model,
+            "reason": "The pipeline returned no answer, so semantic similarity is 0.000.",
+        }
+
+    try:
+        client = InferenceClient(model=similarity_model, token=token)
+        result = client.sentence_similarity(
+            sentence=str(system_answer or ""),
+            other_sentences=[correct_answer],
+            model=similarity_model,
+        )
+        return {
+            "status": "success",
+            "score": round(float(result[0]), 6),
+            "model": similarity_model,
+            "reason": None,
+        }
+    except Exception as exc:
+        logger.warning("HF semantic similarity evaluation failed: %s", exc)
+        return {
+            "status": "error",
+            "score": None,
+            "model": similarity_model,
+            "reason": str(exc),
+        }
+
+
+def _evaluate_comparison_answer(
+    question: str,
+    pipeline_result: dict,
+    benchmark_reference: dict | None,
+    eval_config: dict[str, str],
+) -> dict:
+    if not benchmark_reference:
+        return {
+            "available": False,
+            "summary": "Accuracy review appears when the question matches a benchmark with a reference answer.",
+            "llm_judge": {
+                "status": "skipped",
+                "verdict": None,
+                "model": str(eval_config.get("judge_model", "")).strip() or _DEFAULT_HF_JUDGE_MODEL,
+                "reason": "No benchmark reference matched this question.",
+            },
+            "semantic_similarity": {
+                "status": "skipped",
+                "score": None,
+                "model": str(eval_config.get("similarity_model", "")).strip() or _DEFAULT_HF_SIMILARITY_MODEL,
+                "reason": "No benchmark reference matched this question.",
+            },
+        }
+
+    correct_answer = str(benchmark_reference.get("correct_answer", "")).strip()
+    pipeline_answer = str(pipeline_result.get("answer", "")).strip()
+    llm_judge = _compare_answer_with_hf_judge(
+        question,
+        correct_answer,
+        pipeline_answer,
+        eval_config,
+    )
+    semantic_similarity = _compare_answer_with_hf_similarity(
+        correct_answer,
+        pipeline_answer,
+        eval_config,
+    )
+    return {
+        "available": True,
+        "summary": _comparison_accuracy_summary(llm_judge, semantic_similarity),
+        "llm_judge": llm_judge,
+        "semantic_similarity": semantic_similarity,
+    }
+
+
 def _comparison_llm_only(question: str, graphname: str) -> dict:
-    llm_service = get_llm_service(get_chat_config(graphname))
+    chat_config = get_chat_config(graphname)
+    llm_service = get_llm_service(chat_config)
     llm_service.reset_usage_tracking()
     answer_parser = PydanticOutputParser(pydantic_object=GraphRAGAnswerOutput)
     prompt = PromptTemplate(
@@ -1119,7 +1493,10 @@ def _comparison_llm_only(question: str, graphname: str) -> dict:
     )
     return {
         "answer": generated.generated_answer,
-        "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+        "usage": _normalize_usage_totals(
+            llm_service.get_usage_totals(),
+            llm_service_name=chat_config.get("llm_service"),
+        ),
         "latency_breakdown": {
             "summary": "Single LLM call with no retrieval or graph traversal.",
             "stages": [
@@ -1138,7 +1515,8 @@ def _comparison_basic_rag(question: str, graphname: str, conn) -> dict:
     if service_status["embedding_store"]["error"]:
         raise RuntimeError(service_status["embedding_store"]["error"])
 
-    llm_service = get_llm_service(get_chat_config(graphname))
+    chat_config = get_chat_config(graphname)
+    llm_service = get_llm_service(chat_config)
     llm_service.reset_usage_tracking()
     embedding_store_for_graph = _resolve_embedding_store(conn)
     if embedding_store_for_graph.conn.graphname != conn.graphname:
@@ -1215,7 +1593,10 @@ def _comparison_basic_rag(question: str, graphname: str, conn) -> dict:
         )
     return {
         "answer": resp.get("response", ""),
-        "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+        "usage": _normalize_usage_totals(
+            llm_service.get_usage_totals(),
+            llm_service_name=chat_config.get("llm_service"),
+        ),
         "latency_breakdown": {
             "summary": "Basic RAG spends time on vector retrieval first, then on LLM ranking and synthesis.",
             "stages": stages,
@@ -1227,7 +1608,8 @@ def _comparison_graphrag(question: str, graphname: str, conn) -> dict:
     if service_status["embedding_store"]["error"]:
         raise RuntimeError(service_status["embedding_store"]["error"])
 
-    llm_service = get_llm_service(get_chat_config(graphname))
+    chat_config = get_chat_config(graphname)
+    llm_service = get_llm_service(chat_config)
     llm_service.reset_usage_tracking()
     embedding_store_for_graph = _resolve_embedding_store(conn)
     if embedding_store_for_graph.conn.graphname != conn.graphname:
@@ -1330,7 +1712,10 @@ def _comparison_graphrag(question: str, graphname: str, conn) -> dict:
         )
     return {
         "answer": resp.get("response", ""),
-        "usage": _normalize_usage_totals(llm_service.get_usage_totals()),
+        "usage": _normalize_usage_totals(
+            llm_service.get_usage_totals(),
+            llm_service_name=chat_config.get("llm_service"),
+        ),
         "profile": graph_profile.model_dump(),
         "latency_breakdown": {
             "summary": "GraphRAG first plans the route, then retrieves graph-grounded evidence, ranks it, and synthesizes the answer.",
@@ -1468,6 +1853,8 @@ async def comparison_query(
     question = str(payload.get("question", "")).strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question is required.")
+    benchmark_id = str(payload.get("benchmark_id", "")).strip() or None
+    reference_answer = str(payload.get("reference_answer", "")).strip() or None
 
     creds = creds[1]
     auth = base64.b64encode(f"{creds.username}:{creds.password}".encode()).decode()
@@ -1488,10 +1875,40 @@ async def comparison_query(
         ),
     ]
 
+    benchmark_reference = _resolve_comparison_reference(
+        question,
+        benchmark_id=benchmark_id,
+        reference_answer=reference_answer,
+    )
+    comparison_eval_config = _get_comparison_eval_config(graphname)
+    evaluation_start = time.monotonic()
+    for pipeline in pipelines:
+        pipeline["accuracy"] = _evaluate_comparison_answer(
+            question,
+            pipeline,
+            benchmark_reference,
+            comparison_eval_config,
+        )
+    evaluation_seconds = round(time.monotonic() - evaluation_start, 3)
+
     return {
         "graphname": graphname,
         "question": question,
         "pipelines": pipelines,
+        "evaluation_context": {
+            "status": "matched" if benchmark_reference else "unmatched",
+            "benchmark_id": benchmark_reference.get("id") if benchmark_reference else None,
+            "benchmark_label": benchmark_reference.get("label") if benchmark_reference else None,
+            "reference_source": benchmark_reference.get("source") if benchmark_reference else None,
+            "judge_model": comparison_eval_config.get("judge_model"),
+            "similarity_model": comparison_eval_config.get("similarity_model"),
+            "evaluation_seconds": evaluation_seconds,
+            "note": (
+                "Accuracy review is benchmark-grounded and runs after answer generation, so it is not counted inside the pipeline latency numbers. Both checks use hosted Hugging Face inference."
+                if benchmark_reference
+                else "Accuracy review appears when the question matches a benchmark reference answer."
+            ),
+        },
     }
 
 @router.websocket(route_prefix + "/{graphname}/chat")

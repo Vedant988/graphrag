@@ -29,6 +29,8 @@ _RATE_LIMIT_PATTERNS = (
     "rate limit",
     "too many requests",
 )
+_GEMINI_INPUT_COST_PER_TOKEN = 0.25 / 1_000_000
+_GEMINI_OUTPUT_COST_PER_TOKEN = 1.50 / 1_000_000
 
 
 def _split_key_list(raw_value: str | None) -> list[str]:
@@ -51,6 +53,19 @@ def collect_gemini_api_keys(config: dict | None) -> list[str]:
     auth = (config or {}).get("authentication_configuration", {}) or {}
     add(auth.get("GOOGLE_API_KEY"))
     add(auth.get("GEMINI_API_KEY"))
+    add(auth.get("GOOGLE_API_KEY_FALLBACK"))
+    add(auth.get("GEMINI_API_KEY_FALLBACK"))
+
+    for auth_name, auth_value in auth.items():
+        if auth_name in {
+            "GOOGLE_API_KEY",
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY_FALLBACK",
+            "GEMINI_API_KEY_FALLBACK",
+        }:
+            continue
+        if _FALLBACK_ENV_KEY_RE.match(str(auth_name)):
+            add(str(auth_value))
 
     for env_name in _EXACT_ENV_VARS:
         add(os.getenv(env_name))
@@ -76,3 +91,18 @@ def is_gemini_rate_limit_error(exc: Exception) -> bool:
 
     message = str(exc).lower()
     return any(pattern in message for pattern in _RATE_LIMIT_PATTERNS)
+
+
+def calculate_gemini_token_cost(
+    input_tokens: int | float | None,
+    output_tokens: int | float | None,
+    *,
+    precision: int = 6,
+) -> float:
+    normalized_input = max(0, int(input_tokens or 0))
+    normalized_output = max(0, int(output_tokens or 0))
+    total_cost = (
+        normalized_input * _GEMINI_INPUT_COST_PER_TOKEN
+        + normalized_output * _GEMINI_OUTPUT_COST_PER_TOKEN
+    )
+    return round(total_cost, precision)
