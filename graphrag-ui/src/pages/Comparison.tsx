@@ -35,9 +35,22 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { parseApiResponse } from "@/lib/http";
 import { readSiteSession, refreshSiteSession } from "@/lib/siteSession";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const defaultQuestion =
-  "Trace the origin of the English translation project mentioned in the preface. Who originally suggested the undertaking in a letter, and who actually traveled to Seebpore with Babu Durga Charan Banerjee to officially engage the translator?";
+const defaultQuestionFallback = "Trace the origin of the English translation project mentioned in the preface. Who originally suggested the undertaking in a letter, and who actually traveled to Seebpore with Babu Durga Charan Banerjee to officially engage the translator?";
+
+type BenchmarkQuestion = {
+  id: string;
+  label: string;
+  question: string;
+  correct_answer: string;
+};
 
 type ComparisonUsage = {
   input_tokens: number;
@@ -217,8 +230,8 @@ const Comparison = () => {
   const [showSidebar, setShowSidebar] = useState(true);
   const [store, setStore] = useState<any>();
   const [currentDate, setCurrentDate] = useState("");
-  const [query, setQuery] = useState(defaultQuestion);
-  const [submittedQuery, setSubmittedQuery] = useState(defaultQuestion);
+  const [query, setQuery] = useState(defaultQuestionFallback);
+  const [submittedQuery, setSubmittedQuery] = useState(defaultQuestionFallback);
   const [benchmarkData, setBenchmarkData] = useState<ComparisonResponse | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
@@ -233,8 +246,28 @@ const Comparison = () => {
       ? sessionStorage.getItem("ragPattern") || "Auto Router"
       : "Auto Router",
   );
+  const [benchmarkQuestions, setBenchmarkQuestions] = useState<BenchmarkQuestion[]>([]);
+  const [selectedBenchmarkId, setSelectedBenchmarkId] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+
+  const defaultQuestion = benchmarkQuestions[0]?.question || defaultQuestionFallback;
+
+  const fetchBenchmarks = async () => {
+    try {
+      const creds = typeof window !== "undefined" ? sessionStorage.getItem("creds") : null;
+      if (!creds) return;
+      const response = await fetch("/ui/comparison/benchmarks", {
+        headers: { Authorization: `Basic ${creds}` },
+      });
+      if (response.ok) {
+        const data: BenchmarkQuestion[] = await response.json();
+        setBenchmarkQuestions(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch benchmarks:", err);
+    }
+  };
 
   useEffect(() => {
     const syncStore = async () => {
@@ -247,6 +280,8 @@ const Comparison = () => {
         setStore(site);
         setSelectedGraph(sessionStorage.getItem("selectedGraph") || "gemini_1_0");
       }
+      // Fetch benchmarks after auth is confirmed
+      void fetchBenchmarks();
     };
 
     void syncStore();
@@ -284,6 +319,7 @@ const Comparison = () => {
       }
       setSelectedGraph(sessionStorage.getItem("selectedGraph") || "gemini_1_0");
       setRagPattern(sessionStorage.getItem("ragPattern") || "Auto Router");
+      void fetchBenchmarks();
     };
     void syncStore();
   }, [location]);
@@ -487,11 +523,14 @@ const Comparison = () => {
     }
   };
 
-  const handleRunBenchmark = async () => {
-    const nextQuery = query.trim() || defaultQuestion;
-    const benchmarkId =
-      nextQuery === defaultQuestion ? "translation_origin" : undefined;
+  const handleRunBenchmark = async (overrideQuery?: string) => {
+    // If it's a generic event like a button click, overrideQuery will be a synthetic event, not a string.
+    const actualQuery = typeof overrideQuery === "string" ? overrideQuery : query;
+    const nextQuery = actualQuery.trim() || defaultQuestion;
+    const benchmarkMatch = benchmarkQuestions.find((bq) => bq.question === nextQuery);
+    const benchmarkId = benchmarkMatch ? benchmarkMatch.id : undefined;
     const creds =
+
       typeof window !== "undefined" ? sessionStorage.getItem("creds") : null;
 
     if (!selectedGraph) {
@@ -750,31 +789,72 @@ const Comparison = () => {
                     </p>
                   </div>
 
-                  <div className="grid gap-3 xl:grid-cols-[1fr_auto]">
+                  {/* Benchmark selector */}
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select
+                        value={selectedBenchmarkId}
+                        onValueChange={(id) => {
+                          const bq = benchmarkQuestions.find(q => q.id === id);
+                          if (!bq) return;
+                          setSelectedBenchmarkId(id);
+                          setQuery(bq.question);
+                          void handleRunBenchmark(bq.question);
+                        }}
+                      >
+                        <SelectTrigger className="h-14 min-w-[260px] flex-1 rounded-2xl border-gray-300 bg-background px-5 text-base dark:border-[#3D3D3D] dark:bg-[#1c1518]">
+                          <SelectValue placeholder="Select a benchmark question...">
+                            {selectedBenchmarkId
+                              ? benchmarkQuestions.find(q => q.id === selectedBenchmarkId)?.label
+                              : "Select a benchmark question..."}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="max-w-[600px]">
+                          {benchmarkQuestions.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-muted-foreground italic">Loading questions...</div>
+                          ) : (
+                            benchmarkQuestions.map((bq) => (
+                              <SelectItem key={bq.id} value={bq.id}>
+                                <div className="flex flex-col gap-0.5 py-0.5">
+                                  <span className="font-semibold text-orange-600 dark:text-orange-400 text-xs uppercase tracking-wide">{bq.label}</span>
+                                  <span className="text-sm text-muted-foreground leading-5 whitespace-normal max-w-[480px]">{bq.question}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+
+                      <Button
+                        className="gradient h-14 rounded-2xl border-0 px-6 text-white hover:opacity-95 shrink-0"
+                        type="button"
+                        onClick={() => { void handleRunBenchmark(); }}
+                        disabled={isRunning || !query.trim()}
+                      >
+                        {isRunning ? "Running..." : "Run Benchmark"}
+                        {isRunning ? (
+                          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="ml-2 h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Custom question input */}
                     <Input
-                      className="h-14 rounded-2xl border-gray-300 bg-background px-5 text-base dark:border-[#3D3D3D] dark:bg-[#1c1518]"
+                      className="h-12 rounded-2xl border-gray-300 bg-background px-5 text-sm dark:border-[#3D3D3D] dark:bg-[#1c1518]"
                       value={query}
-                      onChange={(event) => setQuery(event.target.value)}
+                      onChange={(event) => {
+                        setQuery(event.target.value);
+                        setSelectedBenchmarkId("");
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" && !isRunning) {
-                          handleRunBenchmark();
+                          void handleRunBenchmark();
                         }
                       }}
-                      placeholder="Ask one benchmark question for all three pipelines..."
+                      placeholder="Or type a custom question..."
                     />
-                    <Button
-                      className="gradient h-14 rounded-2xl border-0 px-6 text-white hover:opacity-95"
-                      type="button"
-                      onClick={handleRunBenchmark}
-                      disabled={isRunning}
-                    >
-                      {isRunning ? "Running Benchmark" : "Run Live Benchmark"}
-                      {isRunning ? (
-                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="ml-2 h-4 w-4" />
-                      )}
-                    </Button>
                   </div>
 
                   <div className="rounded-2xl border border-dashed border-orange-500/40 bg-orange-500/[0.06] px-4 py-3 text-sm leading-6 text-muted-foreground">
@@ -806,7 +886,7 @@ const Comparison = () => {
                   ) : null}
                 </div>
 
-                <div className="rounded-[24px] border border-gray-200/80 bg-background/70 p-5 dark:border-[#3D3D3D] dark:bg-black/10">
+                {/* <div className="rounded-[24px] border border-gray-200/80 bg-background/70 p-5 dark:border-[#3D3D3D] dark:bg-black/10">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                     What changed
                   </p>
@@ -836,7 +916,7 @@ const Comparison = () => {
                       </p>
                     </div>
                   </div>
-                </div>
+                </div> */}
               </div>
             </section>
 

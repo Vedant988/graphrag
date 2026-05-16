@@ -1,15 +1,20 @@
-FROM node:23.7-slim 
+# syntax=docker/dockerfile:1
+FROM node:23.7-slim AS builder
 WORKDIR /app
 
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN npm install -g pnpm
+
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    PNPM_IGNORE_BUILD_SCRIPTS_ERR=1 pnpm install --no-frozen-lockfile || \
+    pnpm install --no-frozen-lockfile --ignore-scripts
 
 COPY . .
-
-RUN pnpm install
 RUN pnpm run build
-RUN npm install -g serve
 
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-CMD [ "serve", "-s", "dist" ]
+EXPOSE 3000
+CMD ["nginx", "-g", "daemon off;"]
