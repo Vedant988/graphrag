@@ -15,6 +15,7 @@ import {
   Layers3,
   Loader2,
   Sparkles,
+  Trophy,
   Wallet,
 } from "lucide-react";
 import { MdKeyboardArrowDown } from "react-icons/md";
@@ -219,11 +220,33 @@ const getJudgeTone = (accuracy?: ComparisonAccuracy) => {
   return "text-black dark:text-white";
 };
 
-const getAccuracyRank = (result: ComparisonPipelineResult) => {
-  const judgeStatus = result.accuracy?.llm_judge?.status;
-  const judgeRank = judgeStatus === "pass" ? 2 : judgeStatus === "fail" ? 1 : 0;
-  const semanticScore = result.accuracy?.semantic_similarity?.score ?? -1;
-  return judgeRank * 10 + semanticScore;
+const getPipelineScore = (r?: ComparisonPipelineResult): number => {
+  if (!r) return -100;
+  const judgeStatus = r.accuracy?.llm_judge?.status;
+  const judgeScore = judgeStatus === "pass" ? 100 : judgeStatus === "fail" ? 10 : 0;
+  const semScore = (r.accuracy?.semantic_similarity?.score ?? -1) * 10;
+  // Latency: invert so lower latency = higher score (cap at 200s)
+  const latencyScore = r.latency_seconds != null ? (200 - r.latency_seconds) * 0.01 : 0;
+  return judgeScore + semScore + latencyScore;
+};
+
+const computePipelineRanks = (
+  results: Record<string, ComparisonPipelineResult>,
+): Record<string, number> => {
+  const names = Object.keys(results);
+  // Score each pipeline: higher is better
+  const scored = names.map((name) => ({
+    name,
+    total: getPipelineScore(results[name]),
+  }));
+  // Sort descending by score
+  scored.sort((a, b) => b.total - a.total);
+  // Assign rank 1 = best
+  const ranks: Record<string, number> = {};
+  scored.forEach((entry, idx) => {
+    ranks[entry.name] = idx + 1;
+  });
+  return ranks;
 };
 
 const Comparison = () => {
@@ -361,7 +384,7 @@ const Comparison = () => {
         result.accuracy?.llm_judge?.status === "fail" ||
         result.accuracy?.semantic_similarity?.status === "success",
     )
-    .sort((left, right) => getAccuracyRank(right) - getAccuracyRank(left))[0];
+    .sort((left, right) => getPipelineScore(right) - getPipelineScore(left))[0];
   const graphRag = pipelineResults["GraphRAG"];
   const basicRag = pipelineResults["Basic RAG"];
 
@@ -950,15 +973,34 @@ const Comparison = () => {
                   ? result.error
                   : result?.answer || pipeline.emptyState;
 
+                // Ranking
+                const pipelineRanks = benchmarkData
+                  ? computePipelineRanks(pipelineResults)
+                  : {};
+                const rank = pipelineRanks[pipeline.name];
+                const isWinner = rank === 1 && benchmarkData !== null;
+
+                const rankLabel = rank === 1 ? "#1" : rank === 2 ? "#2" : rank === 3 ? "#3" : null;
+                const rankColors: Record<number, string> = {
+                  1: "border-yellow-400 bg-yellow-400/20 text-yellow-700 dark:text-yellow-300",
+                  2: "border-gray-400 bg-gray-400/15 text-gray-600 dark:text-gray-300",
+                  3: "border-orange-700/60 bg-orange-900/15 text-orange-700 dark:text-orange-400",
+                };
                 return (
                   <article
                     key={pipeline.name}
                     className={cn(
-                      "overflow-hidden rounded-[28px] border bg-card shadow-sm transition-colors dark:bg-[#241c1f]",
+                      "relative overflow-hidden rounded-[28px] border bg-card shadow-sm transition-colors dark:bg-[#241c1f]",
                       pipeline.borderClass,
+                      isWinner && "ring-2 ring-yellow-400/60 shadow-yellow-400/10 shadow-lg",
                     )}
                   >
-                    <div className={cn("h-1 w-full bg-gradient-to-r", pipeline.accent)} />
+                    {/* Golden winner glow top bar */}
+                    {isWinner ? (
+                      <div className="h-1 w-full bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500" />
+                    ) : (
+                      <div className={cn("h-1 w-full bg-gradient-to-r", pipeline.accent)} />
+                    )}
                     <div className="space-y-5 p-5 md:p-6">
                       <div className="flex items-start justify-between gap-4">
                         <div className="space-y-3">
@@ -974,6 +1016,14 @@ const Comparison = () => {
                             <span className="rounded-full border border-gray-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] dark:border-[#3D3D3D]">
                               {isSuccess ? "Completed" : result?.error ? "Failed" : "Standby"}
                             </span>
+                            {rankLabel && (
+                              <span className={cn(
+                                "rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em]",
+                                rankColors[rank],
+                              )}>
+                                {rankLabel}
+                              </span>
+                            )}
                           </div>
                           <div>
                             <h3 className="text-2xl font-semibold text-black dark:text-white">
@@ -985,14 +1035,21 @@ const Comparison = () => {
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-gray-200 bg-background/80 p-3 dark:border-[#3D3D3D] dark:bg-black/10">
-                          {pipeline.name === "LLM-Only" ? (
-                            <BrainCircuit className="h-5 w-5 text-slate-500 dark:text-slate-200" />
-                          ) : pipeline.name === "Basic RAG" ? (
-                            <Database className="h-5 w-5 text-amber-600 dark:text-amber-200" />
-                          ) : (
-                            <GitBranchPlus className="h-5 w-5 text-orange-600 dark:text-orange-200" />
+                        <div className="flex items-center gap-2">
+                          {isWinner && (
+                            <div className="flex items-center justify-center rounded-2xl border border-yellow-400/50 bg-yellow-400/10 p-3 shadow-md shadow-yellow-400/20 animate-pulse">
+                              <Trophy className="h-5 w-5 text-yellow-500" />
+                            </div>
                           )}
+                          <div className="rounded-2xl border border-gray-200 bg-background/80 p-3 dark:border-[#3D3D3D] dark:bg-black/10">
+                            {pipeline.name === "LLM-Only" ? (
+                              <BrainCircuit className="h-5 w-5 text-slate-500 dark:text-slate-200" />
+                            ) : pipeline.name === "Basic RAG" ? (
+                              <Database className="h-5 w-5 text-amber-600 dark:text-amber-200" />
+                            ) : (
+                              <GitBranchPlus className="h-5 w-5 text-orange-600 dark:text-orange-200" />
+                            )}
+                          </div>
                         </div>
                         {result && (
                           <button
@@ -1046,9 +1103,17 @@ const Comparison = () => {
                             end to end
                           </p>
                         </div>
-                        <div className="min-h-[112px] rounded-lg border border-gray-200 bg-background/80 px-4 py-3 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                        {/* Gemini Judge Card */}
+                        <div className={cn(
+                          "min-h-[112px] rounded-lg border px-4 py-3",
+                          result?.accuracy?.llm_judge?.status === "pass"
+                            ? "border-emerald-500/40 bg-emerald-500/[0.06] dark:bg-emerald-900/10"
+                            : result?.accuracy?.llm_judge?.status === "fail"
+                            ? "border-red-500/40 bg-red-500/[0.06] dark:bg-red-900/10"
+                            : "border-gray-200 bg-background/80 dark:border-[#3D3D3D] dark:bg-[#1d1719]"
+                        )}>
                           <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                            HF Judge
+                            Gemini Judge
                           </p>
                           <p
                             className={cn(
@@ -1058,19 +1123,20 @@ const Comparison = () => {
                           >
                             {getJudgeDisplay(result?.accuracy)}
                           </p>
-                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                            {result?.accuracy?.llm_judge?.reason || "PASS / FAIL"}
+                          <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
+                            {result?.accuracy?.llm_judge?.reason || "Awaiting benchmark run"}
                           </p>
                         </div>
+                        {/* Semantic Similarity Card */}
                         <div className="min-h-[112px] rounded-lg border border-gray-200 bg-background/80 px-4 py-3 sm:col-span-2 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
                           <p className="text-[11px] font-semibold uppercase text-muted-foreground">
-                            HF Semantic
+                            Semantic Similarity
                           </p>
                           <p className="mt-2 text-xl font-semibold text-black dark:text-white">
                             {formatScore(result?.accuracy?.semantic_similarity?.score)}
                           </p>
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            hosted similarity
+                            cosine similarity vs reference
                           </p>
                         </div>
                       </div>
