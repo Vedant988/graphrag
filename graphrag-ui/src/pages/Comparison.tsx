@@ -6,6 +6,8 @@ import {
   BrainCircuit,
   CheckCircle2,
   ChevronDown,
+  ClipboardCheck,
+  ClipboardCopy,
   Clock3,
   Database,
   Gauge,
@@ -35,7 +37,7 @@ import { parseApiResponse } from "@/lib/http";
 import { readSiteSession, refreshSiteSession } from "@/lib/siteSession";
 
 const defaultQuestion =
-  "Based entirely on the first 10 pages, trace the exact lineage and mentorship connections between the author of the Mahabharata and the warrior who was left lying on a bed of arrows. How are they connected?";
+  "Trace the origin of the English translation project mentioned in the preface. Who originally suggested the undertaking in a letter, and who actually traveled to Seebpore with Babu Durga Charan Banerjee to officially engage the translator?";
 
 type ComparisonUsage = {
   input_tokens: number;
@@ -220,6 +222,7 @@ const Comparison = () => {
   const [benchmarkData, setBenchmarkData] = useState<ComparisonResponse | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const [copyStates, setCopyStates] = useState<Record<string, boolean>>({});
   const [selectedGraph, setSelectedGraph] = useState(
     typeof window !== "undefined"
       ? sessionStorage.getItem("selectedGraph") || "gemini_1_0"
@@ -405,10 +408,89 @@ const Comparison = () => {
         },
       ];
 
+  const buildPipelineReport = (result: ComparisonPipelineResult): string => {
+    const lines: string[] = [];
+    lines.push(`┌─ ${result.pipeline.toUpperCase()} ${'─'.repeat(Math.max(0, 50 - result.pipeline.length))}`);
+    lines.push(`│ Status      : ${result.status === "success" ? "Completed" : result.error ? "Failed" : "Standby"}`);
+    lines.push(`│`);
+    lines.push(`│ TOKENS`);
+    lines.push(`│   Total     : ${formatTokens(result.usage?.total_tokens)}`);
+    lines.push(`│   In        : ${formatTokens(result.usage?.input_tokens)}`);
+    lines.push(`│   Out       : ${formatTokens(result.usage?.output_tokens)}`);
+    lines.push(`│   LLM Calls : ${result.usage?.calls ?? 0}`);
+    lines.push(`│`);
+    lines.push(`│ COST`);
+    lines.push(`│   Total     : ${formatCost(result.usage?.cost)} (prompt + completion)`);
+    lines.push(`│`);
+    lines.push(`│ LATENCY`);
+    lines.push(`│   End-to-End: ${formatLatency(result.latency_seconds)}`);
+    if (result.latency_breakdown?.stages?.length) {
+      result.latency_breakdown.stages.forEach((stage) => {
+        lines.push(`│   ${stage.label.padEnd(15)}: ${formatLatency(stage.seconds)} — ${stage.detail}`);
+      });
+    }
+    lines.push(`│`);
+    lines.push(`│ ACCURACY`);
+    lines.push(`│   HF Judge  : ${getJudgeDisplay(result.accuracy)}${
+      result.accuracy?.llm_judge?.reason ? ` — ${result.accuracy.llm_judge.reason}` : ""
+    }`);
+    lines.push(`│   HF Semantic: ${formatScore(result.accuracy?.semantic_similarity?.score)}`);
+    if (result.profile) {
+      lines.push(`│`);
+      lines.push(`│ PIPELINE NOTES`);
+      Object.entries(result.profile).forEach(([key, value]) => {
+        lines.push(`│   ${key.replace(/_/g, " ").padEnd(20)}: ${formatMetadataValue(value as string | number | boolean | null)}`);
+      });
+    }
+    lines.push(`│`);
+    lines.push(`│ ANSWER`);
+    const answerText = result.error || result.answer || "No answer available.";
+    answerText.split("\n").forEach((line) => lines.push(`│ ${line}`));
+    lines.push(`└${'─'.repeat(52)}`);
+    return lines.join("\n");
+  };
+
+  const buildFullReport = (): string => {
+    const pipelines = benchmarkData?.pipelines || [];
+    const header = [
+      `GraphRAG Comparison Report`,
+      `Generated : ${new Date().toLocaleString()}`,
+      `Graph     : ${selectedGraph}`,
+      `Question  : ${submittedQuery}`,
+      `${'═'.repeat(52)}`,
+      "",
+    ].join("\n");
+    const body = pipelineCards
+      .map((card) => {
+        const result = pipelines.find((p) => p.pipeline === card.name);
+        return result ? buildPipelineReport(result) : `┌─ ${card.name.toUpperCase()} — No data yet\n└${'─'.repeat(52)}`;
+      })
+      .join("\n\n");
+    return header + body;
+  };
+
+  const handleCopy = async (key: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStates((prev) => ({ ...prev, [key]: true }));
+      setTimeout(() => setCopyStates((prev) => ({ ...prev, [key]: false })), 2000);
+    } catch {
+      // fallback for environments without clipboard API
+      const el = document.createElement("textarea");
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopyStates((prev) => ({ ...prev, [key]: true }));
+      setTimeout(() => setCopyStates((prev) => ({ ...prev, [key]: false })), 2000);
+    }
+  };
+
   const handleRunBenchmark = async () => {
     const nextQuery = query.trim() || defaultQuestion;
     const benchmarkId =
-      nextQuery === defaultQuestion ? "vyasa_bhishma_lineage" : undefined;
+      nextQuery === defaultQuestion ? "translation_origin" : undefined;
     const creds =
       typeof window !== "undefined" ? sessionStorage.getItem("creds") : null;
 
@@ -759,6 +841,22 @@ const Comparison = () => {
             </section>
 
             <section className="grid gap-5 2xl:grid-cols-3">
+              {benchmarkData && (
+                <div className="2xl:col-span-3 flex justify-end">
+                  <button
+                    id="copy-full-report-btn"
+                    type="button"
+                    onClick={() => handleCopy("full", buildFullReport())}
+                    className="flex items-center gap-2 rounded-2xl border border-orange-500/40 bg-orange-500/10 px-5 py-2.5 text-sm font-semibold text-orange-700 transition-all hover:bg-orange-500/20 dark:text-orange-200"
+                  >
+                    {copyStates["full"] ? (
+                      <><ClipboardCheck className="h-4 w-4" /> Copied!</>
+                    ) : (
+                      <><ClipboardCopy className="h-4 w-4" /> Copy Full Report</>
+                    )}
+                  </button>
+                </div>
+              )}
               {pipelineCards.map((pipeline) => {
                 const result = pipelineResults[pipeline.name];
                 const isSuccess = result?.status === "success";
@@ -816,70 +914,88 @@ const Comparison = () => {
                             <GitBranchPlus className="h-5 w-5 text-orange-600 dark:text-orange-200" />
                           )}
                         </div>
+                        {result && (
+                          <button
+                            id={`copy-${normalizePipelineName(pipeline.name)}-btn`}
+                            type="button"
+                            title="Copy pipeline report"
+                            onClick={() => handleCopy(pipeline.name, buildPipelineReport(result))}
+                            className="rounded-2xl border border-gray-200 bg-background/80 p-3 text-muted-foreground transition-all hover:border-orange-500/40 hover:bg-orange-500/10 hover:text-orange-600 dark:border-[#3D3D3D] dark:bg-black/10"
+                          >
+                            {copyStates[pipeline.name] ? (
+                              <ClipboardCheck className="h-5 w-5 text-emerald-500" />
+                            ) : (
+                              <ClipboardCopy className="h-5 w-5" />
+                            )}
+                          </button>
+                        )}
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
-                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="min-h-[112px] rounded-lg border border-gray-200 bg-background/80 px-4 py-3 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                             Tokens
                           </p>
-                          <p className="mt-3 text-xl font-semibold text-black dark:text-white">
+                          <p className="mt-2 text-xl font-semibold text-black dark:text-white">
                             {formatTokens(result?.usage?.total_tokens)}
                           </p>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
                             in {formatTokens(result?.usage?.input_tokens)} / out{" "}
                             {formatTokens(result?.usage?.output_tokens)}
                           </p>
                         </div>
-                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
-                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        <div className="min-h-[112px] rounded-lg border border-gray-200 bg-background/80 px-4 py-3 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                             Cost
                           </p>
-                          <p className="mt-3 text-xl font-semibold text-black dark:text-white">
+                          <p className="mt-2 text-xl font-semibold text-black dark:text-white">
                             {formatCost(result?.usage?.cost)}
                           </p>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                            Gemini pricing from prompt and completion tokens
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            prompt + completion
                           </p>
                         </div>
-                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
-                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                            Total latency
+                        <div className="min-h-[112px] rounded-lg border border-gray-200 bg-background/80 px-4 py-3 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+                            Latency
                           </p>
-                          <p className="mt-3 text-xl font-semibold text-black dark:text-white">
+                          <p className="mt-2 text-xl font-semibold text-black dark:text-white">
                             {formatLatency(result?.latency_seconds)}
                           </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            end to end
+                          </p>
                         </div>
-                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
-                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        <div className="min-h-[112px] rounded-lg border border-gray-200 bg-background/80 px-4 py-3 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                             HF Judge
                           </p>
                           <p
                             className={cn(
-                              "mt-3 text-xl font-semibold",
+                              "mt-2 text-xl font-semibold",
                               getJudgeTone(result?.accuracy),
                             )}
                           >
                             {getJudgeDisplay(result?.accuracy)}
                           </p>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                            {result?.accuracy?.llm_judge?.reason || "PASS / FAIL grading"}
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                            {result?.accuracy?.llm_judge?.reason || "PASS / FAIL"}
                           </p>
                         </div>
-                        <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
-                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                        <div className="min-h-[112px] rounded-lg border border-gray-200 bg-background/80 px-4 py-3 sm:col-span-2 dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                          <p className="text-[11px] font-semibold uppercase text-muted-foreground">
                             HF Semantic
                           </p>
-                          <p className="mt-3 text-xl font-semibold text-black dark:text-white">
+                          <p className="mt-2 text-xl font-semibold text-black dark:text-white">
                             {formatScore(result?.accuracy?.semantic_similarity?.score)}
                           </p>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
                             hosted similarity
                           </p>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-gray-200 bg-background/80 px-4 py-3 text-sm leading-6 text-muted-foreground dark:border-[#3D3D3D] dark:bg-[#1d1719]">
+                      <div className="rounded-lg border border-gray-200 bg-background/80 px-4 py-3 text-sm leading-6 text-muted-foreground dark:border-[#3D3D3D] dark:bg-[#1d1719]">
                         {result?.accuracy?.summary ||
                           "Accuracy review appears when the query matches a benchmark reference answer."}
                       </div>

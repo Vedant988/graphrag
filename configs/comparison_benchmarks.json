@@ -28,5 +28,11 @@
     "label": "Vyasa and Bhishma connection",
     "question": "Based entirely on the first 10 pages, trace the exact lineage and mentorship connections between the author of the Mahabharata and the warrior who was left lying on a bed of arrows. How are they connected?",
     "correct_answer": "The author is Krishna-Dwaipayana Vyasa, the son of Parasara and Satyavati. The warrior on the bed of arrows is Bhishma, the son of Santanu and Ganga. They are connected because Satyavati later married Santanu, which made Vyasa Bhishma's stepbrother through the Kuru household, and the text also says Vyasa fathered Dhritarashtra, Pandu, and Vidura at the injunction of Bhishma and Satyavati to preserve the Kuru line."
+  },
+  {
+    "id": "translation_origin",
+    "label": "Translation Origin",
+    "question": "Trace the origin of the English translation project mentioned in the preface. Who originally suggested the undertaking in a letter, and who actually traveled to Seebpore with Babu Durga Charan Banerjee to officially engage the translator?",
+    "correct_answer": "According to the preface of the provided text, the English translation project of the Mahabharata originated from a suggestion made in a letter by Dr. Rost. To officially engage the translator for this undertaking, Babu Pratapa Chandra Roy traveled to the translator's retreat at Seebpore. He was accompanied on this journey by Babu Durga Charan Banerjee, and during their meeting, Roy presented Dr. Rost's letter as the original inspiration for the grand scheme."
   }
 ]
