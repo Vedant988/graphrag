@@ -79,6 +79,7 @@ type ComparisonLatencyBreakdown = {
 type ComparisonJudgeResult = {
   status: string;
   verdict?: string | null;
+  score?: number | null;
   model?: string | null;
   reason?: string | null;
 };
@@ -1041,15 +1042,33 @@ const Comparison = () => {
                               <Trophy className="h-5 w-5 text-yellow-500" />
                             </div>
                           )}
-                          <div className="rounded-2xl border border-gray-200 bg-background/80 p-3 dark:border-[#3D3D3D] dark:bg-black/10">
-                            {pipeline.name === "LLM-Only" ? (
-                              <BrainCircuit className="h-5 w-5 text-slate-500 dark:text-slate-200" />
-                            ) : pipeline.name === "Basic RAG" ? (
-                              <Database className="h-5 w-5 text-amber-600 dark:text-amber-200" />
-                            ) : (
-                              <GitBranchPlus className="h-5 w-5 text-orange-600 dark:text-orange-200" />
-                            )}
-                          </div>
+                          {/* Score circle */}
+                          {result?.accuracy?.llm_judge?.score != null ? (
+                            <div className={cn(
+                              "relative flex h-[60px] w-[60px] items-center justify-center rounded-full border-4",
+                              result.accuracy.llm_judge.score >= 70
+                                ? "border-emerald-500 bg-emerald-500/10"
+                                : result.accuracy.llm_judge.score >= 40
+                                ? "border-amber-500 bg-amber-500/10"
+                                : "border-red-500 bg-red-500/10",
+                            )}>
+                              <span className={cn(
+                                "text-lg font-bold tabular-nums leading-none",
+                                result.accuracy.llm_judge.score >= 70
+                                  ? "text-emerald-600 dark:text-emerald-300"
+                                  : result.accuracy.llm_judge.score >= 40
+                                  ? "text-amber-600 dark:text-amber-300"
+                                  : "text-red-600 dark:text-red-300",
+                              )}>
+                                {result.accuracy.llm_judge.score}
+                              </span>
+                              <span className="absolute bottom-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">/100</span>
+                            </div>
+                          ) : (
+                            <div className="flex h-[60px] w-[60px] items-center justify-center rounded-full border-4 border-dashed border-gray-300 dark:border-[#3D3D3D]">
+                              <span className="text-xs font-semibold text-muted-foreground">--</span>
+                            </div>
+                          )}
                         </div>
                         {result && (
                           <button

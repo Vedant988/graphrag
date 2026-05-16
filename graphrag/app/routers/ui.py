@@ -106,14 +106,35 @@ _comparison_benchmarks_mtime: float | None = None
 _comparison_benchmarks_lock = threading.Lock()
 _DEFAULT_HF_JUDGE_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
 _DEFAULT_HF_SIMILARITY_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-_COMPARISON_JUDGE_PROMPT = """Grade the system's answer.
-Question: {question}
-Correct answer: {correct_answer}
-System answer: {system_answer}
+_COMPARISON_JUDGE_PROMPT = """You are a strict benchmark judge evaluating a pipeline's answer.
 
-Reply with only PASS or FAIL.
-PASS = the system answer correctly addresses the question with no major errors.
-FAIL = the answer is wrong, missing, or contradicts the correct answer."""
+QUESTION:
+{question}
+
+REFERENCE ANSWER (ground truth):
+{correct_answer}
+
+PIPELINE PERFORMANCE:
+- Total tokens used : {total_tokens}
+- Estimated cost    : {cost}
+- End-to-end latency: {latency}
+- LLM calls         : {llm_calls}
+
+PIPELINE ANSWER:
+{system_answer}
+
+Your task:
+1. Compare the pipeline answer against the reference answer for factual correctness.
+2. Note the efficiency (tokens, cost, latency) as context.
+3. Output EXACTLY three lines and nothing else:
+   Line 1: PASS or FAIL
+   Line 2: A score from 0 to 100 (integer only, where 100 = perfect match, 0 = completely wrong)
+   Line 3: One concise sentence explaining your verdict (max 30 words)
+
+Rules:
+- PASS = the answer correctly and completely addresses the question with no major factual errors.
+- FAIL = the answer is wrong, missing key facts, hallucinated, or contradicts the reference.
+- Do NOT add any other text, labels, or formatting."""
 
 
 def _has_static_api_token() -> bool:
@@ -1253,27 +1274,32 @@ def _extract_hf_message_content(message_content) -> str:
 
 def _comparison_accuracy_summary(llm_judge: dict, semantic_similarity: dict) -> str:
     judge_status = llm_judge.get("status")
+    judge_reason = llm_judge.get("reason") or ""
     similarity_status = semantic_similarity.get("status")
     similarity_score = semantic_similarity.get("score")
 
     if judge_status == "pass" and isinstance(similarity_score, (int, float)):
+        reason_suffix = f" — {judge_reason}" if judge_reason else ""
         return (
-            f"HF judge returned PASS and hosted semantic similarity landed at {float(similarity_score):.3f}, "
-            "which is a strong answer-quality signal."
+            f"Gemini judge returned PASS{reason_suffix}. "
+            f"Semantic similarity: {float(similarity_score):.3f}."
         )
     if judge_status == "fail" and isinstance(similarity_score, (int, float)):
+        reason_suffix = f" — {judge_reason}" if judge_reason else ""
         return (
-            f"HF judge returned FAIL while hosted semantic similarity landed at {float(similarity_score):.3f}, "
-            "so semantic overlap exists but correctness is still not trusted."
+            f"Gemini judge returned FAIL{reason_suffix}. "
+            f"Semantic similarity: {float(similarity_score):.3f}."
         )
     if judge_status == "pass":
-        return "HF judge returned PASS for this answer."
+        reason_suffix = f" — {judge_reason}" if judge_reason else ""
+        return f"Gemini judge returned PASS{reason_suffix}."
     if judge_status == "fail":
-        return "HF judge returned FAIL for this answer."
+        reason_suffix = f" — {judge_reason}" if judge_reason else ""
+        return f"Gemini judge returned FAIL{reason_suffix}."
     if similarity_status == "success" and isinstance(similarity_score, (int, float)):
         return (
-            f"Hosted semantic similarity landed at {float(similarity_score):.3f}. "
-            f"HF judge is unavailable: {llm_judge.get('reason', 'not configured')}."
+            f"Semantic similarity: {float(similarity_score):.3f}. "
+            f"Gemini judge unavailable: {llm_judge.get('reason', 'not configured')}."
         )
     return (
         llm_judge.get("reason")
@@ -1282,84 +1308,91 @@ def _comparison_accuracy_summary(llm_judge: dict, semantic_similarity: dict) -> 
     )
 
 
-def _compare_answer_with_hf_judge(
+def _compare_answer_with_gemini_judge(
     question: str,
     correct_answer: str,
     system_answer: str,
-    eval_config: dict[str, str],
+    pipeline_usage: dict,
+    pipeline_latency: float,
+    graphname: str,
 ) -> dict:
-    judge_model = str(eval_config.get("judge_model", "")).strip() or _DEFAULT_HF_JUDGE_MODEL
+    """Use the graph's configured LLM (Gemini) to judge answer quality."""
+    judge_label = "Gemini Judge"
+
     if not str(system_answer or "").strip():
         return {
             "status": "fail",
             "verdict": "FAIL",
-            "model": judge_model,
+            "model": judge_label,
             "reason": "The pipeline returned no answer, which counts as FAIL.",
-        }
-    if InferenceClient is None:
-        return {
-            "status": "skipped",
-            "verdict": None,
-            "model": judge_model,
-            "reason": "huggingface-hub is not available in this environment.",
-        }
-
-    token = str(eval_config.get("token", "")).strip()
-    if not token:
-        return {
-            "status": "skipped",
-            "verdict": None,
-            "model": judge_model,
-            "reason": "Set HUGGINGFACEHUB_API_TOKEN in llm_config.authentication_configuration to enable LLM-as-a-Judge scoring.",
         }
 
     try:
-        client = InferenceClient(model=judge_model, token=token)
-        response = client.chat_completion(
-            messages=[
-                {
-                    "role": "user",
-                    "content": _COMPARISON_JUDGE_PROMPT.format(
-                        question=question,
-                        correct_answer=correct_answer,
-                        system_answer=system_answer,
-                    ),
-                }
-            ],
-            max_tokens=10,
-            temperature=0.0,
+        chat_config = get_chat_config(graphname)
+        llm_service = get_llm_service(chat_config)
+
+        usage = pipeline_usage or {}
+        total_tokens = usage.get("total_tokens") or 0
+        cost = usage.get("cost") or 0.0
+        llm_calls = usage.get("calls") or 0
+        latency = round(float(pipeline_latency or 0), 2)
+
+        prompt_text = _COMPARISON_JUDGE_PROMPT.format(
+            question=question,
+            correct_answer=correct_answer,
+            system_answer=system_answer,
+            total_tokens=f"{total_tokens:,}",
+            cost=f"${cost:.4f}",
+            latency=f"{latency}s",
+            llm_calls=llm_calls,
         )
-        content = _extract_hf_message_content(
-            response.choices[0].message.content
-            if getattr(response, "choices", None)
-            else ""
-        ).upper()
-        if "PASS" in content and "FAIL" not in content:
+
+        from langchain_core.messages import HumanMessage
+        response = llm_service.llm.invoke([HumanMessage(content=prompt_text)])
+        content = (response.content if hasattr(response, "content") else str(response)).strip()
+
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        verdict_line = lines[0].upper() if lines else ""
+
+        # Parse score from line 2 (integer 0-100)
+        score: int | None = None
+        score_raw = lines[1] if len(lines) > 1 else ""
+        try:
+            score = max(0, min(100, int("".join(filter(str.isdigit, score_raw)))))
+        except (ValueError, TypeError):
+            score = None
+
+        reason_line = lines[2] if len(lines) > 2 else (score_raw if score is None else None)
+
+        if "PASS" in verdict_line and "FAIL" not in verdict_line:
             return {
                 "status": "pass",
                 "verdict": "PASS",
-                "model": judge_model,
-                "reason": None,
+                "score": score,
+                "model": judge_label,
+                "reason": reason_line,
             }
-        if "FAIL" in content:
+        if "FAIL" in verdict_line:
             return {
                 "status": "fail",
                 "verdict": "FAIL",
-                "model": judge_model,
-                "reason": None,
+                "score": score,
+                "model": judge_label,
+                "reason": reason_line,
             }
         return {
             "status": "error",
             "verdict": None,
-            "model": judge_model,
-            "reason": "The judge model returned an unexpected verdict.",
+            "score": score,
+            "model": judge_label,
+            "reason": f"Unexpected verdict from Gemini: {content[:100]}",
         }
     except Exception as exc:
-        logger.warning("HF judge evaluation failed: %s", exc)
+        logger.warning("Gemini judge evaluation failed: %s", exc)
         return {
             "status": "error",
             "verdict": None,
-            "model": judge_model,
+            "model": judge_label,
             "reason": str(exc),
         }
 
@@ -1426,7 +1459,9 @@ def _evaluate_comparison_answer(
     pipeline_result: dict,
     benchmark_reference: dict | None,
     eval_config: dict[str, str],
+    graphname: str = "",
 ) -> dict:
+    judge_label = "Gemini Judge"
     if not benchmark_reference:
         return {
             "available": False,
@@ -1434,7 +1469,7 @@ def _evaluate_comparison_answer(
             "llm_judge": {
                 "status": "skipped",
                 "verdict": None,
-                "model": str(eval_config.get("judge_model", "")).strip() or _DEFAULT_HF_JUDGE_MODEL,
+                "model": judge_label,
                 "reason": "No benchmark reference matched this question.",
             },
             "semantic_similarity": {
@@ -1447,11 +1482,16 @@ def _evaluate_comparison_answer(
 
     correct_answer = str(benchmark_reference.get("correct_answer", "")).strip()
     pipeline_answer = str(pipeline_result.get("answer", "")).strip()
-    llm_judge = _compare_answer_with_hf_judge(
+    pipeline_usage = pipeline_result.get("usage") or {}
+    pipeline_latency = float(pipeline_result.get("latency_seconds") or 0)
+
+    llm_judge = _compare_answer_with_gemini_judge(
         question,
         correct_answer,
         pipeline_answer,
-        eval_config,
+        pipeline_usage,
+        pipeline_latency,
+        graphname,
     )
     semantic_similarity = _compare_answer_with_hf_similarity(
         correct_answer,
@@ -1844,6 +1884,13 @@ async def graph_query(
         raise e
 
 
+@router.get(route_prefix + "/comparison/benchmarks")
+def get_comparison_benchmarks(
+    creds: Annotated[tuple[list[str], HTTPBasicCredentials], Depends(ui_basic_auth)]
+):
+    """Return the list of benchmark questions and IDs."""
+    return _load_comparison_benchmarks()
+
 @router.post(route_prefix + "/{graphname}/comparison")
 async def comparison_query(
     graphname: ValidGraphName,
@@ -1888,6 +1935,7 @@ async def comparison_query(
             pipeline,
             benchmark_reference,
             comparison_eval_config,
+            graphname,
         )
     evaluation_seconds = round(time.monotonic() - evaluation_start, 3)
 
