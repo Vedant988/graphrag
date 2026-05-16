@@ -106,12 +106,12 @@ _comparison_benchmarks_mtime: float | None = None
 _comparison_benchmarks_lock = threading.Lock()
 _DEFAULT_HF_JUDGE_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
 _DEFAULT_HF_SIMILARITY_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-_COMPARISON_JUDGE_PROMPT = """You are a strict benchmark judge evaluating a pipeline's answer.
+_COMPARISON_JUDGE_PROMPT = """You are a STRICT benchmark judge. You must score answers objectively and differentiate between them.
 
 QUESTION:
 {question}
 
-REFERENCE ANSWER (ground truth):
+REFERENCE ANSWER (ground truth — treat every fact here as a required checkpoint):
 {correct_answer}
 
 PIPELINE PERFORMANCE:
@@ -123,18 +123,33 @@ PIPELINE PERFORMANCE:
 PIPELINE ANSWER:
 {system_answer}
 
-Your task:
-1. Compare the pipeline answer against the reference answer for factual correctness.
-2. Note the efficiency (tokens, cost, latency) as context.
-3. Output EXACTLY three lines and nothing else:
-   Line 1: PASS or FAIL
-   Line 2: A score from 0 to 100 (integer only, where 100 = perfect match, 0 = completely wrong)
-   Line 3: One concise sentence explaining your verdict (max 30 words)
+SCORING RUBRIC (score 0–100):
+You MUST penalise for each failure. Start at 100 and deduct:
 
-Rules:
-- PASS = the answer correctly and completely addresses the question with no major factual errors.
-- FAIL = the answer is wrong, missing key facts, hallucinated, or contradicts the reference.
-- Do NOT add any other text, labels, or formatting."""
+  [Factual accuracy — up to -40]
+  • Deduct 10 per key fact in the reference that is WRONG or contradicted.
+  • Deduct 5 per key fact that is VAGUE (correct direction but imprecise).
+
+  [Completeness — up to -30]
+  • List every specific fact/name/event in the reference answer.
+  • Deduct 5 per fact that is entirely MISSING from the pipeline answer.
+
+  [Text grounding — up to -20]
+  • Deduct 10 if the answer reads like generic prior knowledge (no specific textual details).
+  • Deduct 5 if key proper nouns or figures are correct but contextual detail is thin.
+
+  [Efficiency penalty — up to -10]
+  • Deduct 5 if the answer is correct but used >3× more tokens than the reference length warrants.
+  • Deduct 10 if the answer hallucinated extra facts not in the reference and not factually grounded.
+
+CRITICAL: Scores of 95–100 are ONLY for answers that hit EVERY fact in the reference with high specificity.
+An answer that is "broadly correct" but misses specific names or textual details should score 70–85.
+Never give the same score to three different answers unless they are truly identical in quality.
+
+Output EXACTLY three lines, no labels, no extra text:
+Line 1: PASS or FAIL  (PASS if score >= 60, else FAIL)
+Line 2: Integer score 0–100
+Line 3: One sentence explaining the score (max 40 words), naming what was missing or wrong."""
 
 
 def _has_static_api_token() -> bool:
