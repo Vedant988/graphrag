@@ -1,0 +1,84 @@
+{
+  "db_config": {
+    "hostname": "YOUR_TIGERGRAPH_CLOUD_HOSTNAME",
+    "restppPort": "443",
+    "gsPort": "443",
+    "username": "YOUR_TIGERGRAPH_USERNAME",
+    "password": "YOUR_TIGERGRAPH_PASSWORD",
+    "getToken": false,
+    "apiToken": "YOUR_TIGERGRAPH_API_TOKEN",
+    "default_timeout": 300,
+    "default_mem_threshold": 5000,
+    "default_thread_limit": 8
+  },
+  "graphrag_config": {
+    "reuse_embedding": true,
+    "ecc": "http://graphrag-ecc:8001",
+    "chat_history_api": "http://chat-history:8002",
+    "chunker_config": {},
+    "top_k": 10,
+    "num_hops": 3,
+    "num_seen_min": 1,
+    "community_level": 3
+  },
+  "llm_config": {
+    "token_limit": 0,
+    "authentication_configuration": {
+      "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY",
+      "GOOGLE_API_KEY_FALLBACK": "YOUR_GOOGLE_API_KEY_FALLBACK",
+      "GOOGLE_API_KEY_FALLBACK_1": "YOUR_GOOGLE_API_KEY_FALLBACK_1",
+      "GOOGLE_API_KEY_FALLBACK_2": "YOUR_GOOGLE_API_KEY_FALLBACK_2",
+      "GROQ_API_KEY": "YOUR_GROQ_API_KEY",
+      "HUGGINGFACEHUB_API_TOKEN": "YOUR_HUGGINGFACEHUB_API_TOKEN"
+    },
+    "comparison_service": {
+      "judge_model": "meta-llama/Llama-3.1-8B-Instruct",
+      "similarity_model": "sentence-transformers/all-MiniLM-L6-v2"
+    },
+    "embedding_service": {
+      "embedding_model_service": "genai",
+      "model_name": "models/gemini-embedding-001",
+      "dimensions": 1536,
+      "authentication_configuration": {
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY",
+        "GOOGLE_API_KEY_FALLBACK_1": "YOUR_GOOGLE_API_KEY_FALLBACK_1",
+        "GOOGLE_API_KEY_FALLBACK_2": "YOUR_GOOGLE_API_KEY_FALLBACK_2"
+      }
+    },  
+    "completion_service": {
+      "llm_service": "genai",
+      "llm_model": "gemini-3.1-flash-lite",
+      "authentication_configuration": {
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY",
+        "GOOGLE_API_KEY_FALLBACK_1": "YOUR_GOOGLE_API_KEY_FALLBACK_1",
+        "GOOGLE_API_KEY_FALLBACK_2": "YOUR_GOOGLE_API_KEY_FALLBACK_2"
+      },
+      "model_kwargs": {
+        "temperature": 0
+      },
+      "prompt_path": "./common/prompts/llama_70b/"
+    },
+    "multimodal_service": {
+      "llm_service": "genai",
+      "llm_model": "gemini-2.5-flash",
+      "authentication_configuration": {
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY",
+        "GOOGLE_API_KEY_FALLBACK_1": "YOUR_GOOGLE_API_KEY_FALLBACK_1",
+        "GOOGLE_API_KEY_FALLBACK_2": "YOUR_GOOGLE_API_KEY_FALLBACK_2"
+      },
+      "model_kwargs": {
+        "temperature": 0
+      }
+    }
+  },
+  "chat_config": {
+    "apiPort": "8002",
+    "dbPath": "chats.db",
+    "dbLogPath": "db.log",
+    "logPath": "requestLogs.jsonl",
+    "conversationAccessRoles": [
+      "superuser",
+      "globaldesigner"
+    ]
+  }
+}
