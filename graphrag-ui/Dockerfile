@@ -17,4 +17,4 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["sh", "-c", "sed -i \"s|listen 3000;|listen ${PORT:-3000};|g; s|__GRAPHRAG_API_URL__|${GRAPHRAG_API_URL:-http://graphrag:8000}|g\" /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

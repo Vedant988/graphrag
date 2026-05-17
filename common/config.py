@@ -73,6 +73,98 @@ class _DisabledEmbeddingStore:
 SERVER_CONFIG = os.getenv("SERVER_CONFIG", "configs/server_config.json")
 
 
+def _env_value(name: str) -> str | None:
+    value = os.getenv(name)
+    if value is None:
+        return None
+    value = value.strip()
+    return value if value else None
+
+
+def _set_nested(config: dict, path: tuple[str, ...], value: str | bool) -> None:
+    current = config
+    for key in path[:-1]:
+        current = current.setdefault(key, {})
+    current[path[-1]] = value
+
+
+def _set_auth_value(llm_cfg: dict, key: str, value: str) -> None:
+    auth = llm_cfg.setdefault("authentication_configuration", {})
+    auth[key] = value
+
+    for svc_key in ["completion_service", "embedding_service", "multimodal_service", "chat_service"]:
+        svc = llm_cfg.get(svc_key)
+        if isinstance(svc, dict) and "authentication_configuration" in svc:
+            svc["authentication_configuration"][key] = value
+
+
+def _apply_env_overrides(config: dict) -> dict:
+    """Overlay deployment secrets/settings from environment variables.
+
+    The checked-in server_config.json can stay as a safe template while Render,
+    Docker Compose, or a local .env file provide the real credentials.
+    """
+    config = copy.deepcopy(config)
+
+    scalar_overrides = {
+        "TIGERGRAPH_HOSTNAME": ("db_config", "hostname"),
+        "TIGERGRAPH_USERNAME": ("db_config", "username"),
+        "TIGERGRAPH_PASSWORD": ("db_config", "password"),
+        "TIGERGRAPH_API_TOKEN": ("db_config", "apiToken"),
+        "TIGERGRAPH_RESTPP_PORT": ("db_config", "restppPort"),
+        "TIGERGRAPH_GS_PORT": ("db_config", "gsPort"),
+        "GRAPHRAG_ECC_URL": ("graphrag_config", "ecc"),
+        "CHAT_HISTORY_API_URL": ("graphrag_config", "chat_history_api"),
+    }
+    for env_name, path in scalar_overrides.items():
+        value = _env_value(env_name)
+        if value is not None:
+            _set_nested(config, path, value)
+
+    get_token = _env_value("TIGERGRAPH_GET_TOKEN")
+    if get_token is not None:
+        _set_nested(config, ("db_config", "getToken"), get_token.lower() == "true")
+
+    llm_cfg = config.setdefault("llm_config", {})
+    for env_name in [
+        "GOOGLE_API_KEY",
+        "GOOGLE_API_KEY_FALLBACK",
+        "GOOGLE_API_KEY_FALLBACK_1",
+        "GOOGLE_API_KEY_FALLBACK_2",
+        "GEMINI_API_KEY",
+        "GEMINI_API_KEY_FALLBACK",
+        "GROQ_API_KEY",
+        "HUGGINGFACEHUB_API_TOKEN",
+        "HF_TOKEN",
+        "OPENAI_API_KEY",
+        "AZURE_OPENAI_API_KEY",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "WATSONX_APIKEY",
+    ]:
+        value = _env_value(env_name)
+        if value is not None:
+            _set_auth_value(llm_cfg, env_name, value)
+
+    return config
+
+
+def _load_server_config() -> dict:
+    if SERVER_CONFIG[-5:] != ".json":
+        try:
+            loaded_config = json.loads(str(SERVER_CONFIG))
+        except Exception as e:
+            raise Exception(
+                "SERVER_CONFIG environment variable must be a .json file or a JSON string, failed with error: "
+                + str(e)
+            )
+    else:
+        with open(SERVER_CONFIG, "r") as f:
+            loaded_config = json.load(f)
+
+    return _apply_env_overrides(loaded_config)
+
+
 _VALID_GRAPHNAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
@@ -336,17 +428,7 @@ if PATH_PREFIX.endswith("/"):
 if SERVER_CONFIG is None:
     raise Exception("SERVER_CONFIG environment variable not set")
 
-if SERVER_CONFIG[-5:] != ".json":
-    try:
-        server_config = json.loads(str(SERVER_CONFIG))
-    except Exception as e:
-        raise Exception(
-            "SERVER_CONFIG environment variable must be a .json file or a JSON string, failed with error: "
-            + str(e)
-        )
-else:
-    with open(SERVER_CONFIG, "r") as f:
-        server_config = json.load(f)
+server_config = _load_server_config()
 
 db_config = server_config.get("db_config")
 llm_config = server_config.get("llm_config")
@@ -554,10 +636,9 @@ def reload_llm_config(new_llm_config: dict = None):
                 os.replace(temp_file, SERVER_CONFIG)
 
             # Read/reload from file
-            with open(SERVER_CONFIG, "r") as f:
-                server_config = json.load(f)
 
         # Validate before updating
+        server_config = _load_server_config()
         new_llm_config = server_config.get("llm_config")
         if new_llm_config is None:
             raise Exception("llm_config is not found in SERVER_CONFIG")
@@ -651,8 +732,7 @@ def reload_db_config(new_db_config: dict = None):
                     json.dump(server_config, f, indent=2)
                 os.replace(temp_file, SERVER_CONFIG)
 
-            with open(SERVER_CONFIG, "r") as f:
-                server_config = json.load(f)
+            server_config = _load_server_config()
 
         new_db_config = server_config.get("db_config")
         if new_db_config is None:
@@ -686,8 +766,7 @@ def reload_graphrag_config():
 
     try:
         with _config_file_lock:
-            with open(SERVER_CONFIG, "r") as f:
-                server_config = json.load(f)
+            server_config = _load_server_config()
 
         new_graphrag_config = server_config.get("graphrag_config")
         if new_graphrag_config is None:

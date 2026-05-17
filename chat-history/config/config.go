@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"strings"
 )
 
 type LLMConfig struct {
@@ -29,22 +30,65 @@ type TgDbConfig struct {
 }
 
 type Config struct {
-	TgDbConfig TgDbConfig `json:"db_config"`
+	TgDbConfig   TgDbConfig   `json:"db_config"`
 	ChatDbConfig ChatDbConfig `json:"chat_config"`
 	// LLMConfig LLMConfig `json:"llm_config"`
 }
 
 func LoadConfig(paths map[string]string) (Config, error) {
-	var config Config
+	config := Config{
+		ChatDbConfig: ChatDbConfig{
+			Port:      "8002",
+			DbPath:    "chats.db",
+			DbLogPath: "db.log",
+			LogPath:   "requestLogs.jsonl",
+		},
+	}
 
-        if config_path, ok := paths["tgconfig"]; ok {
-	        b, err := os.ReadFile(config_path)
-	        if err != nil {
+	if configPath, ok := paths["tgconfig"]; ok && strings.TrimSpace(configPath) != "" {
+		rawConfig := strings.TrimSpace(configPath)
+		var b []byte
+		if strings.HasPrefix(rawConfig, "{") {
+			b = []byte(rawConfig)
+		} else {
+			fileBytes, err := os.ReadFile(rawConfig)
+			if err != nil {
+				return Config{}, err
+			}
+			b = fileBytes
+		}
+		if err := json.Unmarshal(b, &config); err != nil {
 			return Config{}, err
-	        }
-	        if err := json.Unmarshal(b, &config); err != nil {
-		        return Config{}, err
-	        }
-        }
+		}
+	}
+
+	applyEnvOverrides(&config)
 	return config, nil
+}
+
+func applyEnvOverrides(config *Config) {
+	if value := strings.TrimSpace(os.Getenv("TIGERGRAPH_HOSTNAME")); value != "" {
+		config.TgDbConfig.Hostname = value
+	}
+	if value := strings.TrimSpace(os.Getenv("TIGERGRAPH_USERNAME")); value != "" {
+		config.TgDbConfig.Username = value
+	}
+	if value := strings.TrimSpace(os.Getenv("TIGERGRAPH_PASSWORD")); value != "" {
+		config.TgDbConfig.Password = value
+	}
+	if value := strings.TrimSpace(os.Getenv("TIGERGRAPH_GS_PORT")); value != "" {
+		config.TgDbConfig.GsPort = value
+	}
+	if value := strings.TrimSpace(os.Getenv("PORT")); value != "" {
+		config.ChatDbConfig.Port = value
+	}
+	if value := strings.TrimSpace(os.Getenv("CHAT_DB_PATH")); value != "" {
+		config.ChatDbConfig.DbPath = value
+	}
+	if value := strings.TrimSpace(os.Getenv("CHAT_DB_LOG_PATH")); value != "" {
+		config.ChatDbConfig.DbLogPath = value
+	}
+	if value := strings.TrimSpace(os.Getenv("CHAT_LOG_PATH")); value != "" {
+		config.ChatDbConfig.LogPath = value
+	}
 }
