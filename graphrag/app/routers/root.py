@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, WebSocket
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from common.config import get_completion_config, service_status
@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get("/")
 def read_root():
-    return {"config": get_completion_config().get("llm_model", "unknown")}
+    return RedirectResponse(url="https://graphrag-ui-4zl0.onrender.com/")
 
 
 @router.get("/health")
