@@ -195,11 +195,14 @@ const getDominantStage = (stages: ComparisonLatencyStage[]) =>
 
 const getJudgeDisplay = (accuracy?: ComparisonAccuracy) => {
   const status = accuracy?.llm_judge?.status;
+  const score = accuracy?.llm_judge?.score;
+  const scoreSuffix =
+    typeof score === "number" && Number.isFinite(score) ? ` ${score}/100` : "";
   if (status === "pass") {
-    return "PASS";
+    return `PASS${scoreSuffix}`;
   }
   if (status === "fail") {
-    return "FAIL";
+    return `FAIL${scoreSuffix}`;
   }
   if (status === "error") {
     return "Error";
@@ -222,26 +225,51 @@ const getJudgeTone = (accuracy?: ComparisonAccuracy) => {
 };
 
 const getPipelineScore = (r?: ComparisonPipelineResult): number => {
-  if (!r) return -100;
+  if (!r || r.status !== "success") return -100;
   const judgeStatus = r.accuracy?.llm_judge?.status;
-  const judgeScore = judgeStatus === "pass" ? 100 : judgeStatus === "fail" ? 10 : 0;
-  const semScore = (r.accuracy?.semantic_similarity?.score ?? -1) * 10;
-  // Latency: invert so lower latency = higher score (cap at 200s)
-  const latencyScore = r.latency_seconds != null ? (200 - r.latency_seconds) * 0.01 : 0;
-  return judgeScore + semScore + latencyScore;
+  const numericJudgeScore = r.accuracy?.llm_judge?.score;
+  const judgeScore =
+    typeof numericJudgeScore === "number" && Number.isFinite(numericJudgeScore)
+      ? numericJudgeScore
+      : judgeStatus === "pass"
+        ? 60
+        : judgeStatus === "fail"
+          ? 0
+          : -10;
+  const semanticScore =
+    typeof r.accuracy?.semantic_similarity?.score === "number" &&
+    Number.isFinite(r.accuracy.semantic_similarity.score)
+      ? r.accuracy.semantic_similarity.score * 100
+      : 0;
+  const latencyTieBreaker =
+    typeof r.latency_seconds === "number" && Number.isFinite(r.latency_seconds)
+      ? Math.max(0, 300 - Math.min(r.latency_seconds, 300)) / 300
+      : 0;
+
+  return judgeScore * 1000 + semanticScore * 10 + latencyTieBreaker;
+};
+
+const pipelineTieBreakPriority = (name: string) => {
+  if (name === "GraphRAG") return 3;
+  if (name === "Basic RAG") return 2;
+  if (name === "LLM-Only") return 1;
+  return 0;
 };
 
 const computePipelineRanks = (
-  results: Record<string, ComparisonPipelineResult>,
+  results: ComparisonPipelineResult[],
 ): Record<string, number> => {
-  const names = Object.keys(results);
-  // Score each pipeline: higher is better
-  const scored = names.map((name) => ({
-    name,
-    total: getPipelineScore(results[name]),
+  const scored = results.map((result) => ({
+    name: result.pipeline,
+    total: getPipelineScore(result),
   }));
-  // Sort descending by score
-  scored.sort((a, b) => b.total - a.total);
+  scored.sort((a, b) => {
+    const scoreDelta = b.total - a.total;
+    if (Math.abs(scoreDelta) > 0.000001) {
+      return scoreDelta;
+    }
+    return pipelineTieBreakPriority(b.name) - pipelineTieBreakPriority(a.name);
+  });
   // Assign rank 1 = best
   const ranks: Record<string, number> = {};
   scored.forEach((entry, idx) => {
@@ -368,6 +396,9 @@ const Comparison = () => {
   const successfulPipelines = (benchmarkData?.pipelines || []).filter(
     (result) => result.status === "success",
   );
+  const pipelineRanks = benchmarkData
+    ? computePipelineRanks(benchmarkData.pipelines || [])
+    : {};
   const fastestPipeline = [...successfulPipelines].sort(
     (left, right) => left.latency_seconds - right.latency_seconds,
   )[0];
@@ -491,10 +522,10 @@ const Comparison = () => {
     }
     lines.push(`│`);
     lines.push(`│ ACCURACY`);
-    lines.push(`│   HF Judge  : ${getJudgeDisplay(result.accuracy)}${
+    lines.push(`│   Gemini Judge: ${getJudgeDisplay(result.accuracy)}${
       result.accuracy?.llm_judge?.reason ? ` — ${result.accuracy.llm_judge.reason}` : ""
     }`);
-    lines.push(`│   HF Semantic: ${formatScore(result.accuracy?.semantic_similarity?.score)}`);
+    lines.push(`│   Semantic    : ${formatScore(result.accuracy?.semantic_similarity?.score)}`);
     if (result.profile) {
       lines.push(`│`);
       lines.push(`│ PIPELINE NOTES`);
@@ -928,7 +959,7 @@ const Comparison = () => {
                         Dual answer quality
                       </p>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        The dashboard now pairs HF LLM-as-a-Judge verdicts with hosted semantic similarity so answer quality is visible beside speed and spend.
+                        The dashboard now pairs Gemini LLM-as-a-Judge scores with hosted semantic similarity so answer quality is visible beside speed and spend.
                       </p>
                     </div>
                     <div className="rounded-2xl border border-gray-200 bg-card px-4 py-4 dark:border-[#3D3D3D] dark:bg-[#2a2024]">
@@ -974,10 +1005,6 @@ const Comparison = () => {
                   ? result.error
                   : result?.answer || pipeline.emptyState;
 
-                // Ranking
-                const pipelineRanks = benchmarkData
-                  ? computePipelineRanks(pipelineResults)
-                  : {};
                 const rank = pipelineRanks[pipeline.name];
                 const isWinner = rank === 1 && benchmarkData !== null;
 

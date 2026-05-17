@@ -104,7 +104,6 @@ _COMPARISON_BENCHMARKS_PATH = FilePath(
 _comparison_benchmarks_cache: list[dict] | None = None
 _comparison_benchmarks_mtime: float | None = None
 _comparison_benchmarks_lock = threading.Lock()
-_DEFAULT_HF_JUDGE_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
 _DEFAULT_HF_SIMILARITY_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 _COMPARISON_JUDGE_PROMPT = """You are a STRICT benchmark judge. You must score answers objectively and differentiate between them.
 
@@ -113,6 +112,12 @@ QUESTION:
 
 REFERENCE ANSWER (ground truth — treat every fact here as a required checkpoint):
 {correct_answer}
+
+EXCELLENT-ANSWER DETAILS (bonus/tie-break criteria; do not penalize otherwise complete answers for omitting these):
+{excellent_answer_details}
+
+BENCHMARK-SPECIFIC SCORING GUIDANCE:
+{scoring_guidance}
 
 PIPELINE PERFORMANCE:
 - Total tokens used : {total_tokens}
@@ -143,6 +148,9 @@ You MUST penalise for each failure. Start at 100 and deduct:
   • Deduct 10 if the answer hallucinated extra facts not in the reference and not factually grounded.
 
 CRITICAL: Scores of 95–100 are ONLY for answers that hit EVERY fact in the reference with high specificity.
+When two answers both hit every required fact, use the excellent-answer details to distinguish 95 from 98-100.
+Follow benchmark-specific scoring guidance when provided; it overrides the generic deduction caps.
+If an answer contradicts the reference by saying a required person/event is absent or not mentioned, cap the score at 20 even if it contains some related text.
 An answer that is "broadly correct" but misses specific names or textual details should score 70–85.
 Never give the same score to three different answers unless they are truly identical in quality.
 
@@ -1250,9 +1258,11 @@ def _get_comparison_eval_config(graphname: str) -> dict[str, str]:
     comparison_cfg = copy.deepcopy(llm_config.get("comparison_service", {}) or {})
     comparison_cfg.update(graph_llm.get("comparison_service", {}) or {})
 
+    chat_config = {}
     auth = {}
     try:
-        auth = get_chat_config(graphname).get("authentication_configuration", {}) or {}
+        chat_config = get_chat_config(graphname)
+        auth = chat_config.get("authentication_configuration", {}) or {}
     except Exception:
         auth = {}
 
@@ -1261,8 +1271,9 @@ def _get_comparison_eval_config(graphname: str) -> dict[str, str]:
         or str(auth.get("HF_TOKEN", "")).strip()
     )
     judge_model = (
-        str(comparison_cfg.get("judge_model", "")).strip()
-        or _DEFAULT_HF_JUDGE_MODEL
+        str(chat_config.get("llm_model", "")).strip()
+        or str(comparison_cfg.get("judge_model", "")).strip()
+        or "Configured Gemini model"
     )
     similarity_model = (
         str(comparison_cfg.get("similarity_model", "")).strip()
@@ -1326,6 +1337,8 @@ def _comparison_accuracy_summary(llm_judge: dict, semantic_similarity: dict) -> 
 def _compare_answer_with_gemini_judge(
     question: str,
     correct_answer: str,
+    excellent_answer_details: str,
+    scoring_guidance: str,
     system_answer: str,
     pipeline_usage: dict,
     pipeline_latency: float,
@@ -1355,6 +1368,8 @@ def _compare_answer_with_gemini_judge(
         prompt_text = _COMPARISON_JUDGE_PROMPT.format(
             question=question,
             correct_answer=correct_answer,
+            excellent_answer_details=excellent_answer_details or "None.",
+            scoring_guidance=scoring_guidance or "None.",
             system_answer=system_answer,
             total_tokens=f"{total_tokens:,}",
             cost=f"${cost:.4f}",
@@ -1362,8 +1377,9 @@ def _compare_answer_with_gemini_judge(
             llm_calls=llm_calls,
         )
 
-        from langchain_core.messages import HumanMessage
-        response = llm_service.llm.invoke([HumanMessage(content=prompt_text)])
+        from langchain_core.prompts import PromptTemplate
+        prompt = PromptTemplate.from_template("{text}")
+        response, _ = llm_service._invoke_prompt_sync(prompt, {"text": prompt_text}, caller_name="gemini_judge")
         content = (response.content if hasattr(response, "content") else str(response)).strip()
 
         lines = [line.strip() for line in content.splitlines() if line.strip()]
@@ -1496,6 +1512,11 @@ def _evaluate_comparison_answer(
         }
 
     correct_answer = str(benchmark_reference.get("correct_answer", "")).strip()
+    excellent_answer_details = str(
+        benchmark_reference.get("excellent_answer_details", "")
+        or benchmark_reference.get("bonus_answer_details", "")
+    ).strip()
+    scoring_guidance = str(benchmark_reference.get("scoring_guidance", "")).strip()
     pipeline_answer = str(pipeline_result.get("answer", "")).strip()
     pipeline_usage = pipeline_result.get("usage") or {}
     pipeline_latency = float(pipeline_result.get("latency_seconds") or 0)
@@ -1503,6 +1524,8 @@ def _evaluate_comparison_answer(
     llm_judge = _compare_answer_with_gemini_judge(
         question,
         correct_answer,
+        excellent_answer_details,
+        scoring_guidance,
         pipeline_answer,
         pipeline_usage,
         pipeline_latency,
@@ -1967,7 +1990,7 @@ async def comparison_query(
             "similarity_model": comparison_eval_config.get("similarity_model"),
             "evaluation_seconds": evaluation_seconds,
             "note": (
-                "Accuracy review is benchmark-grounded and runs after answer generation, so it is not counted inside the pipeline latency numbers. Both checks use hosted Hugging Face inference."
+                "Accuracy review is benchmark-grounded and runs after answer generation, so it is not counted inside the pipeline latency numbers. Gemini judges answer quality; hosted semantic similarity scores reference overlap."
                 if benchmark_reference
                 else "Accuracy review appears when the question matches a benchmark reference answer."
             ),

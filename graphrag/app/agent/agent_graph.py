@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import boto3
 import os
 import re
 import json
@@ -37,7 +36,6 @@ from typing_extensions import TypedDict
 
 from common.logs.log import req_id_cv
 from common.py_schemas import GraphRAGResponse, MapQuestionToSchemaResponse
-from common.llm_services.aws_bedrock_service import AWSBedrock
 from common.config import get_graphrag_config
 
 logger = logging.getLogger(__name__)
@@ -599,7 +597,7 @@ class TigerGraphAgentGraph:
 
         try:
             # Replace S3 URLs with presigned URLs (for AWS Bedrock BDA processing)
-            if isinstance(self.llm_provider, AWSBedrock):
+            if self.llm_provider.__class__.__name__ == "AWSBedrock":
                 answer.generated_answer = self.replace_s3_urls_with_presigned(answer.generated_answer)
             
             # Convert [IMAGE_REF:image_id] to markdown images for React UI
@@ -637,6 +635,8 @@ class TigerGraphAgentGraph:
         """
 
         s3_url_pattern = r'\(s3://([^/]+)/([^\)]+)\)'
+        import boto3
+
         s3 = boto3.client('s3')
 
         def presign(match):

@@ -2,7 +2,6 @@ import os
 import json
 import uuid
 import logging
-import boto3
 import time
 import re
 import pyTigerGraph as tg
@@ -146,6 +145,8 @@ def init_supportai(conn: TigerGraphConnection, graphname: str) -> tuple[dict, di
 
 
 def trigger_bedrock_bda(input_uri, output_uri, region, aws_access_key, aws_secret_key, data_source_config={}):
+    import boto3
+
     logger.info(f"Triggering Bedrock Data Automation {region}")
     s3 = boto3.client('s3', region_name=region, aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key)
     bda_client = boto3.client('bedrock-data-automation', region_name=region, aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key)
@@ -630,6 +631,8 @@ def ingest(
             logger.info(f"Starting S3 markdown extraction and TigerGraph loading...")
 
             try:
+                import boto3
+
                 data_source_id = ingest_config.get("data_source_id", "DocumentContent")
                 if ingest_config.get("bda_jobs"):
                     job_uids = [job.get("jobId").split("/")[-1] for job in ingest_config.get("bda_jobs")]

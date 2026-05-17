@@ -5,9 +5,6 @@ import time
 from typing import List
 
 from langchain.schema.embeddings import Embeddings
-from langchain_openai import OpenAIEmbeddings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_ollama import OllamaEmbeddings
 
 from common.logs.log import req_id_cv
 from common.logs.logwriter import LogWriter
@@ -16,6 +13,10 @@ from common.utils.gemini_fallback import collect_gemini_api_keys, is_gemini_rate
 from common.utils.token_calculator import get_token_calculator
 
 logger = logging.getLogger(__name__)
+
+
+def _is_google_genai_embeddings(embeddings) -> bool:
+    return embeddings.__class__.__name__ == "GoogleGenerativeAIEmbeddings"
 
 
 class EmbeddingModel(Embeddings):
@@ -151,21 +152,21 @@ class EmbeddingModel(Embeddings):
         #     )
 
     def _embed_documents_impl(self, texts: List[str]) -> List[List[float]]:
-        if isinstance(self.embeddings, GoogleGenerativeAIEmbeddings):
+        if _is_google_genai_embeddings(self.embeddings):
             return self.embeddings.embed_documents(
                 texts, output_dimensionality=self.dimensions
             )
         return self.embeddings.embed_documents(texts)
 
     def _embed_query_impl(self, question: str) -> List[float]:
-        if isinstance(self.embeddings, GoogleGenerativeAIEmbeddings):
+        if _is_google_genai_embeddings(self.embeddings):
             return self.embeddings.embed_query(
                 question, output_dimensionality=self.dimensions
             )
         return self.embeddings.embed_query(question)
 
     async def _aembed_query_impl(self, question: str) -> List[float]:
-        if isinstance(self.embeddings, GoogleGenerativeAIEmbeddings):
+        if _is_google_genai_embeddings(self.embeddings):
             return await self.embeddings.aembed_query(
                 question, output_dimensionality=self.dimensions
             )
@@ -186,6 +187,8 @@ class OpenAI_Embedding(EmbeddingModel):
     """OpenAI Embedding Model"""
 
     def __init__(self, config):
+        from langchain_openai import OpenAIEmbeddings
+
         super().__init__(
             config, model_name=config.get("model_name", "text-embedding-3-small")
         )
@@ -207,22 +210,26 @@ class GenAI_Embedding(EmbeddingModel):
     """Google GenAI Embedding Model"""
 
     def __init__(self, config):
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
         super().__init__(config, model_name=config.get("model_name", "gemini-embedding-exp-03-07"))
         self._client_lock = threading.Lock()
         self._api_keys = collect_gemini_api_keys(config)
-        self._embedding_clients: dict[str, GoogleGenerativeAIEmbeddings] = {}
+        self._embedding_clients = {}
         self._active_api_key_index = 0
         self._active_api_key = self._api_keys[0] if self._api_keys else ""
         self.embeddings = self._client_for_key(self._active_api_key)
 
-    def _build_client(self, api_key: str | None) -> GoogleGenerativeAIEmbeddings:
+    def _build_client(self, api_key: str | None):
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
         kwargs = {"model": self.model_name}
         if api_key:
             kwargs["google_api_key"] = api_key
             os.environ["GOOGLE_API_KEY"] = api_key
         return GoogleGenerativeAIEmbeddings(**kwargs)
 
-    def _client_for_key(self, api_key: str | None) -> GoogleGenerativeAIEmbeddings:
+    def _client_for_key(self, api_key: str | None):
         cache_key = api_key or "__default__"
         client = self._embedding_clients.get(cache_key)
         if client is None:

@@ -27,6 +27,7 @@ _RATE_LIMIT_PATTERNS = (
     "resource exhausted",
     "quota",
     "rate limit",
+    "daily request limit",
     "too many requests",
 )
 _GEMINI_INPUT_COST_PER_TOKEN = 0.25 / 1_000_000

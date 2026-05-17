@@ -1,64 +1,91 @@
-# Friend Setup Guide
+# GraphRAG Local Setup
 
-This guide is for a teammate cloning this repo on a fresh PC.
+This README is for a teammate cloning this repo on a fresh PC.
 
-It is written for this repo's current setup:
-- TigerGraph Cloud only
-- config-driven runtime via `configs/server_config.json`
-- Docker Compose for local app services
-- no local TigerGraph database container required
-
-## What This Repo Runs
-
-This repo starts these app services locally:
-- `graphrag` on port `8000`
-- `graphrag-ecc` on port `8001`
-- `chat-history` on port `8002`
-- `graphrag-ui` on port `3000`
-- `nginx` on port `80`
-
-TigerGraph itself is not expected to run locally in this setup.
-The app connects to a TigerGraph Cloud instance using `configs/server_config.json`.
-
-Important distinction:
-- Docker Compose runs the local application services only.
-- TigerGraph data storage/query execution runs in TigerGraph Cloud through `db_config.hostname`.
-- Hosted LLM/embedding calls run through the providers configured in `llm_config`.
-- The default Docker build uses `common/requirements.cloud.txt`, a lighter cloud-runtime dependency set.
-- Use `common/requirements.txt` only for the full development/all-provider image.
-
-## Prerequisites
-
-Install these first:
-- Git
-- Docker Desktop
-
-Recommended:
-- VS Code or another IDE
-
-## Clone The Repo
+## 1. Clone The Repo
 
 ```bash
 git clone https://github.com/Vedant988/graphrag.git
 cd graphrag
 ```
 
-If you need a specific branch:
+If you need the latest `main` branch:
 
 ```bash
 git checkout main
 git pull
 ```
 
-## Main Runtime File
+## 2. Install Prerequisites
 
-The most important file is:
+Install these if they are not already available:
 
-- `configs/server_config.json`
+- Git
+- Docker Desktop
 
-This repo is intentionally config-driven. Do not depend on `.env` for normal runtime behavior.
+Recommended:
 
-## Dependency Profile
+- VS Code or another IDE
+
+## 3. Understand The Current Setup
+
+This repo is currently set up for:
+
+- TigerGraph Cloud only
+- config-driven runtime via `configs/server_config.json`
+- Docker Compose for local app services
+- no local TigerGraph database container
+
+The local Docker services are:
+
+- `graphrag` on port `8000`
+- `graphrag-ecc` on port `8001`
+- `chat-history` on port `8002`
+- `graphrag-ui` on port `3000`
+- `nginx` on port `80`
+
+TigerGraph itself is not expected to run locally. The app connects to a TigerGraph Cloud instance using `configs/server_config.json`.
+
+Important distinction:
+
+- Docker Compose runs the local application services only.
+- TigerGraph data storage/query execution runs in TigerGraph Cloud through `db_config.hostname`.
+- Hosted LLM/embedding calls run through the providers configured in `llm_config`.
+- The default Docker build uses `common/requirements.cloud.txt`, a lighter cloud-runtime dependency set.
+- Use `common/requirements.txt` only for the full development/all-provider image.
+
+## 4. Fill In `server_config.json`
+
+The most important runtime file is:
+
+```text
+configs/server_config.json
+```
+
+Open `configs/server_config.json` and replace the placeholder values.
+
+Required TigerGraph Cloud values:
+
+- `db_config.hostname`
+- `db_config.username`
+- `db_config.password`
+- `db_config.apiToken`
+
+Required provider values:
+
+- `llm_config.authentication_configuration.GOOGLE_API_KEY`
+- `llm_config.authentication_configuration.GOOGLE_API_KEY_FALLBACK`
+- `llm_config.authentication_configuration.GROQ_API_KEY`
+- `llm_config.authentication_configuration.HUGGINGFACEHUB_API_TOKEN`
+
+Important:
+
+- keep real secrets out of git
+- share secrets privately
+- do not depend on `.env` for normal runtime behavior
+- the checked-in config should be treated as a template, not a production secret file
+
+## 4a. Dependency Profile
 
 The default backend Dockerfiles install:
 
@@ -83,51 +110,37 @@ docker compose build --build-arg PYTHON_REQUIREMENTS=common/requirements.txt gra
 docker compose up -d
 ```
 
-## Fill In `server_config.json`
-
-Open `configs/server_config.json` and replace the placeholder values.
-
-Required TigerGraph Cloud values:
-- `db_config.hostname`
-- `db_config.username`
-- `db_config.password`
-- `db_config.apiToken`
-
-Required provider values:
-- `llm_config.authentication_configuration.GOOGLE_API_KEY`
-- `llm_config.authentication_configuration.GOOGLE_API_KEY_FALLBACK`
-- `llm_config.authentication_configuration.GROQ_API_KEY`
-- `llm_config.authentication_configuration.HUGGINGFACEHUB_API_TOKEN`
-
-Important:
-- keep real secrets out of git
-- share secrets privately
-- the checked-in file is a template, not a production secret file
-
-## What The Key Sections Mean
+## 5. What The Key Config Sections Mean
 
 `db_config`
-- points the app to the TigerGraph Cloud URL and auth
+
+Points the app to the TigerGraph Cloud URL and auth.
 
 `graphrag_config`
-- internal service wiring like ECC and chat-history
+
+Internal service wiring like ECC and chat-history.
 
 `llm_config.authentication_configuration`
-- shared provider secrets used by the configured LLM services
+
+Shared provider secrets used by the configured LLM services.
 
 `llm_config.completion_service`
-- main text generation service
+
+Main text generation service.
 
 `llm_config.embedding_service`
-- embedding model for retrieval
+
+Embedding model for retrieval.
 
 `llm_config.multimodal_service`
-- model used for image/document multimodal flows
+
+Model used for image/document multimodal flows.
 
 `llm_config.comparison_service`
-- hosted Hugging Face models used by the comparison dashboard for answer evaluation
 
-## Start From Scratch
+Hosted Hugging Face models used by the comparison dashboard for answer evaluation.
+
+## 6. Start The App
 
 Run:
 
@@ -136,64 +149,58 @@ docker compose up -d --build
 ```
 
 Then open:
-- `http://localhost`
+
+```text
+http://localhost
+```
 
 Direct service URLs if needed:
+
 - UI: `http://localhost:3000`
 - API: `http://localhost:8000`
 
-## Login
+## 7. Login
 
 Use the TigerGraph credentials that match the values in `configs/server_config.json`:
+
 - `db_config.username`
 - `db_config.password`
 
 If login fails, the most common causes are:
+
 - expired `apiToken`
 - wrong TigerGraph Cloud hostname
 - bad username/password
 - provider keys missing from `llm_config.authentication_configuration`
 
-## How This Repo Is Meant To Be Read
+## 8. Main Files To Read First
 
 If a developer or IDE agent is trying to understand the repo quickly, these are the main files:
 
-- `configs/server_config.json`
-  runtime configuration and provider setup
-- `docker-compose.yml`
-  local service orchestration
-- `common/config.py`
-  config loading and service resolution
-- `graphrag/app/routers/ui.py`
-  main UI/backend routes including comparison flow
-- `graphrag-ui/src/pages/Comparison.tsx`
-  comparison dashboard frontend
-- `common/utils/gemini_fallback.py`
-  Gemini fallback key collection and token cost helpers
+- `configs/server_config.json`: runtime configuration and provider setup
+- `docker-compose.yml`: local service orchestration
+- `common/config.py`: config loading and service resolution
+- `graphrag/app/routers/ui.py`: main UI/backend routes including comparison flow
+- `graphrag-ui/src/pages/Comparison.tsx`: comparison dashboard frontend
+- `common/utils/gemini_fallback.py`: Gemini fallback key collection and token cost helpers
 
-## Rebuild Rules
+## 9. Rebuild Rules
 
 Use these rules so you do not rebuild more than necessary.
 
-If you change only `configs/server_config.json`:
-- usually recreate backend containers
-- command:
+If you change only `configs/server_config.json`, usually recreate backend containers:
 
 ```bash
 docker compose up -d --force-recreate graphrag graphrag-ecc chat-history
 ```
 
-If you change backend Python files in `common/`, `graphrag/`, or `ecc/`:
-- rebuild backend services
-- command:
+If you change backend Python files in `common/`, `graphrag/`, or `ecc/`, rebuild backend services:
 
 ```bash
 docker compose up -d --build graphrag graphrag-ecc
 ```
 
-If you change frontend files in `graphrag-ui/`:
-- rebuild UI
-- command:
+If you change frontend files in `graphrag-ui/`, rebuild UI:
 
 ```bash
 docker compose up -d --build graphrag-ui
@@ -205,7 +212,7 @@ If you want the safest full refresh:
 docker compose up -d --build
 ```
 
-## Useful Checks
+## 10. Useful Checks
 
 See running containers:
 
@@ -227,30 +234,33 @@ See local code changes:
 git status
 ```
 
-## Common Troubleshooting
+## 11. Common Troubleshooting
 
-### 1. Login Fails
+### Login Fails
 
 Check:
+
 - `apiToken` is not expired
-- hostname is the TigerGraph Cloud URL
+- `hostname` is the TigerGraph Cloud URL
 - ports are `443` for cloud
 - username/password match the cloud user
 
-### 2. Comparison Dashboard Runs But Accuracy Is Missing
+### Comparison Dashboard Runs But Accuracy Is Missing
 
 Check:
+
 - `llm_config.authentication_configuration.HUGGINGFACEHUB_API_TOKEN`
 - `llm_config.comparison_service.judge_model`
 - `llm_config.comparison_service.similarity_model`
 
-### 3. Gemini Calls Fail
+### Gemini Calls Fail
 
 Check:
+
 - `GOOGLE_API_KEY`
 - `GOOGLE_API_KEY_FALLBACK`
 
-### 4. UI Looks Old After A Change
+### UI Looks Old After A Change
 
 Rebuild the UI:
 
@@ -258,7 +268,7 @@ Rebuild the UI:
 docker compose up -d --build graphrag-ui
 ```
 
-### 5. Backend Code Changed But Behavior Did Not
+### Backend Code Changed But Behavior Did Not
 
 Rebuild backend services:
 
@@ -266,7 +276,7 @@ Rebuild backend services:
 docker compose up -d --build graphrag graphrag-ecc
 ```
 
-## Git Workflow For A Friend
+## 12. Git Workflow For A Friend
 
 Before starting work:
 
@@ -284,9 +294,10 @@ git commit -m "Describe the change"
 git push -u origin feature/my-change
 ```
 
-## Notes For IDE Agents
+## 13. Notes For IDE Agents
 
 If an IDE agent is helping with this repo, it should assume:
+
 - runtime is config-driven
 - TigerGraph runs in the cloud, not in Docker here
 - `configs/server_config.json` is the first file to inspect
@@ -296,12 +307,12 @@ If an IDE agent is helping with this repo, it should assume:
   - backend: `graphrag/app/routers/ui.py`
   - frontend: `graphrag-ui/src/pages/Comparison.tsx`
 
-## Safe Sharing Practice
+## 14. Safe Sharing Practice
 
 When sharing the repo with another person:
+
 - push code to GitHub
 - do not push your real `server_config.json`
 - give them either:
   - their own secrets
   - or a private copy of the filled config outside git
-

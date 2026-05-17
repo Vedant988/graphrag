@@ -1,38 +1,45 @@
 [
   {
-    "id": "sauti_role",
-    "label": "Sauti opening role",
-    "question": "Who is Sauti and what role does he play in the opening of the Mahabharata?",
-    "correct_answer": "Sauti is Ugrasrava, the son of Lomaharshana. In the opening frame he arrives before Saunaka and the sages at Naimisa and serves as the narrator who recites the Bharata that Vyasa composed and Vaisampayana had earlier recited."
-  },
-  {
     "id": "ganesa_composition",
     "label": "Ganesa as scribe",
     "question": "What role does Ganesa play in the composition of the Mahabharata according to these opening pages?",
-    "correct_answer": "Ganesa acts as Vyasa's divine scribe. He agrees to write the poem continuously while Vyasa composes it, and Vyasa inserts difficult verses so Ganesa must pause to understand them before continuing."
-  },
-  {
-    "id": "opening_frame",
-    "label": "Opening narrative frame",
-    "question": "How is the Mahabharata framed in the opening pages, and who is speaking to whom?",
-    "correct_answer": "The opening pages frame the Mahabharata as Sauti speaking to Saunaka and the assembled sages at Naimisa. Sauti recounts the Bharata that Vaisampayana, Vyasa's disciple, had narrated earlier at King Janamejaya's sacrifice."
-  },
-  {
-    "id": "lament_root_causes",
-    "label": "War destruction causes",
-    "question": "Across the entire 10 pages, what are the primary justifications or root causes given for the destruction of the Kshatriya race or the massive loss of life in the war? Aggregate the distinct reasons.",
-    "correct_answer": "The opening pages tie the destruction to Duryodhana's envy, deceit, and refusal to heed wise counsel from Vidura, Bhishma, Drona, and Kripa; to the gambling and exile that deepened the conflict; and finally to the Kaurava-Pandava war at Samanta-panchaka, where Time used the assembled armies as the instrument of destruction."
-  },
-  {
-    "id": "vyasa_bhishma_lineage",
-    "label": "Vyasa and Bhishma connection",
-    "question": "Based entirely on the first 10 pages, trace the exact lineage and mentorship connections between the author of the Mahabharata and the warrior who was left lying on a bed of arrows. How are they connected?",
-    "correct_answer": "The author is Krishna-Dwaipayana Vyasa, the son of Parasara and Satyavati. The warrior on the bed of arrows is Bhishma, the son of Santanu and Ganga. They are connected because Satyavati later married Santanu, which made Vyasa Bhishma's stepbrother through the Kuru household, and the text also says Vyasa fathered Dhritarashtra, Pandu, and Vidura at the injunction of Bhishma and Satyavati to preserve the Kuru line."
+    "correct_answer": "According to the opening pages, Brahma tells Vyasa to invoke Ganesa as the writer of the Mahabharata. Ganesa agrees to act as Vyasa's scribe on the condition that his pen must not cease writing for even a moment. Vyasa accepts, but adds the counter-condition that Ganesa must not write any verse until he has fully understood it. Vyasa then composes difficult verses so Ganesa must pause to understand them, giving Vyasa time to compose more.",
+    "excellent_answer_details": "Highest-scoring answers should mention Brahma's suggestion, Ganesa as Vyasa's scribe, Ganesa's exact pen-not-ceasing condition, Vyasa's comprehension counter-condition, and the difficult-verse mechanism that forces Ganesa to pause.",
+    "scoring_guidance": "An answer that claims Ganesa is not mentioned, says the pages do not establish Ganesa's role, or presents the Ganesa passage as a discrepancy should score 0-10. An answer with all core facts but saying Vyasa must dictate without pause instead of Ganesa's pen must not stop should score around 90. An answer that includes Brahma, the exact pen condition, Vyasa's comprehension condition, and the difficult-verse pause mechanism should score 98-100."
   },
   {
     "id": "translation_origin",
     "label": "Translation Origin",
     "question": "Trace the origin of the English translation project mentioned in the preface. Who originally suggested the undertaking in a letter, and who actually traveled to Seebpore with Babu Durga Charan Banerjee to officially engage the translator?",
-    "correct_answer": "According to the preface of the provided text, the English translation project of the Mahabharata originated from a suggestion made in a letter by Dr. Rost. To officially engage the translator for this undertaking, Babu Pratapa Chandra Roy traveled to the translator's retreat at Seebpore. He was accompanied on this journey by Babu Durga Charan Banerjee, and during their meeting, Roy presented Dr. Rost's letter as the original inspiration for the grand scheme."
+    "correct_answer": "According to the preface of the provided text, the English translation project of the Mahabharata originated from a suggestion made in a letter by Dr. Rost. To officially engage the translator for this undertaking, Babu Pratapa Chandra Roy traveled to the translator's retreat at Seebpore. He was accompanied on this journey by Babu Durga Charan Banerjee, and during their meeting, Roy presented Dr. Rost's letter as the original inspiration for the grand scheme.",
+    "excellent_answer_details": "Award the highest score to answers that also identify Dr. Rost as Dr. Reinhold Rost and identify the translator as Kisari Mohan Ganguli. A concise answer with the required Dr. Rost, Pratapa Chandra Roy, and Durga Charan Banerjee facts can still score around 95, but the richer cross-page answer should score higher."
+  },
+  {
+    "id": "translation_philosophy",
+    "label": "Translation Philosophy",
+    "question": "How does the translator justify his strict adherence to the original Sanskrit text, even at the risk of appearing ridiculous to English readers, and whose previous translations does he cite to defend this approach?",
+    "correct_answer": "The translator argues that a translator's chief duty is to hold the mirror up to the author, representing their ideas, imagery, and language as faithfully as possible, rather than dressing them in an 'outlandish garb' to please English tastes. He justifies this by rejecting 'Free Translation' and cites Mr. Pickford (translator of Mahavira Charita) and Mr. C.H. Tawney (translator of Bhartrihari's Niti Satakam and Vairagya Satakam), both of whom defended close adherence to the original over the 'studied dishonesty' of oriental translators who sacrifice fidelity to avoid ridicule.",
+    "excellent_answer_details": "Award the highest score to answers that mention the 'mirror' metaphor, explicitly name both Mr. Pickford and Mr. C.H. Tawney, and contrast the translator's faithful method with the 'studied dishonesty' or 'Free Translation' tailored for English tastes."
+  },
+  {
+    "id": "translator_anonymity",
+    "label": "Translator Anonymity",
+    "question": "Why did the translator initially insist on remaining anonymous, and what specific public accusation forced the publisher to clarify the situation?",
+    "correct_answer": "The translator initially preferred anonymity because he feared he might not live to finish the gigantic work, and he did not want successive fasciculus appearing with different translators' names on the title pages. However, an influential Indian journal accused the publisher, Babu Pratapa Chandra Roy, of a 'great literary imposture' by posing as the translator of Vyasa's work. This forced Roy to write to the journal, pointing to the two distinct prefaces in the first fasciculus that separated the publisher and the author, which led to a public apology from the journal.",
+    "excellent_answer_details": "An excellent answer should mention the translator's fear of death or inability to complete the work, the specific accusation of 'literary imposture' against Babu Pratapa Chandra Roy, and the resolution involving the two distinct prefaces."
+  },
+  {
+    "id": "ganesa_scribe",
+    "label": "Ganesa as Scribe",
+    "question": "Describe the unique condition laid down by Ganesa before he agreed to act as the scribe for Vyasa's epic, and how Vyasa cleverly countered this condition to buy himself time to compose.",
+    "correct_answer": "Ganesa agreed to write the epic on the condition that his pen must not for a moment cease writing. Vyasa countered by asking Ganesa to promise not to write anything he did not fully comprehend. By knitting the 'knots of composition exceeding close' (creating difficult, obscure verses), Vyasa forced the omniscient Ganesa to take a moment to consider their meaning, which gave Vyasa the time needed to compose more verses.",
+    "excellent_answer_details": "Full points should be awarded to answers that clearly define Ganesa's demand for a ceaseless pen and Vyasa's clever counter-demand for comprehension, specifically noting the use of complex/difficult slokas to stall the scribe."
+  },
+  {
+    "id": "yudhishthira_tree_metaphor",
+    "label": "Yudhishthira Tree Metaphor",
+    "question": "The narrative employs a metaphor of a vast tree to describe Yudhishthira. In this metaphor, what specific roles do Arjuna, Bhimasena, and the two sons of Madri represent, and who form the roots of this tree?",
+    "correct_answer": "In the metaphor comparing Yudhishthira to a vast tree formed of religion and virtue, Arjuna represents the trunk, Bhimasena represents its branches, the two sons of Madri (Nakula and Sahadeva) are its full-grown fruit and flowers, and its roots are Krishna, Brahma, and the Brahmanas.",
+    "excellent_answer_details": "An excellent answer must accurately map all components: Arjuna as the trunk, Bhimasena as the branches, Madri's sons as fruit/flowers, and Krishna, Brahma, and the Brahmanas as the roots."
   }
 ]

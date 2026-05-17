@@ -41,6 +41,8 @@ _FLASH_LITE_DEFAULT_LIMITS = {
 }
 _RATE_LIMITER_REGISTRY = {}
 _RATE_LIMITER_REGISTRY_LOCK = threading.Lock()
+_ACTIVE_KEY_REGISTRY = {}
+_ACTIVE_KEY_REGISTRY_LOCK = threading.Lock()
 
 
 class _GeminiRateLimiter:
@@ -150,6 +152,25 @@ def _stable_api_key_fingerprint(config: dict, api_key: str | None = None) -> str
     return hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:16]
 
 
+def _active_key_registry_key(config: dict, api_keys: list[str]) -> tuple:
+    return (
+        str(config.get("llm_service", "")).lower(),
+        str(config.get("llm_model", "")).lower(),
+        tuple(hashlib.sha256(key.encode("utf-8")).hexdigest()[:16] for key in api_keys),
+    )
+
+
+def _initial_active_key_index(config: dict, api_keys: list[str]) -> int:
+    if not api_keys:
+        return 0
+    registry_key = _active_key_registry_key(config, api_keys)
+    with _ACTIVE_KEY_REGISTRY_LOCK:
+        last_healthy_key = _ACTIVE_KEY_REGISTRY.get(registry_key)
+    if last_healthy_key in api_keys:
+        return api_keys.index(last_healthy_key)
+    return 0
+
+
 def _rate_limit_overrides(config: dict) -> dict:
     model_kwargs = config.get("model_kwargs", {}) or {}
     return {
@@ -225,9 +246,12 @@ class GoogleGenAI(LLM_Model):
         self._model_name = model_name
         self._temperature = config["model_kwargs"]["temperature"]
         self._api_keys = collect_gemini_api_keys(config)
+        self._active_key_registry_key = _active_key_registry_key(config, self._api_keys)
         self._llm_clients: dict[str, ChatGoogleGenerativeAI] = {}
-        self._active_api_key_index = 0
+        self._active_api_key_index = _initial_active_key_index(config, self._api_keys)
         self._active_api_key = self._api_keys[0] if self._api_keys else ""
+        if self._api_keys:
+            self._active_api_key = self._api_keys[self._active_api_key_index]
         self.prompt_path = config.get("prompt_path", self.prompt_path)
         self._rate_limits = _resolve_rate_limits(config)
         self._rate_limiters_by_key: dict[str, _GeminiRateLimiter] = {}
@@ -275,6 +299,9 @@ class GoogleGenAI(LLM_Model):
         self._active_api_key = self._api_keys[index] if self._api_keys else ""
         self.llm = self._client_for_key(self._active_api_key)
         self._shared_rate_limiter = self._rate_limiter_for_key(self._active_api_key)
+        if self._active_api_key:
+            with _ACTIVE_KEY_REGISTRY_LOCK:
+                _ACTIVE_KEY_REGISTRY[self._active_key_registry_key] = self._active_api_key
 
     def _active_client_state(self):
         with self._client_lock:

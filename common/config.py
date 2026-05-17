@@ -37,19 +37,7 @@ from common.embeddings.embedding_services import (
     Ollama_Embedding,
 )
 from common.embeddings.tigergraph_embedding_store import TigerGraphEmbeddingStore
-from common.llm_services import (
-    AWS_SageMaker_Endpoint,
-    AWSBedrock,
-    AzureOpenAI,
-    GoogleVertexAI,
-    GoogleGenAI,
-    Groq,
-    HuggingFaceEndpoint,
-    LLM_Model,
-    Ollama,
-    OpenAI,
-    IBMWatsonX
-)
+from common.llm_services import LLM_Model
 from common.session import SessionHandler
 from common.status import StatusManager
 
@@ -449,20 +437,24 @@ if "model_name" not in llm_config or "model_name" not in llm_config["embedding_s
     else:
         llm_config["embedding_service"]["model_name"] = llm_config["model_name"]
 
-if llm_config["embedding_service"]["embedding_model_service"].lower() == "openai":
-    embedding_service = OpenAI_Embedding(llm_config["embedding_service"])
-elif llm_config["embedding_service"]["embedding_model_service"].lower() == "azure":
-    embedding_service = AzureOpenAI_Ada002(llm_config["embedding_service"])
-elif llm_config["embedding_service"]["embedding_model_service"].lower() == "vertexai":
-    embedding_service = VertexAI_PaLM_Embedding(llm_config["embedding_service"])
-elif llm_config["embedding_service"]["embedding_model_service"].lower() == "genai":
-    embedding_service = GenAI_Embedding(llm_config["embedding_service"])
-elif llm_config["embedding_service"]["embedding_model_service"].lower() == "bedrock":
-    embedding_service = AWS_Bedrock_Embedding(llm_config["embedding_service"])
-elif llm_config["embedding_service"]["embedding_model_service"].lower() == "ollama":
-    embedding_service = Ollama_Embedding(llm_config["embedding_service"])
-else:
+def _build_embedding_service(embedding_config: dict):
+    service_name = embedding_config["embedding_model_service"].lower()
+    if service_name == "openai":
+        return OpenAI_Embedding(embedding_config)
+    elif service_name == "azure":
+        return AzureOpenAI_Ada002(embedding_config)
+    elif service_name == "vertexai":
+        return VertexAI_PaLM_Embedding(embedding_config)
+    elif service_name == "genai":
+        return GenAI_Embedding(embedding_config)
+    elif service_name == "bedrock":
+        return AWS_Bedrock_Embedding(embedding_config)
+    elif service_name == "ollama":
+        return Ollama_Embedding(embedding_config)
     raise Exception("Embedding service not implemented")
+
+
+embedding_service = _build_embedding_service(llm_config["embedding_service"])
 
 embedding_store = _DisabledEmbeddingStore(db_config.get("graphname", ""))
 service_status["embedding_store"] = {
@@ -480,24 +472,34 @@ def get_llm_service(service_config: dict) -> LLM_Model:
     """
     service_name = service_config["llm_service"].lower()
     if service_name == "openai":
+        from common.llm_services import OpenAI
         return OpenAI(service_config)
     elif service_name == "azure":
+        from common.llm_services import AzureOpenAI
         return AzureOpenAI(service_config)
     elif service_name == "sagemaker":
+        from common.llm_services import AWS_SageMaker_Endpoint
         return AWS_SageMaker_Endpoint(service_config)
     elif service_name == "vertexai":
+        from common.llm_services import GoogleVertexAI
         return GoogleVertexAI(service_config)
     elif service_name == "genai":
+        from common.llm_services import GoogleGenAI
         return GoogleGenAI(service_config)
     elif service_name == "bedrock":
+        from common.llm_services import AWSBedrock
         return AWSBedrock(service_config)
     elif service_name == "groq":
+        from common.llm_services import Groq
         return Groq(service_config)
     elif service_name == "ollama":
+        from common.llm_services import Ollama
         return Ollama(service_config)
     elif service_name == "huggingface":
+        from common.llm_services import HuggingFaceEndpoint
         return HuggingFaceEndpoint(service_config)
     elif service_name == "watsonx":
+        from common.llm_services import IBMWatsonX
         return IBMWatsonX(service_config)
     else:
         raise Exception(f"LLM service '{service_name}' not supported")
@@ -609,20 +611,7 @@ def reload_llm_config(new_llm_config: dict = None):
         llm_config.update(new_llm_config)
 
         # Re-initialize embedding service
-        if new_embedding_config["embedding_model_service"].lower() == "openai":
-            embedding_service = OpenAI_Embedding(new_embedding_config)
-        elif new_embedding_config["embedding_model_service"].lower() == "azure":
-            embedding_service = AzureOpenAI_Ada002(new_embedding_config)
-        elif new_embedding_config["embedding_model_service"].lower() == "vertexai":
-            embedding_service = VertexAI_PaLM_Embedding(new_embedding_config)
-        elif new_embedding_config["embedding_model_service"].lower() == "genai":
-            embedding_service = GenAI_Embedding(new_embedding_config)
-        elif new_embedding_config["embedding_model_service"].lower() == "bedrock":
-            embedding_service = AWS_Bedrock_Embedding(new_embedding_config)
-        elif new_embedding_config["embedding_model_service"].lower() == "ollama":
-            embedding_service = Ollama_Embedding(new_embedding_config)
-        else:
-            raise Exception("Embedding service not implemented")
+        embedding_service = _build_embedding_service(new_embedding_config)
 
         return {
             "status": "success",

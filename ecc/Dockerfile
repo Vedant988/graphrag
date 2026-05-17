@@ -1,7 +1,8 @@
 FROM python:3.11.9-bullseye
 WORKDIR /code
 
-COPY common/requirements.txt requirements.txt
+ARG PYTHON_REQUIREMENTS=common/requirements.cloud.txt
+COPY ${PYTHON_REQUIREMENTS} requirements.txt
  
 RUN apt-get update && apt-get upgrade -y
 RUN pip install -r requirements.txt
